@@ -1,0 +1,12 @@
+with "../SSH_Lib.gpr";
+
+project Manual_Examples is
+   for Source_Dirs use (".");
+   for Main use ("manual_git_upload_pack_probe.adb");
+   for Object_Dir use "../../ssh_lib_build/obj/manual_examples";
+   for Exec_Dir use "../../ssh_lib_build/bin/manual_examples";
+
+   package Compiler is
+      for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa", "-gnatwe");
+   end Compiler;
+end Manual_Examples;

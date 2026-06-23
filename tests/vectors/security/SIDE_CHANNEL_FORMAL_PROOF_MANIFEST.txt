@@ -1,0 +1,28 @@
+version: side-channel-formal-proof-v1
+scope: SSH_Lib native cryptographic primitives
+status: source-obligations-discharged-external-proof-required
+source_obligations:
+  - no-secret-dependent-branches
+  - no-secret-dependent-loop-bounds
+  - constant-time-selection-for-secret-choice
+  - constant-time-equality-for-secret-compare
+  - fixed-public-width-arithmetic
+  - invalid-ciphertext-fallback-selection
+  - source-audit-tokens-present
+external_evidence_required:
+  - external-leakage-tool-required
+  - compiler-codegen-audit-required
+  - independent-crypto-review-required
+covered_primitives:
+  - rsa-private-exponentiation
+  - rsa-pkcs1-verification
+  - ecdsa-p256-scalar-arithmetic
+  - ed25519-scalar-arithmetic
+  - x25519-scalar-multiplication
+  - dh-group14-exponentiation
+  - dh-group16-exponentiation
+  - dh-group18-exponentiation
+  - mlkem768-decapsulation
+  - sntrup761-decapsulation
+  - umac-tag-generation
+  - packet-mac-verification

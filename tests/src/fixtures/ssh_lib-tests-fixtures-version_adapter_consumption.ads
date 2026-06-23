@@ -1,0 +1,3 @@
+package SSH_Lib.Tests.Fixtures.Version_Adapter_Consumption is
+   procedure Assert_Deterministic_Version_Adapter_Consumption;
+end SSH_Lib.Tests.Fixtures.Version_Adapter_Consumption;

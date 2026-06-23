@@ -1,0 +1,19 @@
+name = "tests"
+description = "SSH_Lib AUnit test suite"
+version = "0.1.0-dev"
+licenses = "MIT"
+
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+
+project-files = ["tests.gpr"]
+
+[[depends-on]]
+ssh_lib = "*"
+
+[[depends-on]]
+aunit = "^26.0.0"
+
+[[pins]]
+ssh_lib = { path = ".." }

@@ -1,0 +1,2 @@
+last_build_profile = "aunit=RELEASE,cryptolib=RELEASE,ssh_lib=RELEASE,tests=DEVELOPMENT,zlib=RELEASE"
+

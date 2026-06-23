@@ -1,0 +1,469 @@
+with Ada.Characters.Handling;
+with Ada.Strings.Fixed;
+with SSH_Lib.Channels;
+with SSH_Lib.Git;
+with SSH_Lib.Remote_Names;
+
+package body SSH_Lib.Git_Transport is
+   use CryptoLib.Errors;
+   use Ada.Strings.Unbounded;
+   use type Ada.Streams.Stream_Element_Offset;
+
+   Read_Buffer_Size : constant Natural := 4096;
+
+   function Starts_With_Ssh_Scheme (Value : String) return Boolean is
+      Prefix : constant String := "ssh://";
+      Lower_Value : constant String := Ada.Characters.Handling.To_Lower (Value);
+   begin
+      return Value'Length >= Prefix'Length
+        and then Lower_Value (Lower_Value'First .. Lower_Value'First + Prefix'Length - 1) = Prefix;
+   end Starts_With_Ssh_Scheme;
+
+   function Has_Control_Break (Value : String) return Boolean is
+   begin
+      for Text_Character of Value loop
+         if Text_Character = Character'Val (0)
+           or else Text_Character = Character'Val (10)
+           or else Text_Character = Character'Val (13)
+         then
+            return True;
+         end if;
+      end loop;
+
+      return False;
+   end Has_Control_Break;
+
+   function Control_Break_Is_In_Repository (Value : String) return Boolean is
+   begin
+      if not Has_Control_Break (Value) then
+         return False;
+      end if;
+
+      if Starts_With_Ssh_Scheme (Value) then
+         declare
+            Prefix : constant String := "ssh://";
+            Remainder_First : constant Natural := Value'First + Prefix'Length;
+            Slash_Position : constant Natural :=
+              Ada.Strings.Fixed.Index
+                (Value (Remainder_First .. Value'Last), "/");
+         begin
+            if Slash_Position = 0 then
+               return False;
+            end if;
+
+            for Index_Value in Slash_Position + 1 .. Value'Last loop
+               if Value (Index_Value) = Character'Val (0)
+                 or else Value (Index_Value) = Character'Val (10)
+                 or else Value (Index_Value) = Character'Val (13)
+               then
+                  return True;
+               end if;
+            end loop;
+
+            return False;
+         end;
+      else
+         declare
+            Colon_Position : constant Natural := Ada.Strings.Fixed.Index (Value, ":");
+         begin
+            if Colon_Position = 0 or else Colon_Position = Value'Last then
+               return False;
+            end if;
+
+            for Index_Value in Colon_Position + 1 .. Value'Last loop
+               if Value (Index_Value) = Character'Val (0)
+                 or else Value (Index_Value) = Character'Val (10)
+                 or else Value (Index_Value) = Character'Val (13)
+               then
+                  return True;
+               end if;
+            end loop;
+
+            return False;
+         end;
+      end if;
+   exception
+      when others =>
+         return False;
+   end Control_Break_Is_In_Repository;
+
+   function Prepare
+     (Remote_Text  : String;
+      Config       : SSH_Lib.Config.Host_Config;
+      Default_User : String;
+      Requested    : Service;
+      Options      : out SSH_Lib.Sessions.Session_Options;
+      Command      : out Unbounded_String)
+      return CryptoLib.Errors.Status
+   is
+      Remote_Item  : SSH_Lib.Remote_Names.Parsed_Remote;
+      Status_Value : CryptoLib.Errors.Status;
+      Repository   : Unbounded_String := Null_Unbounded_String;
+   begin
+      if Control_Break_Is_In_Repository (Remote_Text) then
+         Options := (Host                 => Null_Unbounded_String,
+                     Port                 => 22,
+                     User                 => Null_Unbounded_String,
+                     Connect_Timeout_MS   => 30_000,
+                     Read_Timeout_MS      => 30_000,
+                     Write_Timeout_MS     => 30_000,
+                     Verify_Known_Host    => True,
+                     Known_Hosts_File     => Null_Unbounded_String,
+                     Identity_File        => Null_Unbounded_String,
+                     Certificate_File     => Null_Unbounded_String,
+                     Use_Agent            => True,
+                     Strict_Host_Key      => True,
+                     Proxy_Jump           => Null_Unbounded_String,
+                     Proxy_Command        => Null_Unbounded_String,
+                     Use_Password         => False,
+                     Password             => Null_Unbounded_String,
+                     Use_Identity_Passphrase => False,
+                     Identity_Passphrase  => Null_Unbounded_String,
+                     Password_Callback     => null,
+                     Identity_Passphrase_Callback => null,
+                     Password_Change_Callback => null,
+                     others => <>);
+         Command := Null_Unbounded_String;
+         return CryptoLib.Errors.Invalid_Command;
+      end if;
+
+      Options := (Host                 => Null_Unbounded_String,
+                  Port                 => 22,
+                  User                 => Null_Unbounded_String,
+                  Connect_Timeout_MS   => 30_000,
+                  Read_Timeout_MS      => 30_000,
+                  Write_Timeout_MS     => 30_000,
+                  Verify_Known_Host    => True,
+                  Known_Hosts_File     => Null_Unbounded_String,
+                  Identity_File        => Null_Unbounded_String,
+                  Certificate_File     => Null_Unbounded_String,
+                  Use_Agent            => True,
+                  Strict_Host_Key      => True,
+                     Proxy_Jump           => Null_Unbounded_String,
+                     Proxy_Command        => Null_Unbounded_String,
+                     Use_Password         => False,
+                     Password             => Null_Unbounded_String,
+                     Use_Identity_Passphrase => False,
+                     Identity_Passphrase  => Null_Unbounded_String,
+                     Password_Callback     => null,
+                     Identity_Passphrase_Callback => null,
+                     Password_Change_Callback => null,
+                     others => <>);
+      Command := Null_Unbounded_String;
+
+      Status_Value := SSH_Lib.Remote_Names.Parse (Remote_Text, Remote_Item);
+      if Status_Value /= CryptoLib.Errors.Ok then
+         return Status_Value;
+      end if;
+
+      Repository := To_Unbounded_String
+        (SSH_Lib.Remote_Names.Repository_Path (Remote_Item));
+      if Length (Repository) = 0 then
+         return CryptoLib.Errors.Invalid_Command;
+      end if;
+
+      if SSH_Lib.Config.Has_Unsupported_Feature
+        (Config, SSH_Lib.Remote_Names.Host (Remote_Item))
+      then
+         return CryptoLib.Errors.Unsupported_Feature;
+      end if;
+
+      --  Resolve config before applying remote overrides.  Do not pass
+      --  Default_User when the remote already contains an explicit user:
+      --  for version, remote user is authoritative and should not be made
+      --  dependent on a default-user fallback that will never be used.
+      Status_Value := SSH_Lib.Config.Resolve
+        (Config,
+         SSH_Lib.Remote_Names.Host (Remote_Item),
+         (if SSH_Lib.Remote_Names.Has_User (Remote_Item) then "" else Default_User),
+         Options);
+      if Status_Value /= CryptoLib.Errors.Ok then
+         return Status_Value;
+      end if;
+
+      if SSH_Lib.Remote_Names.Has_User (Remote_Item) then
+         Options.User := To_Unbounded_String
+           (SSH_Lib.Remote_Names.User (Remote_Item));
+      end if;
+
+      if SSH_Lib.Remote_Names.Has_Explicit_Port (Remote_Text) then
+         Options.Port := SSH_Lib.Remote_Names.Port (Remote_Item);
+      end if;
+
+      Options.Verify_Known_Host := True;
+      Options.Strict_Host_Key := True;
+
+      if Length (Options.User) = 0 then
+         return CryptoLib.Errors.Invalid_User;
+      end if;
+
+      case Requested is
+         when Upload_Pack =>
+            Status_Value := SSH_Lib.Git.Build_Upload_Pack_Command
+              (To_String (Repository), Command);
+         when Receive_Pack =>
+            Status_Value := SSH_Lib.Git.Build_Receive_Pack_Command
+              (To_String (Repository), Command);
+      end case;
+
+      if Status_Value /= CryptoLib.Errors.Ok then
+         Command := Null_Unbounded_String;
+         return Status_Value;
+      end if;
+
+      return CryptoLib.Errors.Ok;
+   exception
+      when others =>
+         Options := (Host                 => Null_Unbounded_String,
+                     Port                 => 22,
+                     User                 => Null_Unbounded_String,
+                     Connect_Timeout_MS   => 30_000,
+                     Read_Timeout_MS      => 30_000,
+                     Write_Timeout_MS     => 30_000,
+                     Verify_Known_Host    => True,
+                     Known_Hosts_File     => Null_Unbounded_String,
+                     Identity_File        => Null_Unbounded_String,
+                     Certificate_File     => Null_Unbounded_String,
+                     Use_Agent            => True,
+                     Strict_Host_Key      => True,
+                     Proxy_Jump           => Null_Unbounded_String,
+                     Proxy_Command        => Null_Unbounded_String,
+                     Use_Password         => False,
+                     Password             => Null_Unbounded_String,
+                     Use_Identity_Passphrase => False,
+                     Identity_Passphrase  => Null_Unbounded_String,
+                     Password_Callback     => null,
+                     Identity_Passphrase_Callback => null,
+                     Password_Change_Callback => null,
+                     others => <>);
+         Command := Null_Unbounded_String;
+         return CryptoLib.Errors.Internal_Error;
+   end Prepare;
+
+   function Open_Service
+     (Session   : in out SSH_Lib.Sessions.Session;
+      Requested : Service;
+      Command   : String;
+      Channel   : in out SSH_Lib.Channels.Channel)
+      return CryptoLib.Errors.Status
+   is
+      pragma Unreferenced (Requested);
+   begin
+      return SSH_Lib.Channels.Open_Exec (Session, Command, Channel);
+   exception
+      when others =>
+         return CryptoLib.Errors.Internal_Error;
+   end Open_Service;
+
+   function Copy_Response_Chunk
+     (Source   : Ada.Streams.Stream_Element_Array;
+      Target   : in out Ada.Streams.Stream_Element_Array;
+      Last     : in out Ada.Streams.Stream_Element_Offset;
+      Summary  : in out Git_Workflow_Summary)
+      return CryptoLib.Errors.Status
+   is
+      Target_Index : Ada.Streams.Stream_Element_Offset;
+   begin
+      if Source'Length = 0 then
+         return CryptoLib.Errors.Ok;
+      end if;
+
+      if Target'Length = 0 then
+         return CryptoLib.Errors.Read_Failed;
+      end if;
+
+      if Last < Target'First then
+         Target_Index := Target'First;
+      else
+         Target_Index := Last + 1;
+      end if;
+
+      if Target_Index > Target'Last
+        or else Source'Length >
+          Natural (Target'Last - Target_Index + 1)
+      then
+         return CryptoLib.Errors.Read_Failed;
+      end if;
+
+      for Source_Index in Source'Range loop
+         Target (Target_Index) := Source (Source_Index);
+         Target_Index := Target_Index + 1;
+      end loop;
+
+      Last := Target_Index - 1;
+      Summary.Response_Bytes := Summary.Response_Bytes + Source'Length;
+      return CryptoLib.Errors.Ok;
+   exception
+      when others =>
+         return CryptoLib.Errors.Internal_Error;
+   end Copy_Response_Chunk;
+
+   function Validate_Response
+     (Requested : Service;
+      Response  : Ada.Streams.Stream_Element_Array;
+      Summary   : in out Git_Workflow_Summary)
+      return CryptoLib.Errors.Status
+   is
+      Status_Value : CryptoLib.Errors.Status;
+   begin
+      case Requested is
+         when Upload_Pack =>
+            Status_Value := SSH_Lib.Git.Validate_Upload_Pack_Response
+              (Response, Summary.Upload_Response);
+         when Receive_Pack =>
+            Status_Value := SSH_Lib.Git.Validate_Receive_Pack_Report
+              (Response, Summary.Receive_Report);
+      end case;
+
+      Summary.Response_Validated := Status_Value = CryptoLib.Errors.Ok;
+      return Status_Value;
+   exception
+      when others =>
+         Summary.Response_Validated := False;
+         return CryptoLib.Errors.Internal_Error;
+   end Validate_Response;
+
+   function Complete_Service
+     (Channel  : in out SSH_Lib.Channels.Channel;
+      Requested : Service;
+      Request  : Ada.Streams.Stream_Element_Array;
+      Response : out Ada.Streams.Stream_Element_Array;
+      Last     : out Ada.Streams.Stream_Element_Offset;
+      Summary  : out Git_Workflow_Summary)
+      return CryptoLib.Errors.Status
+   is
+      Status_Value : CryptoLib.Errors.Status;
+      Close_Status : CryptoLib.Errors.Status := CryptoLib.Errors.Ok;
+      Read_Buffer  : Ada.Streams.Stream_Element_Array
+        (Ada.Streams.Stream_Element_Offset'(1)
+         .. Ada.Streams.Stream_Element_Offset (Read_Buffer_Size));
+      Read_Last    : Ada.Streams.Stream_Element_Offset;
+      Exit_Code    : Integer := 0;
+   begin
+      Summary := (Requested => Requested, others => <>);
+      Summary.Request_Bytes := Request'Length;
+      if Response'Length = 0 then
+         Last := Response'First - 1;
+      else
+         Last := Response'First - 1;
+      end if;
+
+      Status_Value := SSH_Lib.Channels.Write (Channel, Request);
+      if Status_Value /= CryptoLib.Errors.Ok then
+         Close_Status := SSH_Lib.Channels.Close (Channel);
+         if Close_Status /= CryptoLib.Errors.Ok then
+            return Close_Status;
+         end if;
+         return Status_Value;
+      end if;
+
+      Status_Value := SSH_Lib.Channels.Send_EOF (Channel);
+      if Status_Value /= CryptoLib.Errors.Ok then
+         Close_Status := SSH_Lib.Channels.Close (Channel);
+         if Close_Status /= CryptoLib.Errors.Ok then
+            return Close_Status;
+         end if;
+         return Status_Value;
+      end if;
+
+      loop
+         Status_Value := SSH_Lib.Channels.Read_Some
+           (Channel, Read_Buffer, Read_Last);
+         exit when Status_Value = CryptoLib.Errors.End_Of_Stream;
+
+         if Status_Value /= CryptoLib.Errors.Ok then
+            Close_Status := SSH_Lib.Channels.Close (Channel);
+            if Close_Status /= CryptoLib.Errors.Ok then
+               return Close_Status;
+            end if;
+            return Status_Value;
+         end if;
+
+         if Read_Last >= Read_Buffer'First then
+            Status_Value := Copy_Response_Chunk
+              (Read_Buffer (Read_Buffer'First .. Read_Last),
+               Response,
+               Last,
+               Summary);
+            if Status_Value /= CryptoLib.Errors.Ok then
+               Close_Status := SSH_Lib.Channels.Close (Channel);
+               if Close_Status /= CryptoLib.Errors.Ok then
+                  return Close_Status;
+               end if;
+               return Status_Value;
+            end if;
+         end if;
+      end loop;
+
+      if Summary.Response_Bytes = 0 then
+         Status_Value := CryptoLib.Errors.Read_Failed;
+      else
+         Status_Value := Validate_Response
+           (Requested, Response (Response'First .. Last), Summary);
+      end if;
+
+      if Status_Value /= CryptoLib.Errors.Ok then
+         Close_Status := SSH_Lib.Channels.Close (Channel);
+         if Close_Status /= CryptoLib.Errors.Ok then
+            return Close_Status;
+         end if;
+         return Status_Value;
+      end if;
+
+      Status_Value := SSH_Lib.Channels.Exit_Status (Channel, Exit_Code);
+      Summary.Exit_Code := Exit_Code;
+      Summary.Remote_Exit_Observed := Status_Value = CryptoLib.Errors.Ok
+        or else Status_Value = CryptoLib.Errors.Remote_Exit_Nonzero;
+
+      Close_Status := SSH_Lib.Channels.Close (Channel);
+      if Status_Value = CryptoLib.Errors.Channel_Request_Failed then
+         if Close_Status /= CryptoLib.Errors.Ok then
+            return Close_Status;
+         else
+            return CryptoLib.Errors.Ok;
+         end if;
+      elsif Status_Value /= CryptoLib.Errors.Ok then
+         return Status_Value;
+      elsif Close_Status /= CryptoLib.Errors.Ok then
+         return Close_Status;
+      else
+         return CryptoLib.Errors.Ok;
+      end if;
+   exception
+      when others =>
+         Summary := (Requested => Requested, others => <>);
+         Last := Response'First - 1;
+         return CryptoLib.Errors.Internal_Error;
+   end Complete_Service;
+
+   function Run_Service
+     (Session   : in out SSH_Lib.Sessions.Session;
+      Requested : Service;
+      Command   : String;
+      Request   : Ada.Streams.Stream_Element_Array;
+      Response  : out Ada.Streams.Stream_Element_Array;
+      Last      : out Ada.Streams.Stream_Element_Offset;
+      Summary   : out Git_Workflow_Summary)
+      return CryptoLib.Errors.Status
+   is
+      Channel_Item : SSH_Lib.Channels.Channel;
+      Status_Value : CryptoLib.Errors.Status;
+   begin
+      Summary := (Requested => Requested, others => <>);
+      Last := Response'First - 1;
+
+      Status_Value := Open_Service
+        (Session, Requested, Command, Channel_Item);
+      if Status_Value /= CryptoLib.Errors.Ok then
+         return Status_Value;
+      end if;
+
+      return Complete_Service
+        (Channel_Item, Requested, Request, Response, Last, Summary);
+   exception
+      when others =>
+         Summary := (Requested => Requested, others => <>);
+         Last := Response'First - 1;
+         return CryptoLib.Errors.Internal_Error;
+   end Run_Service;
+end SSH_Lib.Git_Transport;

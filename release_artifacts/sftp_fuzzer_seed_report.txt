@@ -1,0 +1,39 @@
+sftp_fuzzer_seed_report=1
+engine=seed-corpus
+afl_fuzz_available=false
+honggfuzz_available=false
+cargo_afl_available=false
+seed=version6-versions-supported2.bin mode=version result=PASS
+seed=version3-minimal.bin mode=version result=PASS
+seed=truncated-header.bin mode=version result=PASS
+seed=unsupported-version7.bin mode=version result=PASS
+seed=bad-length.bin mode=version result=PASS
+seed=empty-extension-name.bin mode=version result=PASS
+seed=handle/status-failure.bin mode=handle result=PASS
+seed=handle/empty-handle.bin mode=handle result=PASS
+seed=handle/handle-h.bin mode=handle result=PASS
+seed=statvfs/truncated.bin mode=statvfs result=PASS
+seed=statvfs/statvfs.bin mode=statvfs result=PASS
+seed=name-v6/one-entry.bin mode=name-v6 result=PASS
+seed=name-v6/two-entries.bin mode=name-v6 result=PASS
+seed=limits/limits.bin mode=limits result=PASS
+seed=limits/status-failure.bin mode=limits result=PASS
+seed=name-v3/one-entry.bin mode=name-v3 result=PASS
+seed=name-v3/eof-status.bin mode=name-v3 result=PASS
+seed=extended/status-failure.bin mode=extended result=PASS
+seed=extended/reply-raw.bin mode=extended result=PASS
+seed=attrs-v3/empty.bin mode=attrs-v3 result=PASS
+seed=attrs-v3/basic.bin mode=attrs-v3 result=PASS
+seed=check-file/wrong-name.bin mode=check-file result=PASS
+seed=check-file/sha1.bin mode=check-file result=PASS
+seed=status/truncated-message.bin mode=status result=PASS
+seed=status/permission-denied.bin mode=status result=PASS
+seed=status/ok.bin mode=status result=PASS
+seed=data/data-abc.bin mode=data result=PASS
+seed=data/eof-status.bin mode=data result=PASS
+seed=data/zero-data.bin mode=data result=PASS
+seed=attrs-v6/owner-size-perms.bin mode=attrs-v6 result=PASS
+seed=attrs-v6/empty.bin mode=attrs-v6 result=PASS
+passed=31
+failed=0
+result=PASS

@@ -1,0 +1,22 @@
+# SSH_Lib external PQ KAT manifest
+# Source class: NIST ACVP ML-KEM JSON schema / generated vector corpus
+# The ACVP ML-KEM schema defines keyGen and encapDecap groups for ML-KEM implementations.
+# This archive now bundles a minimal executable ACVP JSON-shaped prompt/expectedResults corpus.
+# Broader production conformance can import additional prompt.json and expectedResults.json
+# files from usnistgov/ACVP-Server gen-val json-files or an ACVP server session.
+algorithm=ML-KEM-768
+source_family=NIST-ACVP-ML-KEM-FIPS203
+source_reference=https://pages.nist.gov/ACVP/draft-celi-acvp-ml-kem.html
+expected_public_key_length=1184
+expected_secret_key_length=2400
+expected_ciphertext_length=1088
+expected_shared_secret_length=32
+required_groups=keyGen,encapDecap
+required_files=ML-KEM-keyGen-FIPS203/prompt.json,ML-KEM-keyGen-FIPS203/expectedResults.json,ML-KEM-encapDecap-FIPS203/prompt.json,ML-KEM-encapDecap-FIPS203/expectedResults.json
+status=external-kat-harness-ready
+required_vector_file=MLKEM768_ACVP_KAT_001.txt
+required_json_keygen_prompt=ML-KEM-keyGen-FIPS203/prompt.json
+required_json_keygen_expected=ML-KEM-keyGen-FIPS203/expectedResults.json
+required_json_encapdecap_prompt=ML-KEM-encapDecap-FIPS203/prompt.json
+required_json_encapdecap_expected=ML-KEM-encapDecap-FIPS203/expectedResults.json
+required_vector_checks=seeded-keygen,seeded-encapsulate,decapsulate,invalid-ciphertext-fallback,artifact-digests-present,acvp-json-expected-results-execution

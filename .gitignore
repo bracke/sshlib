@@ -1,0 +1,25 @@
+# Build outputs
+ssh_lib_build/
+../ssh_lib_build/
+obj/
+lib/
+bin/
+*.ali
+*.o
+*.a
+*.so
+*.lexch
+*.bexch
+
+# Alire local state
+alire/cache/
+alire/builds/
+
+# Editor/OS noise
+*~
+*.swp
+.DS_Store
+
+# Local live-test scratch should stay outside the repo; archived release
+# evidence belongs under release_artifacts/.
+/tmp/

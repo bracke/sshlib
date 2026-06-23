@@ -1,0 +1,47 @@
+with "../ssh_lib_internal.gpr";
+with "aunit.gpr";
+
+project Security_Tests is
+   for Source_Dirs use (".", "../src", "../src/fixtures");
+   for Main use
+     ("test_host_key_negative.adb",
+      "test_algorithm_negative.adb",
+      "test_algorithm_security.adb",
+      "test_crypto_primitives.adb",
+      "test_pq_external_kats.adb",
+      "test_hybrid_pq_readiness.adb",
+      "test_hybrid_pq_openssh_transcripts.adb",
+      "test_side_channel_assurance.adb",
+      "test_auth_negative.adb",
+      "test_packet_protection_negative.adb",
+      "test_command_quoting_negative.adb",
+      "test_binary_stream_negative.adb",
+      "test_timeout_dirty_negative.adb",
+      "test_resource_bounds.adb",
+      "test_exception_mapping.adb",
+      "test_config_security.adb",
+      "test_auth_security.adb",
+      "test_auth_malformed_inputs.adb",
+      "test_agent_transport_security.adb",
+      "test_live_channel_transport.adb",
+      "test_live_git_e2e.adb",
+      "test_live_git_interop_matrix.adb",
+      "test_live_proxycommand_transport.adb",
+      "test_live_proxyjump_transport.adb",
+      "test_live_rekey_transport.adb",
+      "test_transport_messages.adb",
+      "test_fuzz_lite.adb",
+      "test_hostile_transcripts.adb",
+      "test_session_open_success_security.adb",
+      "test_open_runtime_security.adb",
+      "test_phase19_matrix_coverage.adb",
+      "test_phase19_invariant_coverage.adb",
+      "test_status_mapping_matrix.adb",
+      "test_phase19_context_compliance.adb");
+   for Object_Dir use "../../../ssh_lib_build/obj/tests_security";
+   for Exec_Dir use "../../../ssh_lib_build/bin/tests_security";
+
+   package Compiler is
+      for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa", "-gnatwe");
+   end Compiler;
+end Security_Tests;

@@ -1,0 +1,58 @@
+version: side-channel-assurance-v1
+scope: SSH_Lib native cryptographic primitives used by SSH transport, host-key verification, userauth signing, packet protection, and OpenSSH hybrid/PQ KEX boundaries
+status: source-gated-assurance-framework
+external_review_required: true
+
+primitive: rsa-private-exponentiation
+source: src/ssh_lib-crypto-rsa.adb
+claim: private exponent processing is bounded by public modulus width and uses candidate-and-select arithmetic gates
+forbidden_regressions: secret-dependent exponent loop bounds; secret-bit multiplier branches; early PKCS#1 padding separator search
+external_status: independent leakage proof still required
+
+primitive: rsa-pkcs1-verification
+source: src/ssh_lib-crypto-rsa.adb
+claim: verification uses fixed layout checks and constant-time digest-tail comparison
+forbidden_regressions: data-dependent separator search; early success on partial DigestInfo match
+external_status: independent leakage proof still required
+
+primitive: ecdsa-p256-scalar-arithmetic
+source: src/ssh_lib-crypto-ecdsa.adb
+claim: scalar operations use fixed iteration candidate-and-select patterns
+forbidden_regressions: scalar-bit branches; unbounded secret-dependent reductions
+external_status: independent leakage proof still required
+
+primitive: ed25519-scalar-arithmetic
+source: src/ssh_lib-crypto-ed25519.adb
+claim: field/scalar operations use fixed iteration candidate-and-select and fixed-pass normalization
+forbidden_regressions: compare-controlled final reduction loops; scalar-bit branches
+external_status: independent leakage proof still required
+
+primitive: x25519-scalar-multiplication
+source: src/ssh_lib-crypto-curve25519.adb
+claim: final reduction and all-zero shared-secret detection use fixed-limb scans and accumulators
+forbidden_regressions: high-to-low early-return comparison; short-circuit all-zero detection
+external_status: independent leakage proof still required
+
+primitive: finite-field-dh
+source: src/ssh_lib-crypto-diffie_hellman.adb
+claim: group14/group16/group18 exponentiation is fixed-width with fixed subtract-and-select reductions
+forbidden_regressions: Lowest_Useful_Bit; Stop_Bit; compare-controlled normalization loops
+external_status: independent leakage proof still required
+
+primitive: mlkem768-decapsulation
+source: src/ssh_lib-crypto-mlkem768.adb
+claim: CCA decapsulation uses deterministic re-encryption, constant-time ciphertext comparison, and z fallback selection
+forbidden_regressions: returning early on ciphertext mismatch; branching around fallback secret selection
+external_status: ACVP plus leakage proof still required
+
+primitive: sntrup761-decapsulation
+source: src/ssh_lib-crypto-sntrup761.adb
+claim: decapsulation uses deterministic re-encryption, constant-time tag comparison, and fallback-secret behavior
+forbidden_regressions: early ciphertext/tag mismatch return; unchecked invalid ciphertext success
+external_status: OpenSSH/NTRU Prime vectors plus leakage proof still required
+
+primitive: packet-mac-verification
+source: src/ssh_lib-protocol-protected_packets.adb
+claim: MAC verification is dirty-state fail-closed and uses constant-time comparison for expected tag checks
+forbidden_regressions: partial tag prefix acceptance; packet accepted after failed MAC
+external_status: independent leakage proof still required

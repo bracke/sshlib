@@ -1,0 +1,46 @@
+with "config/ssh_lib_config.gpr";
+with "zlib.gpr";
+
+library project SSH_Lib is
+   for Source_Dirs use ("src");
+   for Object_Dir use "../ssh_lib_build/obj/lib";
+   for Library_Dir use "../ssh_lib_build/lib";
+   for Library_Name use "ssh_lib";
+   for Library_Kind use "static";
+   for Library_Interface use
+     ("SSH_Lib",
+      "SSH_Lib.Clients",
+      "SSH_Lib.Sessions",
+      "SSH_Lib.Channels",
+      "SSH_Lib.Known_Hosts",
+      "SSH_Lib.Keys",
+      "SSH_Lib.Config",
+      "SSH_Lib.Config_Apply",
+      "SSH_Lib.Git",
+      "SSH_Lib.SCP",
+      "SSH_Lib.File_Transfer",
+      "SSH_Lib.SFTP",
+      "SSH_Lib.Forwarding",
+      "SSH_Lib.Security_Keys",
+      "SSH_Lib.Remote_Names",
+      "SSH_Lib.Git_Transport",
+      "SSH_Lib.Protocol",
+      "SSH_Lib.Protocol.Buffers",
+      "SSH_Lib.Protocol.Protected_Packets",
+      "SSH_Lib.Protocol.Packets",
+      "SSH_Lib.Sessions.Live_Attachment",
+      "SSH_Lib.Sessions.Live_Transcript");
+
+   package Compiler is
+      for Default_Switches ("Ada") use SSH_Lib_Config.Ada_Compiler_Switches & ("-gnat2022", "-gnatyM120", "-gnatX", "-gnata", "-gnatVa", "-gnatW8");
+   end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es"); --  Symbolic traceback
+   end Binder;
+
+   package Install is
+      for Artifacts (".") use ("share");
+   end Install;
+
+end SSH_Lib;

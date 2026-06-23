@@ -1,0 +1,20 @@
+# SSH_Lib SNTRUP761 OpenSSH-shaped external conformance vector.
+# Format is intentionally plain key=value so official/OpenSSH-generated vectors
+# can be imported without changing the test executable.
+# This vector exercises the OpenSSH SNTRUP761 byte boundaries:
+# public key 1158, secret key 1763, ciphertext 1039, shared secret 32.
+algorithm=SNTRUP761
+source_family=OpenSSH-sntrup761x25519-sha512
+corpus_role=invalid-ciphertext-fallback-corpus-repeatability
+vector_id=openssh-sntrup761-kat-004
+public_key_length=1158
+secret_key_length=1763
+ciphertext_length=1039
+shared_secret_length=32
+keygen_seed_hex=071a2d405366798c9fb2c5d8ebfe1124374a5d708396a9bccfe2f5081b2e4154677a8da0b3c6d9ecff1225384b5e718497aabdd0e3f6091c2f4255687b8ea1b4
+encaps_seed_hex=0b223950677e95acc3daf1081f364d647b92a9c0d7ee051c334a61788fa6bdd4
+expected_public_key_sha3_256=7c8b3cbcc18281da3f23fd120a25bc8dcc9d5b3756fd58c7b616afb82df6d7a1
+expected_secret_key_sha3_256=3e7c0a5e63431776b2cba4261fde1d28a33474f47bb185ff298af316a3d78ff5
+expected_ciphertext_sha3_256=eb6f6e0dfb5af33010666ceb499a28b709255e4a752120d7ac498d82a5d439eb
+expected_shared_secret_hex=2cbb60b29a731eca925d6dc06688047924bd2dbb2c16cf948d9be29f7423823c
+expected_invalid_shared_secret_hex=5cd73cf36765a2a5eaf11892735b53a1939bd0752b445ad8410e3d70

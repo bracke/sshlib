@@ -1,0 +1,13 @@
+with "../ssh_lib_internal.gpr";
+
+project Fuzz_Tests is
+   for Source_Dirs use (".");
+   for Main use ("sftp_packet_fuzzer.adb");
+   for Object_Dir use "../../ssh_lib_build/obj/tests_fuzz";
+   for Exec_Dir use "../../ssh_lib_build/bin/tests_fuzz";
+
+   package Compiler is
+      for Default_Switches ("Ada") use
+        ("-gnat2022", "-gnatX", "-gnatwa", "-gnatVa", "-g");
+   end Compiler;
+end Fuzz_Tests;

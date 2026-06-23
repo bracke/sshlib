@@ -1,0 +1,23 @@
+name = "ssh_lib"
+description = "Pure Ada 2022 SSH client API foundation"
+version = "1.0.0"
+licenses = "MIT"
+
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+
+tags = ["ssh", "network", "transport"]
+project-files = ["SSH_Lib.gpr"]
+
+[[depends-on]]
+zlib = "*"
+
+[[pins]]
+zlib = { path='../zlib' }
+
+[[depends-on]]
+cryptolib = "*"
+
+[[pins]]
+cryptolib = { path='../cryptolib' }

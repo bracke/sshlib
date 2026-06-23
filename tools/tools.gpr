@@ -1,0 +1,40 @@
+with "../SSH_Lib.gpr";
+
+project Tools is
+   for Source_Dirs use (".");
+   for Main use
+     ("check_public_api.adb",
+      "check_package_tree.adb",
+      "check_release.adb",
+      "check_phase17_regressions.adb",
+      "check_release_manifest.adb",
+      "check_release_package.adb",
+      "check_release_toolchain.adb",
+      "check_release_artifacts.adb",
+      "check_release_sequence.adb",
+      "check_release_runner.adb",
+      "check_security.adb",
+      "check_no_subprocess.adb",
+      "check_binary_paths.adb",
+      "check_sensitive_logging.adb",
+      "check_side_channel_assurance.adb",
+      "check_formal_side_channel_proof.adb",
+      "check_pq_hybrid_state.adb",
+      "check_hybrid_pq_readiness.adb",
+      "check_compile_preflight.adb",
+      "check_phase19_context.adb",
+      "check_runtime_boundaries.adb",
+      "check_live_git_matrix_report.adb",
+      "check_live_proxycommand_report.adb",
+      "run_release_validation.adb",
+      "run_sftp_fuzzer_seed_corpus.adb",
+      "run_sftp_v4_v6_interop.adb",
+      "check_sftp_v4_v6_interop_report.adb",
+      "local_sshd_fixture.adb");
+   for Object_Dir use "../../ssh_lib_build/obj/tools";
+   for Exec_Dir use "../../ssh_lib_build/bin/tools";
+
+   package Compiler is
+      for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa", "-gnatwe");
+   end Compiler;
+end Tools;

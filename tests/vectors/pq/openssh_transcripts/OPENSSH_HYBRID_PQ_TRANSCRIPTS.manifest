@@ -1,0 +1,7 @@
+# Recorded OpenSSH hybrid/PQ transcript validation corpus
+source_family=OpenSSH-live-interop-transcript
+openssh_client=OpenSSH_9.9p2
+openssh_server=OpenSSH_9.9p2
+required_algorithms=mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512
+required_checks=negotiation,hybrid-init-reply-lengths,exchange-hash,host-key-signature,known-hosts,userauth,channel-exec,rekey,binary-stdin-stdout
+status=recorded-openssh-transcript-gate-ready

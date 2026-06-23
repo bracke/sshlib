@@ -1,0 +1,20 @@
+with "../SSH_Lib.gpr";
+
+project Examples is
+   for Source_Dirs use (".");
+   for Main use
+     ("git_remote_prepare.adb",
+      "git_remote_resolve.adb",
+      "git_command_quote.adb",
+      "local_fixture_upload_pack.adb",
+      "sftp_upload_download.adb",
+      "sftp_v4_v6_metadata.adb",
+      "sftp_status_diagnostics.adb",
+      "sftp_check_file.adb");
+   for Object_Dir use "../../ssh_lib_build/obj/examples";
+   for Exec_Dir use "../../ssh_lib_build/bin/examples";
+
+   package Compiler is
+      for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa", "-gnatwe");
+   end Compiler;
+end Examples;
