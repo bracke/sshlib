@@ -30,6 +30,8 @@ package body SSH_Lib.Protocol.Certificates is
       return
         Algorithm_Name = "ssh-ed25519-cert-v01@openssh.com"
         or else Algorithm_Name = "ecdsa-sha2-nistp256-cert-v01@openssh.com"
+        or else Algorithm_Name = "ecdsa-sha2-nistp384-cert-v01@openssh.com"
+        or else Algorithm_Name = "ecdsa-sha2-nistp521-cert-v01@openssh.com"
         or else Algorithm_Name = "sk-ssh-ed25519-cert-v01@openssh.com"
         or else Algorithm_Name = "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com"
         or else Algorithm_Name = "rsa-sha2-512-cert-v01@openssh.com"
@@ -44,6 +46,10 @@ package body SSH_Lib.Protocol.Certificates is
          return "ssh-ed25519";
       elsif Algorithm_Name = "ecdsa-sha2-nistp256-cert-v01@openssh.com" then
          return "ecdsa-sha2-nistp256";
+      elsif Algorithm_Name = "ecdsa-sha2-nistp384-cert-v01@openssh.com" then
+         return "ecdsa-sha2-nistp384";
+      elsif Algorithm_Name = "ecdsa-sha2-nistp521-cert-v01@openssh.com" then
+         return "ecdsa-sha2-nistp521";
       elsif Algorithm_Name = "sk-ssh-ed25519-cert-v01@openssh.com" then
          return "sk-ssh-ed25519@openssh.com";
       elsif Algorithm_Name = "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com" then
@@ -916,6 +922,8 @@ package body SSH_Lib.Protocol.Certificates is
       return
         Algorithm_Name = "ssh-ed25519"
         or else Algorithm_Name = "ecdsa-sha2-nistp256"
+        or else Algorithm_Name = "ecdsa-sha2-nistp384"
+        or else Algorithm_Name = "ecdsa-sha2-nistp521"
         or else Algorithm_Name = "rsa-sha2-512"
         or else Algorithm_Name = "rsa-sha2-256"
         or else Algorithm_Name = "ssh-rsa";
@@ -932,6 +940,10 @@ package body SSH_Lib.Protocol.Certificates is
          return Signature_Algorithm_Name = "ssh-ed25519";
       elsif Authority_Algorithm_Name = "ecdsa-sha2-nistp256" then
          return Signature_Algorithm_Name = "ecdsa-sha2-nistp256";
+      elsif Authority_Algorithm_Name = "ecdsa-sha2-nistp384" then
+         return Signature_Algorithm_Name = "ecdsa-sha2-nistp384";
+      elsif Authority_Algorithm_Name = "ecdsa-sha2-nistp521" then
+         return Signature_Algorithm_Name = "ecdsa-sha2-nistp521";
       elsif Authority_Algorithm_Name = "ssh-rsa"
         or else Authority_Algorithm_Name = "rsa-sha2-512"
         or else Authority_Algorithm_Name = "rsa-sha2-256"
@@ -1105,6 +1117,8 @@ package body SSH_Lib.Protocol.Certificates is
             end if;
          end if;
       elsif Raw_Name = "ecdsa-sha2-nistp256"
+        or else Raw_Name = "ecdsa-sha2-nistp384"
+        or else Raw_Name = "ecdsa-sha2-nistp521"
         or else Raw_Name = "sk-ecdsa-sha2-nistp256@openssh.com"
       then
          Status_Value :=
@@ -1241,6 +1255,10 @@ package body SSH_Lib.Protocol.Certificates is
                then "ssh-ed25519"
                elsif Raw_Name = "ecdsa-sha2-nistp256"
                then "ecdsa-sha2-nistp256"
+               elsif Raw_Name = "ecdsa-sha2-nistp384"
+               then "ecdsa-sha2-nistp384"
+               elsif Raw_Name = "ecdsa-sha2-nistp521"
+               then "ecdsa-sha2-nistp521"
                elsif Raw_Name = "sk-ssh-ed25519@openssh.com"
                then "sk-ssh-ed25519@openssh.com"
                elsif Raw_Name = "sk-ecdsa-sha2-nistp256@openssh.com"
@@ -1278,6 +1296,8 @@ package body SSH_Lib.Protocol.Certificates is
                             (Modulus_Buffer))));
             end if;
          elsif Raw_Name = "ecdsa-sha2-nistp256"
+           or else Raw_Name = "ecdsa-sha2-nistp384"
+           or else Raw_Name = "ecdsa-sha2-nistp521"
            or else Raw_Name = "sk-ecdsa-sha2-nistp256@openssh.com"
          then
             Status_Value :=
@@ -1388,6 +1408,22 @@ package body SSH_Lib.Protocol.Certificates is
       Status_Value :=
         SSH_Lib.Protocol.Host_Keys.Parse
           (SSH_Lib.Protocol.Buffers.To_Array (Parsed.Signature_Key_Blob),
+           "ecdsa-sha2-nistp384",
+           Signature_Key);
+      if Status_Value = Ok then
+         return Ok;
+      end if;
+      Status_Value :=
+        SSH_Lib.Protocol.Host_Keys.Parse
+          (SSH_Lib.Protocol.Buffers.To_Array (Parsed.Signature_Key_Blob),
+           "ecdsa-sha2-nistp521",
+           Signature_Key);
+      if Status_Value = Ok then
+         return Ok;
+      end if;
+      Status_Value :=
+        SSH_Lib.Protocol.Host_Keys.Parse
+          (SSH_Lib.Protocol.Buffers.To_Array (Parsed.Signature_Key_Blob),
            "rsa-sha2-512",
            Signature_Key);
       if Status_Value = Ok then
@@ -1437,6 +1473,16 @@ package body SSH_Lib.Protocol.Certificates is
          Status_Value :=
            SSH_Lib.Protocol.Host_Keys.Parse
              (Authority_Key_Blob, "ecdsa-sha2-nistp256", Authority_Key);
+      end if;
+      if Status_Value /= Ok then
+         Status_Value :=
+           SSH_Lib.Protocol.Host_Keys.Parse
+             (Authority_Key_Blob, "ecdsa-sha2-nistp384", Authority_Key);
+      end if;
+      if Status_Value /= Ok then
+         Status_Value :=
+           SSH_Lib.Protocol.Host_Keys.Parse
+             (Authority_Key_Blob, "ecdsa-sha2-nistp521", Authority_Key);
       end if;
       if Status_Value /= Ok then
          Status_Value :=
@@ -1550,6 +1596,16 @@ package body SSH_Lib.Protocol.Certificates is
          Status_Value :=
            SSH_Lib.Protocol.Host_Keys.Parse
              (Authority_Key_Blob, "ecdsa-sha2-nistp256", Authority_Key);
+      end if;
+      if Status_Value /= Ok then
+         Status_Value :=
+           SSH_Lib.Protocol.Host_Keys.Parse
+             (Authority_Key_Blob, "ecdsa-sha2-nistp384", Authority_Key);
+      end if;
+      if Status_Value /= Ok then
+         Status_Value :=
+           SSH_Lib.Protocol.Host_Keys.Parse
+             (Authority_Key_Blob, "ecdsa-sha2-nistp521", Authority_Key);
       end if;
       if Status_Value /= Ok then
          Status_Value :=
@@ -1668,6 +1724,8 @@ package body SSH_Lib.Protocol.Certificates is
       if Status_Value /= Ok
         and then Raw_Name /= "ssh-ed25519"
         and then Raw_Name /= "ecdsa-sha2-nistp256"
+        and then Raw_Name /= "ecdsa-sha2-nistp384"
+        and then Raw_Name /= "ecdsa-sha2-nistp521"
         and then Raw_Name /= "sk-ssh-ed25519@openssh.com"
         and then Raw_Name /= "sk-ecdsa-sha2-nistp256@openssh.com"
       then
@@ -1729,6 +1787,20 @@ package body SSH_Lib.Protocol.Certificates is
            SSH_Lib.Protocol.Host_Keys.Parse
              (SSH_Lib.Protocol.Buffers.To_Array (Parsed.Signature_Key_Blob),
               "ecdsa-sha2-nistp256",
+              Certificate_CA_Key);
+      end if;
+      if Status_Value /= Ok then
+         Status_Value :=
+           SSH_Lib.Protocol.Host_Keys.Parse
+             (SSH_Lib.Protocol.Buffers.To_Array (Parsed.Signature_Key_Blob),
+              "ecdsa-sha2-nistp384",
+              Certificate_CA_Key);
+      end if;
+      if Status_Value /= Ok then
+         Status_Value :=
+           SSH_Lib.Protocol.Host_Keys.Parse
+             (SSH_Lib.Protocol.Buffers.To_Array (Parsed.Signature_Key_Blob),
+              "ecdsa-sha2-nistp521",
               Certificate_CA_Key);
       end if;
       if Status_Value /= Ok then
@@ -1895,6 +1967,20 @@ package body SSH_Lib.Protocol.Certificates is
          Status_Value :=
            SSH_Lib.Protocol.Host_Keys.Parse
              (SSH_Lib.Protocol.Buffers.To_Array (Parsed.Signature_Key_Blob),
+              "ecdsa-sha2-nistp384",
+              Certificate_CA_Key);
+      end if;
+      if Status_Value /= Ok then
+         Status_Value :=
+           SSH_Lib.Protocol.Host_Keys.Parse
+             (SSH_Lib.Protocol.Buffers.To_Array (Parsed.Signature_Key_Blob),
+              "ecdsa-sha2-nistp521",
+              Certificate_CA_Key);
+      end if;
+      if Status_Value /= Ok then
+         Status_Value :=
+           SSH_Lib.Protocol.Host_Keys.Parse
+             (SSH_Lib.Protocol.Buffers.To_Array (Parsed.Signature_Key_Blob),
               "rsa-sha2-512",
               Certificate_CA_Key);
       end if;
@@ -1962,6 +2048,8 @@ package body SSH_Lib.Protocol.Certificates is
       if Status_Value /= Ok
         and then Raw_Name /= "ssh-ed25519"
         and then Raw_Name /= "ecdsa-sha2-nistp256"
+        and then Raw_Name /= "ecdsa-sha2-nistp384"
+        and then Raw_Name /= "ecdsa-sha2-nistp521"
         and then Raw_Name /= "sk-ssh-ed25519@openssh.com"
         and then Raw_Name /= "sk-ecdsa-sha2-nistp256@openssh.com"
       then

@@ -1,6 +1,10 @@
 with CryptoLib.Hashes;
 with CryptoLib.Macs;
+with CryptoLib.ECDSA;
+with CryptoLib.Secure_Wipe;
+with System;
 with SSH_Lib.Protocol.Numbers;
+with Ada.Numerics.Big_Numbers.Big_Integers;
 
 package body SSH_Lib.ECDSA is
 
@@ -1342,6 +1346,15 @@ package body SSH_Lib.ECDSA is
       Cursor_Value  : Stream_Element_Offset;
       X_Data        : Stream_Element_Array (1 .. 32);
       Y_Data        : Stream_Element_Array (1 .. 32);
+
+      --  Scrub the ephemeral private scalar and its raw randomness.
+      procedure Scrub_Secrets is
+         use System;
+      begin
+         CryptoLib.Secure_Wipe.Wipe
+           (Private_Value'Address, Private_Value'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe (Random_Data'Address, Random_Data'Length);
+      end Scrub_Secrets;
    begin
       Private_Scalar_Bytes := [others => 0];
       Public_Point_Bytes := [others => 0];
@@ -1379,16 +1392,19 @@ package body SSH_Lib.ECDSA is
                   Cursor_Value := Cursor_Value + 1;
                end loop;
 
+               Scrub_Secrets;
                return Ok;
             end if;
          end if;
       end loop;
 
+      Scrub_Secrets;
       Private_Scalar_Bytes := [others => 0];
       Public_Point_Bytes := [others => 0];
       return Internal_Error;
    exception
       when others =>
+         Scrub_Secrets;
          Private_Scalar_Bytes := [others => 0];
          Public_Point_Bytes := [others => 0];
          return Internal_Error;
@@ -1429,6 +1445,16 @@ package body SSH_Lib.ECDSA is
       Server_Point  : Point;
       Shared_Point  : Point;
       Status_Value  : Status;
+
+      --  Scrub the private scalar and the shared-secret point.
+      procedure Scrub_Secrets is
+         use System;
+      begin
+         CryptoLib.Secure_Wipe.Wipe
+           (Private_Value'Address, Private_Value'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe
+           (Shared_Point'Address, Shared_Point'Size / Storage_Unit);
+      end Scrub_Secrets;
    begin
       Shared_Secret_Bytes := [others => 0];
       if Private_Scalar_Bytes'Length /= 32
@@ -1448,13 +1474,16 @@ package body SSH_Lib.ECDSA is
 
       Shared_Point := Mul_Point (Private_Value, Server_Point);
       if Shared_Point.Infinity then
+         Scrub_Secrets;
          return Handshake_Failed;
       end if;
 
       Shared_Secret_Bytes := To_32_Bytes (Shared_Point.X_Value);
+      Scrub_Secrets;
       return Validate_ECDH_Nistp256_Shared_Secret (Shared_Secret_Bytes);
    exception
       when others =>
+         Scrub_Secrets;
          Shared_Secret_Bytes := [others => 0];
          return Internal_Error;
    end Compute_ECDH_Nistp256_Shared_Secret;
@@ -1477,11 +1506,25 @@ package body SSH_Lib.ECDSA is
         (Infinity => False, X_Value => G_X, Y_Value => G_Y);
       Inner_Buffer  : CryptoLib.Buffers.Packet_Buffer;
       Status_Value  : Status;
+
+      --  Scrub the long-term private scalar and the per-signature nonce (a
+      --  nonce leak recovers the private key).
+      procedure Scrub_Secrets is
+         use System;
+      begin
+         CryptoLib.Secure_Wipe.Wipe
+           (Private_Value'Address, Private_Value'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe
+           (K_Value'Address, K_Value'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe
+           (K_Inv_Value'Address, K_Inv_Value'Size / Storage_Unit);
+      end Scrub_Secrets;
    begin
       CryptoLib.Buffers.Clear (Signature_Bytes);
       if not From_Positive_Mpint (Private_Scalar_Mpint, Private_Value)
         or else not Is_In_Range_1_To_Modulus_Minus_1 (Private_Value, N_Value)
       then
+         Scrub_Secrets;
          return Authentication_Failed;
       end if;
       E_Value := SHA256_Bits2Int_Mod_N (Message_Bytes);
@@ -1527,6 +1570,7 @@ package body SSH_Lib.ECDSA is
                         end if;
                         if Status_Value /= Ok then
                            CryptoLib.Buffers.Clear (Inner_Buffer);
+                           Scrub_Secrets;
                            return Status_Value;
                         end if;
                         Status_Value :=
@@ -1534,6 +1578,7 @@ package body SSH_Lib.ECDSA is
                             (Signature_Bytes,
                              CryptoLib.Buffers.To_Array (Inner_Buffer));
                         CryptoLib.Buffers.Clear (Inner_Buffer);
+                        Scrub_Secrets;
                         return Status_Value;
                      end if;
                   end if;
@@ -1541,10 +1586,1369 @@ package body SSH_Lib.ECDSA is
             end if;
          end if;
       end loop;
+      Scrub_Secrets;
       return Authentication_Failed;
+   exception
+      when others =>
+      CryptoLib.Buffers.Clear (Signature_Bytes);
+      Scrub_Secrets;
+      return Internal_Error;
+   end Sign_Nistp256;
+
+   subtype Big_Index is Natural range 0 .. 65;
+   type Big_UInt is array (Big_Index) of Natural range 0 .. 255;
+
+   Big_Zero : constant Big_UInt := [others => 0];
+   Big_Three : constant Big_UInt := [0 .. 64 => 0, 65 => 3];
+
+   type Big_Point is record
+      Infinity : Boolean := True;
+      X_Value  : Big_UInt := Big_Zero;
+      Y_Value  : Big_UInt := Big_Zero;
+   end record;
+
+   type Big_Curve is record
+      Byte_Length : Natural := 0;
+      P_Value     : Big_UInt := Big_Zero;
+      N_Value     : Big_UInt := Big_Zero;
+      B_Value     : Big_UInt := Big_Zero;
+      G_X         : Big_UInt := Big_Zero;
+      G_Y         : Big_UInt := Big_Zero;
+   end record;
+
+   function Hex_Nibble (Ch : Character; Value : out Natural) return Boolean is
+   begin
+      if Ch in '0' .. '9' then
+         Value := Character'Pos (Ch) - Character'Pos ('0');
+         return True;
+      elsif Ch in 'A' .. 'F' then
+         Value := Character'Pos (Ch) - Character'Pos ('A') + 10;
+         return True;
+      elsif Ch in 'a' .. 'f' then
+         Value := Character'Pos (Ch) - Character'Pos ('a') + 10;
+         return True;
+      end if;
+      Value := 0;
+      return False;
+   end Hex_Nibble;
+
+   function Big_From_Hex (Text : String) return Big_UInt is
+      Result_Value : Big_UInt := Big_Zero;
+      Hex_Length   : constant Natural := Text'Length;
+      Byte_Count   : constant Natural := (Hex_Length + 1) / 2;
+      Target_Index : Natural := 0;
+      Cursor       : Natural := Text'First;
+      High_Value   : Natural := 0;
+      Low_Value    : Natural := 0;
+   begin
+      if Text'Length = 0 or else Byte_Count > 66 then
+         return Result_Value;
+      end if;
+      Target_Index := 66 - Byte_Count;
+      if Hex_Length mod 2 = 1 then
+         if not Hex_Nibble (Text (Cursor), Low_Value) then
+            return Big_Zero;
+         end if;
+         Result_Value (Target_Index) := Low_Value;
+         Target_Index := Target_Index + 1;
+         Cursor := Cursor + 1;
+      end if;
+      while Cursor <= Text'Last loop
+         if not Hex_Nibble (Text (Cursor), High_Value)
+           or else not Hex_Nibble (Text (Cursor + 1), Low_Value)
+         then
+            return Big_Zero;
+         end if;
+         Result_Value (Target_Index) := High_Value * 16 + Low_Value;
+         Target_Index := Target_Index + 1;
+         Cursor := Cursor + 2;
+      end loop;
+      return Result_Value;
+   end Big_From_Hex;
+
+   Nistp384_Curve : constant Big_Curve :=
+     (Byte_Length => 48,
+      P_Value     => Big_From_Hex
+        ("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFFFF0000000000000000FFFFFFFF"),
+      N_Value     => Big_From_Hex
+        ("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+         & "C7634D81F4372DDF581A0DB248B0A77AECEC196ACCC52973"),
+      B_Value     => Big_From_Hex
+        ("B3312FA7E23EE7E4988E056BE3F82D19181D9C6EFE8141120314088F5013875AC656398D8A2ED19D2A85C8EDD3EC2AEF"),
+      G_X         => Big_From_Hex
+        ("AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7"),
+      G_Y         => Big_From_Hex
+        ("3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F"));
+
+   Nistp521_Curve : constant Big_Curve :=
+     (Byte_Length => 66,
+      P_Value     => Big_From_Hex
+        ("01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+         & "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+         & "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+         & "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"),
+      N_Value     => Big_From_Hex
+        ("01FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+         & "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+         & "FA51868783BF2F966B7FCC0148F709A5D03BB5C9B8899C47AEBB6FB71E91386409"),
+      B_Value     => Big_From_Hex
+        ("0051953EB9618E1C9A1F929A21A0B68540EEA2DA725B99B315F3B8"
+         & "B489918EF109E156193951EC7E937B1652C0BD3BB1BF073573DF"
+         & "883D2C34F1EF451FD46B503F00"),
+      G_X         => Big_From_Hex
+        ("00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F"
+         & "828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C"
+         & "1856A429BF97E7E31C2E5BD66"),
+      G_Y         => Big_From_Hex
+        ("011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817"
+         & "AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A"
+         & "272C24088BE94769FD16650"));
+
+   function Big_Compare (Left_Item, Right_Item : Big_UInt) return Integer is
+   begin
+      for Index_Value in Big_Index loop
+         if Left_Item (Index_Value) < Right_Item (Index_Value) then
+            return -1;
+         elsif Left_Item (Index_Value) > Right_Item (Index_Value) then
+            return 1;
+         end if;
+      end loop;
+      return 0;
+   end Big_Compare;
+
+   function Big_Is_Zero (Item : Big_UInt) return Boolean is
+   begin
+      return Big_Compare (Item, Big_Zero) = 0;
+   end Big_Is_Zero;
+
+   procedure Big_Subtract_In_Place
+     (Left_Item : in out Big_UInt; Right_Item : Big_UInt)
+   is
+      Borrow_Value : Integer := 0;
+      Diff_Value   : Integer;
+   begin
+      for Index_Value in reverse Big_Index loop
+         Diff_Value :=
+           Left_Item (Index_Value) - Right_Item (Index_Value) - Borrow_Value;
+         if Diff_Value < 0 then
+            Diff_Value := Diff_Value + 256;
+            Borrow_Value := 1;
+         else
+            Borrow_Value := 0;
+         end if;
+         Left_Item (Index_Value) := Diff_Value;
+      end loop;
+   end Big_Subtract_In_Place;
+
+   function Big_Add_Mod
+     (Left_Item : Big_UInt; Right_Item : Big_UInt; Modulus_Item : Big_UInt)
+      return Big_UInt
+   is
+      Result_Value : Big_UInt := Big_Zero;
+      Carry_Value  : Natural := 0;
+      Sum_Value    : Natural;
+   begin
+      for Index_Value in reverse Big_Index loop
+         Sum_Value :=
+           Left_Item (Index_Value) + Right_Item (Index_Value) + Carry_Value;
+         Result_Value (Index_Value) := Sum_Value mod 256;
+         Carry_Value := Sum_Value / 256;
+      end loop;
+      if Big_Compare (Result_Value, Modulus_Item) >= 0 then
+         Big_Subtract_In_Place (Result_Value, Modulus_Item);
+      end if;
+      return Result_Value;
+   end Big_Add_Mod;
+
+   function Big_Sub_Mod
+     (Left_Item : Big_UInt; Right_Item : Big_UInt; Modulus_Item : Big_UInt)
+      return Big_UInt
+   is
+      Result_Value : Big_UInt := Left_Item;
+      Delta_Value  : Big_UInt := Right_Item;
+   begin
+      if Big_Compare (Left_Item, Right_Item) >= 0 then
+         Big_Subtract_In_Place (Result_Value, Right_Item);
+         return Result_Value;
+      end if;
+      Big_Subtract_In_Place (Delta_Value, Left_Item);
+      Result_Value := Modulus_Item;
+      Big_Subtract_In_Place (Result_Value, Delta_Value);
+      if Big_Compare (Result_Value, Modulus_Item) >= 0 then
+         Big_Subtract_In_Place (Result_Value, Modulus_Item);
+      end if;
+      return Result_Value;
+   end Big_Sub_Mod;
+
+   function Big_Double_Mod
+     (Item : Big_UInt; Modulus_Item : Big_UInt) return Big_UInt is
+   begin
+      return Big_Add_Mod (Item, Item, Modulus_Item);
+   end Big_Double_Mod;
+
+   function Big_Get_Bit
+     (Item : Big_UInt; Bit_Index : Natural; Byte_Length : Natural)
+      return Natural
+   is
+      Byte_Index : constant Natural :=
+        66 - Byte_Length + Bit_Index / 8;
+      Bit_Offset : constant Natural := 7 - (Bit_Index mod 8);
+   begin
+      return (Item (Byte_Index) / (2 ** Bit_Offset)) mod 2;
+   end Big_Get_Bit;
+
+   function Big_Select
+     (False_Item : Big_UInt; True_Item : Big_UInt; Choice : Natural)
+      return Big_UInt
+   is
+      Choice_Value : constant Natural := Choice mod 2;
+      Other_Value  : constant Natural := 1 - Choice_Value;
+      Result_Value : Big_UInt := Big_Zero;
+   begin
+      for Index_Value in Big_Index loop
+         Result_Value (Index_Value) :=
+           False_Item (Index_Value) * Other_Value
+           + True_Item (Index_Value) * Choice_Value;
+      end loop;
+      return Result_Value;
+   end Big_Select;
+
+   function Big_Mul_Mod
+     (Left_Item : Big_UInt;
+      Right_Item : Big_UInt;
+      Modulus_Item : Big_UInt;
+      Bit_Count : Natural) return Big_UInt
+   is
+      Result_Value    : Big_UInt := Big_Zero;
+      Addend_Value    : Big_UInt := Left_Item;
+      Candidate_Value : Big_UInt := Big_Zero;
+      Bit_Value       : Natural;
+   begin
+      for Bit_Index in reverse 0 .. Bit_Count - 1 loop
+         Bit_Value := Big_Get_Bit (Right_Item, Bit_Index, Bit_Count / 8);
+         Candidate_Value :=
+           Big_Add_Mod (Result_Value, Addend_Value, Modulus_Item);
+         Result_Value := Big_Select (Result_Value, Candidate_Value, Bit_Value);
+         Addend_Value := Big_Double_Mod (Addend_Value, Modulus_Item);
+      end loop;
+      return Result_Value;
+   end Big_Mul_Mod;
+
+   function Big_Square_Mod
+     (Item : Big_UInt; Modulus_Item : Big_UInt; Bit_Count : Natural)
+      return Big_UInt is
+   begin
+      return Big_Mul_Mod (Item, Item, Modulus_Item, Bit_Count);
+   end Big_Square_Mod;
+
+   function Big_Curve_Right (Curve : Big_Curve; X_Value : Big_UInt)
+      return Big_UInt
+   is
+      Bits     : constant Natural := Curve.Byte_Length * 8;
+      X2_Value : constant Big_UInt :=
+        Big_Square_Mod (X_Value, Curve.P_Value, Bits);
+      X3_Value : constant Big_UInt :=
+        Big_Mul_Mod (X2_Value, X_Value, Curve.P_Value, Bits);
+      Three_X  : constant Big_UInt :=
+        Big_Mul_Mod (Big_Three, X_Value, Curve.P_Value, Bits);
+   begin
+      return
+        Big_Add_Mod
+          (Big_Sub_Mod (X3_Value, Three_X, Curve.P_Value),
+           Curve.B_Value,
+           Curve.P_Value);
+   end Big_Curve_Right;
+
+   function Big_On_Curve (Curve : Big_Curve; Point_Item : Big_Point)
+      return Boolean
+   is
+      Bits : constant Natural := Curve.Byte_Length * 8;
+   begin
+      if Point_Item.Infinity then
+         return False;
+      end if;
+      return
+        Big_Square_Mod (Point_Item.Y_Value, Curve.P_Value, Bits)
+        = Big_Curve_Right (Curve, Point_Item.X_Value);
+   end Big_On_Curve;
+
+   function BI_Mul_Point
+     (Curve : Big_Curve; Scalar_Item : Big_UInt; Base_Point : Big_Point)
+      return Big_Point;
+
+   function Big_Mul_Point
+     (Curve : Big_Curve; Scalar_Item : Big_UInt; Base_Point : Big_Point)
+      return Big_Point
+   is
+   begin
+      return BI_Mul_Point (Curve, Scalar_Item, Base_Point);
+   end Big_Mul_Point;
+
+   function Big_From_Fixed_Bytes
+     (Data : Stream_Element_Array; Curve : Big_Curve; Item : out Big_UInt)
+      return Boolean
+   is
+      Target_Index : Natural := 66 - Curve.Byte_Length;
+   begin
+      Item := Big_Zero;
+      if Natural (Data'Length) /= Curve.Byte_Length then
+         return False;
+      end if;
+      for Source_Index in Data'Range loop
+         Item (Target_Index) := Natural (Data (Source_Index));
+         Target_Index := Target_Index + 1;
+      end loop;
+      return True;
+   end Big_From_Fixed_Bytes;
+
+   function Big_To_Fixed_Bytes
+     (Item : Big_UInt; Curve : Big_Curve) return Stream_Element_Array
+   is
+      Result_Value : Stream_Element_Array (1 .. Stream_Element_Offset (Curve.Byte_Length));
+      Cursor_Value : Stream_Element_Offset := Result_Value'First;
+   begin
+      for Index_Value in 66 - Curve.Byte_Length .. 65 loop
+         Result_Value (Cursor_Value) := Stream_Element (Item (Index_Value));
+         Cursor_Value := Cursor_Value + 1;
+      end loop;
+      return Result_Value;
+   end Big_To_Fixed_Bytes;
+
+   function Big_Extract_Raw_Point
+     (Curve : Big_Curve;
+      Public_Point_Bytes : Stream_Element_Array;
+      Public_Point : out Big_Point) return Status;
+
+   function Big_From_Positive_Mpint
+     (Data : Stream_Element_Array; Curve : Big_Curve; Item : out Big_UInt)
+      return Boolean
+   is
+      Cursor       : Stream_Element_Offset := Data'First;
+      Payload_Last : constant Stream_Element_Offset := Data'Last;
+      Target_Index : Natural;
+   begin
+      Item := Big_Zero;
+      if Data'Length = 0 then
+         return False;
+      end if;
+      if Data (Data'First) >= 16#80# then
+         return False;
+      end if;
+      if Data'Length > 1
+        and then Data (Data'First) = 0
+        and then Data (Data'First + 1) < 16#80#
+      then
+         return False;
+      end if;
+      if Data (Data'First) = 0 then
+         Cursor := Cursor + 1;
+      end if;
+      if Payload_Last < Cursor
+        or else Natural (Payload_Last - Cursor + 1) > Curve.Byte_Length
+      then
+         return False;
+      end if;
+      Target_Index := 66 - Natural (Payload_Last - Cursor + 1);
+      while Cursor <= Payload_Last loop
+         Item (Target_Index) := Natural (Data (Cursor));
+         Target_Index := Target_Index + 1;
+         Cursor := Cursor + 1;
+      end loop;
+      return True;
+   end Big_From_Positive_Mpint;
+
+   function Big_In_Range_1_To_N_Minus_1
+     (Item : Big_UInt; Curve : Big_Curve) return Boolean is
+   begin
+      return not Big_Is_Zero (Item) and then Big_Compare (Item, Curve.N_Value) < 0;
+   end Big_In_Range_1_To_N_Minus_1;
+
+   function Big_Extract_Public_Key
+     (Curve              : Big_Curve;
+      Algorithm_Name     : String;
+      Curve_Name         : String;
+      Public_Key_Blob    : Stream_Element_Array;
+      Public_Point       : out Big_Point) return Status
+   is
+      Algorithm_Buffer : CryptoLib.Buffers.Packet_Buffer;
+      Curve_Buffer     : CryptoLib.Buffers.Packet_Buffer;
+      Key_Buffer       : CryptoLib.Buffers.Packet_Buffer;
+      After_Algorithm  : Stream_Element_Offset;
+      After_Curve      : Stream_Element_Offset;
+      After_Key        : Stream_Element_Offset;
+      Status_Value     : Status;
+   begin
+      Public_Point :=
+        (Infinity => True, X_Value => Big_Zero, Y_Value => Big_Zero);
+      Status_Value :=
+        SSH_Lib.Protocol.Numbers.Decode_SSH_String
+          (Public_Key_Blob,
+           Public_Key_Blob'First,
+           Algorithm_Buffer,
+           After_Algorithm);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      Status_Value :=
+        SSH_Lib.Protocol.Numbers.Decode_SSH_String
+          (Public_Key_Blob, After_Algorithm, Curve_Buffer, After_Curve);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      Status_Value :=
+        SSH_Lib.Protocol.Numbers.Decode_SSH_String
+          (Public_Key_Blob, After_Curve, Key_Buffer, After_Key);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      if After_Key /= Public_Key_Blob'Last + 1 then
+         return Handshake_Failed;
+      end if;
+      if not Equal_Text
+               (CryptoLib.Buffers.To_Array (Algorithm_Buffer),
+                Algorithm_Name)
+        or else
+          not Equal_Text (CryptoLib.Buffers.To_Array (Curve_Buffer), Curve_Name)
+      then
+         return Handshake_Failed;
+      end if;
+      return
+        Big_Extract_Raw_Point
+          (Curve, CryptoLib.Buffers.To_Array (Key_Buffer), Public_Point);
+   exception
+      when others =>
+         Public_Point :=
+           (Infinity => True, X_Value => Big_Zero, Y_Value => Big_Zero);
+         return Internal_Error;
+   end Big_Extract_Public_Key;
+
+   function Big_Extract_Signature
+     (Curve           : Big_Curve;
+      Signature_Bytes : Stream_Element_Array;
+      R_Value         : out Big_UInt;
+      S_Value         : out Big_UInt) return Status
+   is
+      R_Buffer     : CryptoLib.Buffers.Packet_Buffer;
+      S_Buffer     : CryptoLib.Buffers.Packet_Buffer;
+      After_R      : Stream_Element_Offset;
+      After_S      : Stream_Element_Offset;
+      Status_Value : Status;
+   begin
+      R_Value := Big_Zero;
+      S_Value := Big_Zero;
+      Status_Value :=
+        SSH_Lib.Protocol.Numbers.Decode_SSH_String
+          (Signature_Bytes, Signature_Bytes'First, R_Buffer, After_R);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      Status_Value :=
+        SSH_Lib.Protocol.Numbers.Decode_SSH_String
+          (Signature_Bytes, After_R, S_Buffer, After_S);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      if After_S /= Signature_Bytes'Last + 1 then
+         return Handshake_Failed;
+      end if;
+      if not Big_From_Positive_Mpint
+               (CryptoLib.Buffers.To_Array (R_Buffer), Curve, R_Value)
+        or else
+          not Big_From_Positive_Mpint
+                (CryptoLib.Buffers.To_Array (S_Buffer), Curve, S_Value)
+      then
+         return Handshake_Failed;
+      end if;
+      if not Big_In_Range_1_To_N_Minus_1 (R_Value, Curve)
+        or else not Big_In_Range_1_To_N_Minus_1 (S_Value, Curve)
+      then
+         return Handshake_Failed;
+      end if;
+      return Ok;
+   exception
+      when others =>
+         R_Value := Big_Zero;
+         S_Value := Big_Zero;
+         return Internal_Error;
+   end Big_Extract_Signature;
+
+   function Big_SHA512_Bits2Int (Message_Bytes : Stream_Element_Array)
+      return Big_UInt
+   is
+      Digest_Value : constant CryptoLib.Hashes.SHA512_Digest :=
+        CryptoLib.Hashes.SHA512 (Message_Bytes);
+      Result_Value : Big_UInt := Big_Zero;
+      Target_Index : Natural := 66 - Digest_Value'Length;
+   begin
+      for Byte_Value of Digest_Value loop
+         Result_Value (Target_Index) := Natural (Byte_Value);
+         Target_Index := Target_Index + 1;
+      end loop;
+      return Result_Value;
+   end Big_SHA512_Bits2Int;
+
+   function Big_SHA384_Bits2Int (Message_Bytes : Stream_Element_Array)
+      return Big_UInt
+   is
+      Digest_Value : constant CryptoLib.Hashes.SHA384_Digest :=
+        CryptoLib.Hashes.SHA384 (Message_Bytes);
+      Result_Value : Big_UInt := Big_Zero;
+      Target_Index : Natural := 66 - Digest_Value'Length;
+   begin
+      for Byte_Value of Digest_Value loop
+         Result_Value (Target_Index) := Natural (Byte_Value);
+         Target_Index := Target_Index + 1;
+      end loop;
+      return Result_Value;
+   end Big_SHA384_Bits2Int;
+
+   function Big_Reduce_Mod_N
+     (Item : Big_UInt; Curve : Big_Curve) return Big_UInt
+   is
+      Result_Value : Big_UInt := Item;
+   begin
+      while Big_Compare (Result_Value, Curve.N_Value) >= 0 loop
+         Big_Subtract_In_Place (Result_Value, Curve.N_Value);
+      end loop;
+      return Result_Value;
+   end Big_Reduce_Mod_N;
+
+   function BI_From_Big
+     (Item : Big_UInt)
+      return Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer
+   is
+      use Ada.Numerics.Big_Numbers.Big_Integers;
+      Result_Value : Valid_Big_Integer := To_Big_Integer (0);
+   begin
+      for Index_Value in Big_Index loop
+         Result_Value :=
+           Result_Value * To_Big_Integer (256)
+           + To_Big_Integer (Item (Index_Value));
+      end loop;
+      return Result_Value;
+   end BI_From_Big;
+
+   function Big_From_BI
+     (Item : Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer)
+      return Big_UInt
+   is
+      use Ada.Numerics.Big_Numbers.Big_Integers;
+      Work_Value   : Valid_Big_Integer := Item;
+      Result_Value : Big_UInt := Big_Zero;
+   begin
+      for Index_Value in reverse Big_Index loop
+         Result_Value (Index_Value) :=
+           Natural (To_Integer (Work_Value mod To_Big_Integer (256)));
+         Work_Value := Work_Value / To_Big_Integer (256);
+      end loop;
+      return Result_Value;
+   end Big_From_BI;
+
+   function BI_Mod
+     (Value_Item   : Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer;
+      Modulus_Item : Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer)
+      return Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer
+   is
+      use Ada.Numerics.Big_Numbers.Big_Integers;
+      Result_Value : Valid_Big_Integer := Value_Item mod Modulus_Item;
+   begin
+      if Result_Value < To_Big_Integer (0) then
+         Result_Value := Result_Value + Modulus_Item;
+      end if;
+      return Result_Value;
+   end BI_Mod;
+
+   function BI_Pow_Mod
+     (Base_Item     : Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer;
+      Exponent_Item : Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer;
+      Modulus_Item  : Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer)
+      return Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer
+   is
+      use Ada.Numerics.Big_Numbers.Big_Integers;
+      Result_Value   : Valid_Big_Integer := To_Big_Integer (1);
+      Base_Value     : Valid_Big_Integer := BI_Mod (Base_Item, Modulus_Item);
+      Exponent_Value : Valid_Big_Integer := Exponent_Item;
+   begin
+      while Exponent_Value > To_Big_Integer (0) loop
+         if Exponent_Value mod To_Big_Integer (2) = To_Big_Integer (1) then
+            Result_Value := (Result_Value * Base_Value) mod Modulus_Item;
+         end if;
+         Exponent_Value := Exponent_Value / To_Big_Integer (2);
+         Base_Value := (Base_Value * Base_Value) mod Modulus_Item;
+      end loop;
+      return Result_Value;
+   end BI_Pow_Mod;
+
+   function BI_Inv_Mod
+     (Item         : Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer;
+      Modulus_Item : Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer)
+      return Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer
+   is
+      use Ada.Numerics.Big_Numbers.Big_Integers;
+   begin
+      return
+        BI_Pow_Mod
+          (BI_Mod (Item, Modulus_Item),
+           Modulus_Item - To_Big_Integer (2),
+           Modulus_Item);
+   end BI_Inv_Mod;
+
+   type BI_Point is record
+      Infinity : Boolean := True;
+      X_Value  : Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer :=
+        Ada.Numerics.Big_Numbers.Big_Integers.To_Big_Integer (0);
+      Y_Value  : Ada.Numerics.Big_Numbers.Big_Integers.Valid_Big_Integer :=
+        Ada.Numerics.Big_Numbers.Big_Integers.To_Big_Integer (0);
+   end record;
+
+   function BI_From_Point (Point_Item : Big_Point) return BI_Point is
+   begin
+      if Point_Item.Infinity then
+         return
+           (Infinity => True,
+            X_Value  => Ada.Numerics.Big_Numbers.Big_Integers.To_Big_Integer (0),
+            Y_Value  => Ada.Numerics.Big_Numbers.Big_Integers.To_Big_Integer (0));
+      end if;
+      return
+        (Infinity => False,
+         X_Value  => BI_From_Big (Point_Item.X_Value),
+         Y_Value  => BI_From_Big (Point_Item.Y_Value));
+   end BI_From_Point;
+
+   function Point_From_BI (Point_Item : BI_Point) return Big_Point is
+   begin
+      if Point_Item.Infinity then
+         return (Infinity => True, X_Value => Big_Zero, Y_Value => Big_Zero);
+      end if;
+      return
+        (Infinity => False,
+         X_Value  => Big_From_BI (Point_Item.X_Value),
+         Y_Value  => Big_From_BI (Point_Item.Y_Value));
+   end Point_From_BI;
+
+   function BI_Add_Point
+     (Curve : Big_Curve; Left_Point, Right_Point : BI_Point)
+      return BI_Point
+   is
+      use Ada.Numerics.Big_Numbers.Big_Integers;
+      P_Value      : constant Valid_Big_Integer := BI_From_Big (Curve.P_Value);
+      Zero_Value   : constant Valid_Big_Integer := To_Big_Integer (0);
+      Two_Value    : constant Valid_Big_Integer := To_Big_Integer (2);
+      Three_Value  : constant Valid_Big_Integer := To_Big_Integer (3);
+      Lambda_Value : Valid_Big_Integer := Zero_Value;
+      X3_Value     : Valid_Big_Integer := Zero_Value;
+      Y3_Value     : Valid_Big_Integer := Zero_Value;
+   begin
+      if Left_Point.Infinity then
+         return Right_Point;
+      elsif Right_Point.Infinity then
+         return Left_Point;
+      end if;
+
+      if Left_Point.X_Value = Right_Point.X_Value then
+         if BI_Mod (Left_Point.Y_Value + Right_Point.Y_Value, P_Value)
+           = Zero_Value
+         then
+            return
+              (Infinity => True,
+               X_Value  => Zero_Value,
+               Y_Value  => Zero_Value);
+         end if;
+         Lambda_Value :=
+           BI_Mod
+             ((Three_Value * Left_Point.X_Value * Left_Point.X_Value
+               - Three_Value)
+              * BI_Inv_Mod (Two_Value * Left_Point.Y_Value, P_Value),
+              P_Value);
+      else
+         Lambda_Value :=
+           BI_Mod
+             ((Right_Point.Y_Value - Left_Point.Y_Value)
+              * BI_Inv_Mod (Right_Point.X_Value - Left_Point.X_Value, P_Value),
+              P_Value);
+      end if;
+
+      X3_Value :=
+        BI_Mod
+          (Lambda_Value * Lambda_Value
+           - Left_Point.X_Value
+           - Right_Point.X_Value,
+           P_Value);
+      Y3_Value :=
+        BI_Mod
+          (Lambda_Value * (Left_Point.X_Value - X3_Value)
+           - Left_Point.Y_Value,
+           P_Value);
+      return (Infinity => False, X_Value => X3_Value, Y_Value => Y3_Value);
+   end BI_Add_Point;
+
+   function BI_Mul_Point
+     (Curve : Big_Curve; Scalar_Item : Big_UInt; Base_Point : Big_Point)
+      return Big_Point
+   is
+      use Ada.Numerics.Big_Numbers.Big_Integers;
+      Result_Point : BI_Point :=
+        (Infinity => True,
+         X_Value  => To_Big_Integer (0),
+         Y_Value  => To_Big_Integer (0));
+      Addend_Point : BI_Point := BI_From_Point (Base_Point);
+      Scalar_Value : Valid_Big_Integer := BI_From_Big (Scalar_Item);
+   begin
+      while Scalar_Value > To_Big_Integer (0) loop
+         if Scalar_Value mod To_Big_Integer (2) = To_Big_Integer (1) then
+            Result_Point := BI_Add_Point (Curve, Result_Point, Addend_Point);
+         end if;
+         Scalar_Value := Scalar_Value / To_Big_Integer (2);
+         if Scalar_Value > To_Big_Integer (0) then
+            Addend_Point := BI_Add_Point (Curve, Addend_Point, Addend_Point);
+         end if;
+      end loop;
+      return Point_From_BI (Result_Point);
+   end BI_Mul_Point;
+
+   function Big_To_Minimal_Mpint
+     (Item : Big_UInt) return CryptoLib.Buffers.Packet_Buffer
+   is
+      First_Index    : Natural := 0;
+      Payload_Buffer : CryptoLib.Buffers.Packet_Buffer;
+      Status_Value   : Status;
+   begin
+      while First_Index < 65 and then Item (First_Index) = 0 loop
+         First_Index := First_Index + 1;
+      end loop;
+      if Item (First_Index) >= 16#80# then
+         Status_Value :=
+           CryptoLib.Buffers.Append_Byte (Payload_Buffer, 0);
+         if Status_Value /= Ok then
+            return Payload_Buffer;
+         end if;
+      end if;
+      for Index_Value in First_Index .. 65 loop
+         Status_Value :=
+           CryptoLib.Buffers.Append_Byte
+             (Payload_Buffer, Stream_Element (Item (Index_Value)));
+         if Status_Value /= Ok then
+            return Payload_Buffer;
+         end if;
+      end loop;
+      return
+        SSH_Lib.Protocol.Numbers.Encode_SSH_String
+          (CryptoLib.Buffers.To_Array (Payload_Buffer));
+   end Big_To_Minimal_Mpint;
+
+   function Big_Public_Matches_Private
+     (Curve                : Big_Curve;
+      Algorithm_Name       : String;
+      Curve_Name           : String;
+      Public_Key_Blob      : Stream_Element_Array;
+      Private_Scalar_Mpint : Stream_Element_Array) return Status
+   is
+      Public_Point  : Big_Point;
+      Private_Value : Big_UInt := Big_Zero;
+      Derived_Point : Big_Point;
+      Base_Point    : constant Big_Point :=
+        (Infinity => False, X_Value => Curve.G_X, Y_Value => Curve.G_Y);
+      Status_Value  : Status;
+   begin
+      Status_Value :=
+        Big_Extract_Public_Key
+          (Curve, Algorithm_Name, Curve_Name, Public_Key_Blob, Public_Point);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      if not Big_From_Positive_Mpint (Private_Scalar_Mpint, Curve, Private_Value)
+        or else not Big_In_Range_1_To_N_Minus_1 (Private_Value, Curve)
+      then
+         return Authentication_Failed;
+      end if;
+
+      Derived_Point := Big_Mul_Point (Curve, Private_Value, Base_Point);
+      if Derived_Point.Infinity
+        or else Derived_Point.X_Value /= Public_Point.X_Value
+        or else Derived_Point.Y_Value /= Public_Point.Y_Value
+      then
+         return Authentication_Failed;
+      end if;
+
+      return Ok;
+   exception
+      when others =>
+         return Internal_Error;
+   end Big_Public_Matches_Private;
+
+   function Big_Add_Affine
+     (Curve : Big_Curve; Left_Point, Right_Point : Big_Point)
+      return Big_Point
+   is
+   begin
+      return
+        Point_From_BI
+          (BI_Add_Point
+             (Curve, BI_From_Point (Left_Point), BI_From_Point (Right_Point)));
+   end Big_Add_Affine;
+
+   function Big_Verify_With_E
+     (Curve           : Big_Curve;
+      Algorithm_Name  : String;
+      Curve_Name      : String;
+      Public_Key_Blob : Stream_Element_Array;
+      Signature_Bytes : Stream_Element_Array;
+      E_Value         : Big_UInt) return Status
+   is
+      Public_Point : Big_Point;
+      R_Value      : Big_UInt;
+      S_Value      : Big_UInt;
+      U1_Value     : Big_UInt;
+      U2_Value     : Big_UInt;
+      P1_Point     : Big_Point;
+      P2_Point     : Big_Point;
+      Result_Point : Big_Point;
+      Status_Value : Status;
+      Base_Point   : constant Big_Point :=
+        (Infinity => False, X_Value => Curve.G_X, Y_Value => Curve.G_Y);
+   begin
+      Status_Value :=
+        Big_Extract_Public_Key
+          (Curve, Algorithm_Name, Curve_Name, Public_Key_Blob, Public_Point);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      Status_Value :=
+        Big_Extract_Signature (Curve, Signature_Bytes, R_Value, S_Value);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      if Big_Is_Zero (S_Value) then
+         return Handshake_Failed;
+      end if;
+      declare
+         use Ada.Numerics.Big_Numbers.Big_Integers;
+         N_BI : constant Valid_Big_Integer := BI_From_Big (Curve.N_Value);
+         W_BI : constant Valid_Big_Integer :=
+           BI_Inv_Mod (BI_From_Big (S_Value), N_BI);
+      begin
+         U1_Value :=
+           Big_From_BI (BI_Mod (BI_From_Big (E_Value) * W_BI, N_BI));
+         U2_Value :=
+           Big_From_BI (BI_Mod (BI_From_Big (R_Value) * W_BI, N_BI));
+      end;
+      P1_Point := Big_Mul_Point (Curve, U1_Value, Base_Point);
+      P2_Point := Big_Mul_Point (Curve, U2_Value, Public_Point);
+      Result_Point := Big_Add_Affine (Curve, P1_Point, P2_Point);
+      if Result_Point.Infinity then
+         return Handshake_Failed;
+      end if;
+      declare
+         use Ada.Numerics.Big_Numbers.Big_Integers;
+         N_BI : constant Valid_Big_Integer := BI_From_Big (Curve.N_Value);
+      begin
+         if Big_From_BI (BI_Mod (BI_From_Big (Result_Point.X_Value), N_BI))
+           = R_Value
+         then
+            return Ok;
+         end if;
+      end;
+      return Handshake_Failed;
+   exception
+      when others =>
+         return Internal_Error;
+   end Big_Verify_With_E;
+
+   function Big_Extract_Raw_Point
+     (Curve : Big_Curve;
+      Public_Point_Bytes : Stream_Element_Array;
+      Public_Point : out Big_Point) return Status
+   is
+      Coordinate_Length : constant Stream_Element_Offset :=
+        Stream_Element_Offset (Curve.Byte_Length);
+   begin
+      Public_Point :=
+        (Infinity => True, X_Value => Big_Zero, Y_Value => Big_Zero);
+      if Public_Point_Bytes'Length /= Stream_Element_Offset (1 + 2 * Curve.Byte_Length)
+        or else Public_Point_Bytes (Public_Point_Bytes'First) /= 16#04#
+      then
+         return Handshake_Failed;
+      end if;
+      if not Big_From_Fixed_Bytes
+               (Public_Point_Bytes
+                  (Public_Point_Bytes'First + 1
+                   .. Public_Point_Bytes'First + Coordinate_Length),
+                Curve,
+                Public_Point.X_Value)
+        or else
+          not Big_From_Fixed_Bytes
+                (Public_Point_Bytes
+                   (Public_Point_Bytes'First + Coordinate_Length + 1
+                    .. Public_Point_Bytes'First + 2 * Coordinate_Length),
+                 Curve,
+                 Public_Point.Y_Value)
+      then
+         return Handshake_Failed;
+      end if;
+      Public_Point.Infinity := False;
+      if Big_Compare (Public_Point.X_Value, Curve.P_Value) >= 0
+        or else Big_Compare (Public_Point.Y_Value, Curve.P_Value) >= 0
+        or else not Big_On_Curve (Curve, Public_Point)
+      then
+         Public_Point :=
+           (Infinity => True, X_Value => Big_Zero, Y_Value => Big_Zero);
+         return Handshake_Failed;
+      end if;
+      return Ok;
+   exception
+      when others =>
+         Public_Point :=
+           (Infinity => True, X_Value => Big_Zero, Y_Value => Big_Zero);
+         return Internal_Error;
+   end Big_Extract_Raw_Point;
+
+   function Big_Validate_Raw_Point
+     (Curve : Big_Curve; Public_Point_Bytes : Stream_Element_Array)
+      return Status
+   is
+      Public_Point : Big_Point;
+   begin
+      return Big_Extract_Raw_Point (Curve, Public_Point_Bytes, Public_Point);
+   exception
+      when others =>
+         return Internal_Error;
+   end Big_Validate_Raw_Point;
+
+   function Validate_Raw_Point_Nistp384
+     (Public_Point_Bytes : Stream_Element_Array) return Status is
+   begin
+      return Big_Validate_Raw_Point (Nistp384_Curve, Public_Point_Bytes);
+   end Validate_Raw_Point_Nistp384;
+
+   function Validate_Public_Nistp384
+     (Public_Key_Blob : Stream_Element_Array) return Status
+   is
+      Public_Point : Big_Point;
+   begin
+      return
+        Big_Extract_Public_Key
+          (Nistp384_Curve,
+           "ecdsa-sha2-nistp384",
+           "nistp384",
+           Public_Key_Blob,
+           Public_Point);
+   exception
+      when others =>
+         return Internal_Error;
+   end Validate_Public_Nistp384;
+
+   function Validate_Signature_Nistp384
+     (Signature_Bytes : Stream_Element_Array) return Status
+   is
+      R_Value : Big_UInt;
+      S_Value : Big_UInt;
+   begin
+      return
+        Big_Extract_Signature
+          (Nistp384_Curve, Signature_Bytes, R_Value, S_Value);
+   exception
+      when others =>
+         return Internal_Error;
+   end Validate_Signature_Nistp384;
+
+   function Verify_Nistp384
+     (Public_Key_Blob : Stream_Element_Array;
+      Signature_Bytes : Stream_Element_Array;
+      Message_Bytes   : Stream_Element_Array) return Status is
+   begin
+      return
+        Big_Verify_With_E
+          (Nistp384_Curve,
+           "ecdsa-sha2-nistp384",
+           "nistp384",
+           Public_Key_Blob,
+           Signature_Bytes,
+           Big_Reduce_Mod_N
+             (Big_SHA384_Bits2Int (Message_Bytes), Nistp384_Curve));
+   exception
+      when others =>
+         return Internal_Error;
+   end Verify_Nistp384;
+
+   function Public_Matches_Private_Nistp384
+     (Public_Key_Blob      : Stream_Element_Array;
+      Private_Scalar_Mpint : Stream_Element_Array) return Status is
+   begin
+      return
+        Big_Public_Matches_Private
+          (Nistp384_Curve,
+           "ecdsa-sha2-nistp384",
+           "nistp384",
+           Public_Key_Blob,
+           Private_Scalar_Mpint);
+   exception
+      when others =>
+         return Internal_Error;
+   end Public_Matches_Private_Nistp384;
+
+   function Sign_Nistp384
+     (Private_Scalar_Mpint : Stream_Element_Array;
+      Message_Bytes        : Stream_Element_Array;
+      Signature_Bytes      : out CryptoLib.Buffers.Packet_Buffer)
+      return Status
+   is
+      R_Fixed       : Stream_Element_Array (1 .. 48);
+      S_Fixed       : Stream_Element_Array (1 .. 48);
+      R_Value       : Big_UInt := Big_Zero;
+      S_Value       : Big_UInt := Big_Zero;
+      Inner_Buffer  : CryptoLib.Buffers.Packet_Buffer;
+      Status_Value  : Status;
+   begin
+      CryptoLib.Buffers.Clear (Signature_Bytes);
+      Status_Value :=
+        CryptoLib.ECDSA.Sign_Nistp384_Raw
+          (Private_Scalar_Mpint, Message_Bytes, R_Fixed, S_Fixed);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      if not Big_From_Fixed_Bytes (R_Fixed, Nistp384_Curve, R_Value)
+        or else not Big_From_Fixed_Bytes (S_Fixed, Nistp384_Curve, S_Value)
+      then
+         return Internal_Error;
+      end if;
+      Status_Value :=
+        CryptoLib.Buffers.Append
+          (Inner_Buffer,
+           CryptoLib.Buffers.To_Array (Big_To_Minimal_Mpint (R_Value)));
+      if Status_Value = Ok then
+         Status_Value :=
+           CryptoLib.Buffers.Append
+             (Inner_Buffer,
+              CryptoLib.Buffers.To_Array (Big_To_Minimal_Mpint (S_Value)));
+      end if;
+      if Status_Value = Ok then
+         Status_Value :=
+           CryptoLib.Buffers.Set
+             (Signature_Bytes, CryptoLib.Buffers.To_Array (Inner_Buffer));
+      end if;
+      CryptoLib.Buffers.Clear (Inner_Buffer);
+      if Status_Value /= Ok then
+         CryptoLib.Buffers.Clear (Signature_Bytes);
+      end if;
+      return Status_Value;
    exception
       when others =>
          CryptoLib.Buffers.Clear (Signature_Bytes);
          return Internal_Error;
-   end Sign_Nistp256;
+   end Sign_Nistp384;
+
+   function Validate_Raw_Point_Nistp521
+     (Public_Point_Bytes : Stream_Element_Array) return Status is
+   begin
+      return Big_Validate_Raw_Point (Nistp521_Curve, Public_Point_Bytes);
+   end Validate_Raw_Point_Nistp521;
+
+   function Validate_Public_Nistp521
+     (Public_Key_Blob : Stream_Element_Array) return Status
+   is
+      Public_Point : Big_Point;
+   begin
+      return
+        Big_Extract_Public_Key
+          (Nistp521_Curve,
+           "ecdsa-sha2-nistp521",
+           "nistp521",
+           Public_Key_Blob,
+           Public_Point);
+   exception
+      when others =>
+         return Internal_Error;
+   end Validate_Public_Nistp521;
+
+   function Validate_Signature_Nistp521
+     (Signature_Bytes : Stream_Element_Array) return Status
+   is
+      R_Value : Big_UInt;
+      S_Value : Big_UInt;
+   begin
+      return
+        Big_Extract_Signature
+          (Nistp521_Curve, Signature_Bytes, R_Value, S_Value);
+   exception
+      when others =>
+         return Internal_Error;
+   end Validate_Signature_Nistp521;
+
+   function Verify_Nistp521
+     (Public_Key_Blob : Stream_Element_Array;
+      Signature_Bytes : Stream_Element_Array;
+      Message_Bytes   : Stream_Element_Array) return Status is
+   begin
+      return
+        Big_Verify_With_E
+          (Nistp521_Curve,
+           "ecdsa-sha2-nistp521",
+           "nistp521",
+           Public_Key_Blob,
+           Signature_Bytes,
+           Big_SHA512_Bits2Int (Message_Bytes));
+   exception
+      when others =>
+         return Internal_Error;
+   end Verify_Nistp521;
+
+   function Public_Matches_Private_Nistp521
+     (Public_Key_Blob      : Stream_Element_Array;
+      Private_Scalar_Mpint : Stream_Element_Array) return Status is
+   begin
+      return
+        Big_Public_Matches_Private
+          (Nistp521_Curve,
+           "ecdsa-sha2-nistp521",
+           "nistp521",
+           Public_Key_Blob,
+           Private_Scalar_Mpint);
+   exception
+      when others =>
+         return Internal_Error;
+   end Public_Matches_Private_Nistp521;
+
+   function Sign_Nistp521
+     (Private_Scalar_Mpint : Stream_Element_Array;
+      Message_Bytes        : Stream_Element_Array;
+      Signature_Bytes      : out CryptoLib.Buffers.Packet_Buffer)
+      return Status
+   is
+      R_Fixed       : Stream_Element_Array (1 .. 66);
+      S_Fixed       : Stream_Element_Array (1 .. 66);
+      R_Value       : Big_UInt := Big_Zero;
+      S_Value       : Big_UInt := Big_Zero;
+      Inner_Buffer  : CryptoLib.Buffers.Packet_Buffer;
+      Status_Value  : Status;
+   begin
+      CryptoLib.Buffers.Clear (Signature_Bytes);
+      Status_Value :=
+        CryptoLib.ECDSA.Sign_Nistp521_Raw
+          (Private_Scalar_Mpint, Message_Bytes, R_Fixed, S_Fixed);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      if not Big_From_Fixed_Bytes (R_Fixed, Nistp521_Curve, R_Value)
+        or else not Big_From_Fixed_Bytes (S_Fixed, Nistp521_Curve, S_Value)
+      then
+         return Internal_Error;
+      end if;
+      Status_Value :=
+        CryptoLib.Buffers.Append
+          (Inner_Buffer,
+           CryptoLib.Buffers.To_Array (Big_To_Minimal_Mpint (R_Value)));
+      if Status_Value = Ok then
+         Status_Value :=
+           CryptoLib.Buffers.Append
+             (Inner_Buffer,
+              CryptoLib.Buffers.To_Array (Big_To_Minimal_Mpint (S_Value)));
+      end if;
+      if Status_Value = Ok then
+         Status_Value :=
+           CryptoLib.Buffers.Set
+             (Signature_Bytes, CryptoLib.Buffers.To_Array (Inner_Buffer));
+      end if;
+      CryptoLib.Buffers.Clear (Inner_Buffer);
+      if Status_Value /= Ok then
+         CryptoLib.Buffers.Clear (Signature_Bytes);
+      end if;
+      return Status_Value;
+   exception
+      when others =>
+         CryptoLib.Buffers.Clear (Signature_Bytes);
+         return Internal_Error;
+   end Sign_Nistp521;
+
+   function Big_Generate_ECDH_Keypair
+     (Curve : Big_Curve;
+      Source_Item : in out CryptoLib.Random.Random_Source;
+      Private_Scalar_Bytes : out Stream_Element_Array;
+      Public_Point_Bytes : out Stream_Element_Array) return Status
+   is
+      Private_Value : Big_UInt := Big_Zero;
+      Public_Point  : Big_Point;
+      Status_Value  : Status;
+      Random_Data   : Stream_Element_Array
+        (1 .. Stream_Element_Offset (Curve.Byte_Length));
+      Base_Point    : constant Big_Point :=
+        (Infinity => False, X_Value => Curve.G_X, Y_Value => Curve.G_Y);
+      Cursor_Value  : Stream_Element_Offset;
+      X_Data        : Stream_Element_Array
+        (1 .. Stream_Element_Offset (Curve.Byte_Length));
+      Y_Data        : Stream_Element_Array
+        (1 .. Stream_Element_Offset (Curve.Byte_Length));
+   begin
+      Private_Scalar_Bytes := [others => 0];
+      Public_Point_Bytes := [others => 0];
+      if Natural (Private_Scalar_Bytes'Length) /= Curve.Byte_Length
+        or else Natural (Public_Point_Bytes'Length) /= 1 + 2 * Curve.Byte_Length
+      then
+         return Handshake_Failed;
+      end if;
+      for Attempt_Value in 1 .. 128 loop
+         Status_Value := CryptoLib.Random.Fill (Source_Item, Random_Data);
+         if Status_Value /= Ok then
+            return Status_Value;
+         end if;
+         if Big_From_Fixed_Bytes (Random_Data, Curve, Private_Value)
+           and then not Big_Is_Zero (Private_Value)
+           and then Big_Compare (Private_Value, Curve.N_Value) < 0
+         then
+            Public_Point := Big_Mul_Point (Curve, Private_Value, Base_Point);
+            if not Public_Point.Infinity then
+               Private_Scalar_Bytes := Random_Data;
+               X_Data := Big_To_Fixed_Bytes (Public_Point.X_Value, Curve);
+               Y_Data := Big_To_Fixed_Bytes (Public_Point.Y_Value, Curve);
+               Cursor_Value := Public_Point_Bytes'First;
+               Public_Point_Bytes (Cursor_Value) := 16#04#;
+               Cursor_Value := Cursor_Value + 1;
+               for Byte_Value of X_Data loop
+                  Public_Point_Bytes (Cursor_Value) := Byte_Value;
+                  Cursor_Value := Cursor_Value + 1;
+               end loop;
+               for Byte_Value of Y_Data loop
+                  Public_Point_Bytes (Cursor_Value) := Byte_Value;
+                  Cursor_Value := Cursor_Value + 1;
+               end loop;
+               return Ok;
+            end if;
+         end if;
+      end loop;
+      Private_Scalar_Bytes := [others => 0];
+      Public_Point_Bytes := [others => 0];
+      return Internal_Error;
+   exception
+      when others =>
+         Private_Scalar_Bytes := [others => 0];
+         Public_Point_Bytes := [others => 0];
+         return Internal_Error;
+   end Big_Generate_ECDH_Keypair;
+
+   function Big_Validate_ECDH_Shared_Secret
+     (Curve : Big_Curve; Shared_Secret_Bytes : Stream_Element_Array)
+      return Status
+   is
+      Nonzero_Secret : Boolean := False;
+   begin
+      if Natural (Shared_Secret_Bytes'Length) /= Curve.Byte_Length then
+         return Handshake_Failed;
+      end if;
+      for Byte_Value of Shared_Secret_Bytes loop
+         if Byte_Value /= 0 then
+            Nonzero_Secret := True;
+            exit;
+         end if;
+      end loop;
+      if not Nonzero_Secret then
+         return Handshake_Failed;
+      end if;
+      return Ok;
+   exception
+      when others =>
+         return Internal_Error;
+   end Big_Validate_ECDH_Shared_Secret;
+
+   function Big_Compute_ECDH_Shared_Secret
+     (Curve : Big_Curve;
+      Private_Scalar_Bytes : Stream_Element_Array;
+      Server_Point_Bytes : Stream_Element_Array;
+      Shared_Secret_Bytes : out Stream_Element_Array) return Status
+   is
+      Private_Value : Big_UInt := Big_Zero;
+      Server_Point  : Big_Point;
+      Shared_Point  : Big_Point;
+      Status_Value  : Status;
+   begin
+      Shared_Secret_Bytes := [others => 0];
+      if Natural (Private_Scalar_Bytes'Length) /= Curve.Byte_Length
+        or else Natural (Shared_Secret_Bytes'Length) /= Curve.Byte_Length
+      then
+         return Handshake_Failed;
+      end if;
+      if not Big_From_Fixed_Bytes (Private_Scalar_Bytes, Curve, Private_Value)
+        or else Big_Is_Zero (Private_Value)
+        or else Big_Compare (Private_Value, Curve.N_Value) >= 0
+      then
+         return Handshake_Failed;
+      end if;
+      Status_Value := Big_Extract_Raw_Point (Curve, Server_Point_Bytes, Server_Point);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      Shared_Point := Big_Mul_Point (Curve, Private_Value, Server_Point);
+      if Shared_Point.Infinity then
+         return Handshake_Failed;
+      end if;
+      Shared_Secret_Bytes := Big_To_Fixed_Bytes (Shared_Point.X_Value, Curve);
+      return Big_Validate_ECDH_Shared_Secret (Curve, Shared_Secret_Bytes);
+   exception
+      when others =>
+         Shared_Secret_Bytes := [others => 0];
+         return Internal_Error;
+   end Big_Compute_ECDH_Shared_Secret;
+
+   function Generate_ECDH_Nistp384_Keypair
+     (Source_Item          : in out CryptoLib.Random.Random_Source;
+      Private_Scalar_Bytes : out Stream_Element_Array;
+      Public_Point_Bytes   : out Stream_Element_Array) return Status is
+   begin
+      return
+        Big_Generate_ECDH_Keypair
+          (Nistp384_Curve,
+           Source_Item,
+           Private_Scalar_Bytes,
+           Public_Point_Bytes);
+   end Generate_ECDH_Nistp384_Keypair;
+
+   function Validate_ECDH_Nistp384_Shared_Secret
+     (Shared_Secret_Bytes : Stream_Element_Array) return Status is
+   begin
+      return Big_Validate_ECDH_Shared_Secret (Nistp384_Curve, Shared_Secret_Bytes);
+   end Validate_ECDH_Nistp384_Shared_Secret;
+
+   function Compute_ECDH_Nistp384_Shared_Secret
+     (Private_Scalar_Bytes : Stream_Element_Array;
+      Server_Point_Bytes   : Stream_Element_Array;
+      Shared_Secret_Bytes  : out Stream_Element_Array) return Status is
+   begin
+      return
+        Big_Compute_ECDH_Shared_Secret
+          (Nistp384_Curve,
+           Private_Scalar_Bytes,
+           Server_Point_Bytes,
+           Shared_Secret_Bytes);
+   end Compute_ECDH_Nistp384_Shared_Secret;
+
+   function Generate_ECDH_Nistp521_Keypair
+     (Source_Item          : in out CryptoLib.Random.Random_Source;
+      Private_Scalar_Bytes : out Stream_Element_Array;
+      Public_Point_Bytes   : out Stream_Element_Array) return Status is
+   begin
+      return
+        Big_Generate_ECDH_Keypair
+          (Nistp521_Curve,
+           Source_Item,
+           Private_Scalar_Bytes,
+           Public_Point_Bytes);
+   end Generate_ECDH_Nistp521_Keypair;
+
+   function Validate_ECDH_Nistp521_Shared_Secret
+     (Shared_Secret_Bytes : Stream_Element_Array) return Status is
+   begin
+      return Big_Validate_ECDH_Shared_Secret (Nistp521_Curve, Shared_Secret_Bytes);
+   end Validate_ECDH_Nistp521_Shared_Secret;
+
+   function Compute_ECDH_Nistp521_Shared_Secret
+     (Private_Scalar_Bytes : Stream_Element_Array;
+      Server_Point_Bytes   : Stream_Element_Array;
+      Shared_Secret_Bytes  : out Stream_Element_Array) return Status is
+   begin
+      return
+        Big_Compute_ECDH_Shared_Secret
+          (Nistp521_Curve,
+           Private_Scalar_Bytes,
+           Server_Point_Bytes,
+           Shared_Secret_Bytes);
+   end Compute_ECDH_Nistp521_Shared_Secret;
 end SSH_Lib.ECDSA;

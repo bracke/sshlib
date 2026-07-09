@@ -1,4 +1,5 @@
 with Ada.Streams; use Ada.Streams;
+with Ada.Characters.Handling;
 with Ada.Text_IO;
 with CryptoLib.Constant_Time;
 with CryptoLib.Fingerprints;
@@ -36,6 +37,10 @@ package body SSH_Lib.Keys is
          return Ssh_Ed25519;
       elsif Algorithm_Name = "ecdsa-sha2-nistp256" then
          return Ecdsa_Sha2_Nistp256;
+      elsif Algorithm_Name = "ecdsa-sha2-nistp384" then
+         return Ecdsa_Sha2_Nistp384;
+      elsif Algorithm_Name = "ecdsa-sha2-nistp521" then
+         return Ecdsa_Sha2_Nistp521;
       elsif Algorithm_Name = "sk-ssh-ed25519@openssh.com" then
          return Sk_Ssh_Ed25519;
       elsif Algorithm_Name = "sk-ecdsa-sha2-nistp256@openssh.com" then
@@ -251,6 +256,55 @@ package body SSH_Lib.Keys is
          Value.Text := Null_Unbounded_String;
          return Internal_Error;
    end SHA256_Fingerprint;
+
+   function MD5_Fingerprint
+     (Item  : Public_Key;
+      Value : out Fingerprint)
+      return Status
+   is
+      Status_Value : Status;
+   begin
+      Value.Text := Null_Unbounded_String;
+      if not Item.Present then
+         return Handshake_Failed;
+      end if;
+
+      declare
+         Blob : constant Ada.Streams.Stream_Element_Array :=
+           SSH_Lib.Protocol.Buffers.To_Array (Item.Blob_Data);
+      begin
+         Status_Value := CryptoLib.Fingerprints.MD5_OpenSSH
+           (Blob, Value.Text);
+      end;
+      return Status_Value;
+   exception
+      when others =>
+         Value.Text := Null_Unbounded_String;
+         return Internal_Error;
+   end MD5_Fingerprint;
+
+   function Fingerprint_With_Hash
+     (Item      : Public_Key;
+      Hash_Name : String;
+      Value     : out Fingerprint)
+      return Status
+   is
+      Lower_Name : constant String :=
+        Ada.Characters.Handling.To_Lower (Hash_Name);
+   begin
+      if Lower_Name'Length = 0 or else Lower_Name = "sha256" then
+         return SHA256_Fingerprint (Item, Value);
+      elsif Lower_Name = "md5" then
+         return MD5_Fingerprint (Item, Value);
+      end if;
+
+      Value.Text := Null_Unbounded_String;
+      return Invalid_Command;
+   exception
+      when others =>
+         Value.Text := Null_Unbounded_String;
+         return Internal_Error;
+   end Fingerprint_With_Hash;
 
    function Image (Item : Fingerprint) return String is
    begin

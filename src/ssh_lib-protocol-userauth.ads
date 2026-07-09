@@ -5,6 +5,12 @@ with CryptoLib.Errors;
 with SSH_Lib.Protocol.Auth_Methods;
 with SSH_Lib.Protocol.Buffers;
 
+--  @summary Encoding of SSH userauth requests and parsing of server replies.
+--
+--  Builds SSH_MSG_USERAUTH_REQUEST payloads for the none, password,
+--  publickey (preflight and signed), and keyboard-interactive methods, and
+--  classifies the server's userauth responses (success, failure, banner,
+--  PK_OK, password-change, keyboard-interactive info request) into a Reply.
 package SSH_Lib.Protocol.Userauth is
 
    SSH_MSG_USERAUTH_REQUEST : constant Ada.Streams.Stream_Element := 50;
@@ -58,12 +64,25 @@ package SSH_Lib.Protocol.Userauth is
       Keyboard_Interactive_Prompt_Items : Keyboard_Interactive_Prompt_Array;
    end record;
 
+   --  Encode a publickey preflight request (has-signature = false) that asks
+   --  the server whether the key is acceptable before signing.
+   --  @param User_Name            the authenticating user name
+   --  @param Public_Key_Algorithm the publickey algorithm name
+   --  @param Public_Key_Blob      the public-key blob
+   --  @return the encoded USERAUTH_REQUEST packet
    function Encode_Publickey_Test_Request
      (User_Name            : String;
       Public_Key_Algorithm : String;
       Public_Key_Blob      : Ada.Streams.Stream_Element_Array)
       return SSH_Lib.Protocol.Buffers.Packet_Buffer;
 
+   --  Build the exact byte string a publickey signature must cover: the
+   --  session identifier prefixed to the signed userauth request fields.
+   --  @param Session_Identifier   the SSH session identifier (exchange hash)
+   --  @param User_Name            the authenticating user name
+   --  @param Public_Key_Algorithm the publickey algorithm name
+   --  @param Public_Key_Blob      the public-key blob
+   --  @return the data-to-be-signed buffer
    function Build_Publickey_Signature_Payload
      (Session_Identifier   : Ada.Streams.Stream_Element_Array;
       User_Name            : String;
@@ -71,6 +90,13 @@ package SSH_Lib.Protocol.Userauth is
       Public_Key_Blob      : Ada.Streams.Stream_Element_Array)
       return SSH_Lib.Protocol.Buffers.Packet_Buffer;
 
+   --  Encode a signed publickey request (has-signature = true) carrying the
+   --  computed signature blob.
+   --  @param User_Name            the authenticating user name
+   --  @param Public_Key_Algorithm the publickey algorithm name
+   --  @param Public_Key_Blob      the public-key blob
+   --  @param Signature_Blob       the signature over the signature payload
+   --  @return the encoded USERAUTH_REQUEST packet
    function Encode_Publickey_Signed_Request
      (User_Name            : String;
       Public_Key_Algorithm : String;
@@ -78,34 +104,62 @@ package SSH_Lib.Protocol.Userauth is
       Signature_Blob       : Ada.Streams.Stream_Element_Array)
       return SSH_Lib.Protocol.Buffers.Packet_Buffer;
 
+   --  Encode a "none" method userauth request (probes available methods).
+   --  @param User_Name the authenticating user name
+   --  @return the encoded USERAUTH_REQUEST packet
    function Encode_None_Request
      (User_Name : String)
       return SSH_Lib.Protocol.Buffers.Packet_Buffer;
 
+   --  Encode a password method userauth request.
+   --  @param User_Name the authenticating user name
+   --  @param Password  the password to submit
+   --  @return the encoded USERAUTH_REQUEST packet
    function Encode_Password_Request
      (User_Name : String;
       Password  : String)
       return SSH_Lib.Protocol.Buffers.Packet_Buffer;
 
+   --  Encode a password-change userauth request supplying old and new passwords.
+   --  @param User_Name    the authenticating user name
+   --  @param Old_Password the current password
+   --  @param New_Password the replacement password
+   --  @return the encoded USERAUTH_REQUEST packet
    function Encode_Password_Change_Request
      (User_Name    : String;
       Old_Password : String;
       New_Password : String)
       return SSH_Lib.Protocol.Buffers.Packet_Buffer;
 
+   --  Encode a keyboard-interactive method userauth request.
+   --  @param User_Name the authenticating user name
+   --  @return the encoded USERAUTH_REQUEST packet
    function Encode_Keyboard_Interactive_Request
      (User_Name : String)
       return SSH_Lib.Protocol.Buffers.Packet_Buffer;
 
+   --  Encode a keyboard-interactive INFO_RESPONSE carrying a single response.
+   --  @param Response the single prompt response
+   --  @return the encoded USERAUTH_INFO_RESPONSE packet
    function Encode_Keyboard_Interactive_Response
      (Response : String)
       return SSH_Lib.Protocol.Buffers.Packet_Buffer;
 
+   --  Encode a keyboard-interactive INFO_RESPONSE carrying multiple responses.
+   --  @param Response_Count the number of responses to include
+   --  @param Responses      the response array (first Response_Count entries used)
+   --  @return the encoded USERAUTH_INFO_RESPONSE packet
    function Encode_Keyboard_Interactive_Responses
      (Response_Count : Natural;
       Responses      : Keyboard_Interactive_Response_Array)
       return SSH_Lib.Protocol.Buffers.Packet_Buffer;
 
+   --  Parse a server userauth reply payload into a classified Reply, using the
+   --  request Context to disambiguate the overlapping message number 60.
+   --  @param Payload the received userauth message payload
+   --  @param Context the context of the request that this reply answers
+   --  @param Result  the parsed and classified reply
+   --  @return Ok on success, or an error Status if the payload is malformed
    function Parse_Userauth_Reply
      (Payload : Ada.Streams.Stream_Element_Array;
       Context : Reply_Context;

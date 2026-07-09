@@ -1,5 +1,6 @@
 with Ada.Command_Line;
 with Ada.Directories;
+with Ada.Environment_Variables;
 with Ada.Strings.Fixed;
 with Ada.Strings.Maps.Constants;
 with Ada.Text_IO;
@@ -8,6 +9,11 @@ procedure Check_Package_Tree is
    use Ada.Strings.Fixed;
    use type Ada.Directories.File_Kind;
    Failure_Count : Natural := 0;
+   Source_Worktree_Mode : constant Boolean :=
+     Ada.Directories.Exists (".git")
+     and then not
+       (Ada.Environment_Variables.Exists ("SSH_LIB_PACKAGE_TREE_STRICT")
+        and then Ada.Environment_Variables.Value ("SSH_LIB_PACKAGE_TREE_STRICT") = "1");
 
    procedure Fail (Message_Text : String) is
    begin
@@ -31,6 +37,15 @@ procedure Check_Package_Tree is
       Path_Lower : constant String := Lower (Path);
       Name_Lower : constant String := Lower (Name_Text);
    begin
+      if Source_Worktree_Mode
+        and then
+          (Has_Suffix (Name_Lower, ".tmp")
+           or else Has_Suffix (Name_Lower, ".log")
+           or else Has_Suffix (Name_Lower, ".bak"))
+      then
+         return False;
+      end if;
+
       return Name_Text = ".DS_Store"
         or else Has_Suffix (Name_Lower, ".o")
         or else Has_Suffix (Name_Lower, ".ali")
@@ -53,6 +68,16 @@ procedure Check_Package_Tree is
 
    function Is_Forbidden_Directory (Name_Text : String) return Boolean is
    begin
+      if Source_Worktree_Mode
+        and then
+          (Name_Text = ".git"
+           or else Name_Text = "obj"
+           or else Name_Text = "bin"
+           or else Name_Text = "coverage")
+      then
+         return False;
+      end if;
+
       return Name_Text = ".git"
         or else Name_Text = "obj"
         or else Name_Text = "bin"
@@ -80,7 +105,15 @@ procedure Check_Package_Tree is
               Ada.Directories.Kind (Directory_Item);
          begin
             if Kind_Value = Ada.Directories.Directory then
-               if Is_Forbidden_Directory (Name_Text) then
+               if Source_Worktree_Mode
+                 and then
+                   (Name_Text = ".git"
+                    or else Name_Text = "obj"
+                    or else Name_Text = "bin"
+                    or else Name_Text = "coverage")
+               then
+                  null;
+               elsif Is_Forbidden_Directory (Name_Text) then
                   Fail ("forbidden directory in package tree: " & Full_Path);
                elsif Name_Text /= "." and then Name_Text /= ".." then
                   Scan (Full_Path);

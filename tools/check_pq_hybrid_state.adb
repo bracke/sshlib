@@ -1,10 +1,9 @@
 with Ada.Command_Line;
-with Ada.Directories;
-with Ada.Strings.Fixed;
 with Ada.Text_IO;
 
+with Project_Tools.Files;
+
 procedure Check_PQ_Hybrid_State is
-   use Ada.Strings.Fixed;
 
    Failure_Count : Natural := 0;
 
@@ -14,37 +13,17 @@ procedure Check_PQ_Hybrid_State is
       Failure_Count := Failure_Count + 1;
    end Fail;
 
+   --  Delegates to the shared project_tools helpers; File_Exists preserves the
+   --  previous "missing file => not present" behaviour (rather than raising).
    function File_Contains (Path : String; Needle : String) return Boolean is
-      File_Item : Ada.Text_IO.File_Type;
    begin
-      if not Ada.Directories.Exists (Path) then
-         return False;
-      end if;
-
-      Ada.Text_IO.Open (File_Item, Ada.Text_IO.In_File, Path);
-      while not Ada.Text_IO.End_Of_File (File_Item) loop
-         declare
-            Line_Text : constant String := Ada.Text_IO.Get_Line (File_Item);
-         begin
-            if Index (Line_Text, Needle) /= 0 then
-               Ada.Text_IO.Close (File_Item);
-               return True;
-            end if;
-         end;
-      end loop;
-      Ada.Text_IO.Close (File_Item);
-      return False;
-   exception
-      when others =>
-         if Ada.Text_IO.Is_Open (File_Item) then
-            Ada.Text_IO.Close (File_Item);
-         end if;
-         return False;
+      return Project_Tools.Files.File_Exists (Path)
+        and then Project_Tools.Files.File_Contains (Path, Needle);
    end File_Contains;
 
    procedure Require_File (Path : String) is
    begin
-      if not Ada.Directories.Exists (Path) then
+      if not Project_Tools.Files.File_Exists (Path) then
          Fail ("missing PQ hybrid state file: " & Path);
       end if;
    end Require_File;
@@ -136,15 +115,21 @@ begin
 
    --  Pass 304 guard: release-facing algorithm documentation must match the
    --  current advertised KEX and host-key lists, including hybrid/PQ and
-   --  ECDSA P-256 raw/certificate names.  Earlier guides in SECURITY_REVIEW,
+   --  ECDSA P-256/P-384/P-521 raw/certificate names.  Earlier guides in SECURITY_REVIEW,
    --  TESTING, and THREAT_MODEL had stale classical-only KEX lists after
    --  hybrid/PQ advertisement was enabled.
    Require_Text ("docs/SECURITY_REVIEW.md", "mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512");
    Require_Text ("docs/SECURITY_REVIEW.md", "ecdsa-sha2-nistp256-cert-v01@openssh.com");
+   Require_Text ("docs/SECURITY_REVIEW.md", "ecdsa-sha2-nistp384-cert-v01@openssh.com");
+   Require_Text ("docs/SECURITY_REVIEW.md", "ecdsa-sha2-nistp521-cert-v01@openssh.com");
    Require_Text ("docs/TESTING.md", "mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512");
    Require_Text ("docs/TESTING.md", "ecdsa-sha2-nistp256-cert-v01@openssh.com");
+   Require_Text ("docs/TESTING.md", "ecdsa-sha2-nistp384-cert-v01@openssh.com");
+   Require_Text ("docs/TESTING.md", "ecdsa-sha2-nistp521-cert-v01@openssh.com");
    Require_Text ("docs/THREAT_MODEL.md", "mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512");
    Require_Text ("docs/THREAT_MODEL.md", "ecdsa-sha2-nistp256-cert-v01@openssh.com");
+   Require_Text ("docs/THREAT_MODEL.md", "ecdsa-sha2-nistp384-cert-v01@openssh.com");
+   Require_Text ("docs/THREAT_MODEL.md", "ecdsa-sha2-nistp521-cert-v01@openssh.com");
    Forbid_Text ("docs/SECURITY_REVIEW.md", "The client advertises `curve25519-sha256,curve25519-sha256@libssh.org");
    Forbid_Text ("docs/TESTING.md", "The client advertises `curve25519-sha256,curve25519-sha256@libssh.org");
    Forbid_Text ("docs/THREAT_MODEL.md", "The client advertises `curve25519-sha256,curve25519-sha256@libssh.org");

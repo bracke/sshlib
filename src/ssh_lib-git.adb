@@ -504,31 +504,6 @@ package body SSH_Lib.Git is
       return Boolean
    is
       Cursor : Stream_Element_Offset := Data'First;
-
-      function Line_Starts_With
-        (First : Stream_Element_Offset;
-         Last  : Stream_Element_Offset;
-         Text  : String)
-         return Boolean
-      is
-      begin
-         if Last < First
-           or else Natural (Last - First + 1) < Text'Length
-         then
-            return False;
-         end if;
-         for Offset in 0 .. Text'Length - 1 loop
-            if Data (First + Stream_Element_Offset (Offset))
-              /= Character'Pos (Text (Text'First + Offset))
-            then
-               return False;
-            end if;
-         end loop;
-         return True;
-      exception
-         when others =>
-            return False;
-      end Line_Starts_With;
    begin
       if Data'Length /= Stream_Element_Offset (Object_ID_SHA1_Raw_Length)
       then
@@ -5063,6 +5038,48 @@ package body SSH_Lib.Git is
          Last := Commit_ID_Hex'First - 1;
          return Internal_Error;
    end Commit_Index_To_Branch;
+
+   function Stage_And_Commit_Worktree_File
+     (Repository_Root : String;
+      Branch_Name     : String;
+      Path            : String;
+      Author_Line     : String;
+      Committer_Line  : String;
+      Message         : String;
+      Commit_ID_Hex   : out Stream_Element_Array;
+      Last            : out Stream_Element_Offset)
+      return Status
+   is
+      Staged_Object_Hex : Stream_Element_Array
+        (1 .. Stream_Element_Offset (Object_ID_SHA1_Hex_Length));
+      Staged_Object_Last : Stream_Element_Offset;
+      Status_Value : Status;
+   begin
+      Last := Commit_ID_Hex'First - 1;
+
+      Status_Value :=
+        Stage_Worktree_File
+          (Repository_Root, Path, Staged_Object_Hex, Staged_Object_Last);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      return Commit_Index_To_Branch
+        (Repository_Root,
+         Branch_Name,
+         Author_Line,
+         Committer_Line,
+         Message,
+         Commit_ID_Hex,
+         Last);
+   exception
+      when Constraint_Error =>
+         Last := Commit_ID_Hex'First - 1;
+         return Invalid_Command;
+      when others =>
+         Last := Commit_ID_Hex'First - 1;
+         return Internal_Error;
+   end Stage_And_Commit_Worktree_File;
 
    function Loose_Object_Path
      (Repository_Root : String;
@@ -12515,9 +12532,9 @@ package body SSH_Lib.Git is
            (Search,
             Directory_Path,
             "*",
-            (Ada.Directories.Ordinary_File => True,
+            [Ada.Directories.Ordinary_File => True,
              Ada.Directories.Directory     => True,
-             Ada.Directories.Special_File  => False));
+             Ada.Directories.Special_File  => False]);
          while Ada.Directories.More_Entries (Search) loop
             declare
                Dir_Entry : Ada.Directories.Directory_Entry_Type;
@@ -12804,7 +12821,7 @@ package body SSH_Lib.Git is
            Name_Lasts,
            Object_IDs_Hex,
            Full_Count);
-      if Status_Value /= OK then
+      if Status_Value /= Ok then
          Count := 0;
          return Status_Value;
       end if;
@@ -12829,7 +12846,7 @@ package body SSH_Lib.Git is
          end;
       end loop;
 
-      return OK;
+      return Ok;
    exception
       when Constraint_Error =>
          Count := 0;
@@ -12885,7 +12902,7 @@ package body SSH_Lib.Git is
            Name_Lasts,
            Object_IDs_Hex,
            Full_Count);
-      if Status_Value /= OK then
+      if Status_Value /= Ok then
          Count := 0;
          return Status_Value;
       end if;
@@ -12910,7 +12927,7 @@ package body SSH_Lib.Git is
          end;
       end loop;
 
-      return OK;
+      return Ok;
    exception
       when Constraint_Error =>
          Count := 0;
@@ -12966,7 +12983,7 @@ package body SSH_Lib.Git is
            Name_Lasts,
            Object_IDs_Hex,
            Full_Count);
-      if Status_Value /= OK then
+      if Status_Value /= Ok then
          Count := 0;
          return Status_Value;
       end if;
@@ -12991,7 +13008,7 @@ package body SSH_Lib.Git is
          end;
       end loop;
 
-      return OK;
+      return Ok;
    exception
       when Constraint_Error =>
          Count := 0;
@@ -13183,9 +13200,9 @@ package body SSH_Lib.Git is
       Status_Value :=
         Read_Symbolic_Ref
           (Repository_Root, "HEAD", Target_Ref_Name, Last);
-      if Status_Value = OK then
+      if Status_Value = Ok then
          Attached := True;
-         return OK;
+         return Ok;
       elsif Status_Value /= Read_Failed
         and then Status_Value /= Invalid_Command
       then
@@ -13240,7 +13257,7 @@ package body SSH_Lib.Git is
                       - 1),
                  Raw_ID,
                  Raw_Last);
-            if Status_Value /= OK then
+            if Status_Value /= Ok then
                return Status_Value;
             end if;
          end;
@@ -13259,7 +13276,7 @@ package body SSH_Lib.Git is
 
       Attached := False;
       Last := Target_Ref_Name'First - 1;
-      return OK;
+      return Ok;
    exception
       when Constraint_Error =>
          Attached := False;
@@ -13289,21 +13306,21 @@ package body SSH_Lib.Git is
       Last := Branch_Name'First - 1;
       Status_Value :=
         Read_HEAD_Target (Repository_Root, Target, Target_Last, Attached);
-      if Status_Value /= OK or else not Attached then
+      if Status_Value /= Ok or else not Attached then
          return Status_Value;
       end if;
 
       if Target_Last - Target'First + 1 <=
         Stream_Element_Offset (Prefix'Length)
       then
-         return OK;
+         return Ok;
       end if;
 
       for Offset in 0 .. Prefix'Length - 1 loop
          if Target (Target'First + Stream_Element_Offset (Offset)) /=
            Stream_Element (Character'Pos (Prefix (Prefix'First + Offset)))
          then
-            return OK;
+            return Ok;
          end if;
       end loop;
 
@@ -13321,7 +13338,7 @@ package body SSH_Lib.Git is
          Branch_Name (Last) := Target (Source);
       end loop;
       Found := True;
-      return OK;
+      return Ok;
    exception
       when Constraint_Error =>
          Found := False;
@@ -13383,7 +13400,7 @@ package body SSH_Lib.Git is
       end if;
 
       Status_Value := Resolve_HEAD (Repository_Root, Object_ID_Hex, Last);
-      if Status_Value /= OK then
+      if Status_Value /= Ok then
          return Status_Value;
       elsif Last /= Object_ID_Hex'Last then
          return Read_Failed;
@@ -13553,7 +13570,7 @@ package body SSH_Lib.Git is
       end if;
 
       Status_Value := Resolve_HEAD (Repository_Root, Object_ID_Hex, Last);
-      if Status_Value /= OK then
+      if Status_Value /= Ok then
          return Status_Value;
       elsif Last /= Object_ID_Hex'Last then
          return Read_Failed;
@@ -13797,7 +13814,7 @@ package body SSH_Lib.Git is
       end if;
 
       Status_Value := Resolve_HEAD (Repository_Root, Object_ID_Hex, Last);
-      if Status_Value /= OK then
+      if Status_Value /= Ok then
          return Status_Value;
       elsif Last /= Object_ID_Hex'Last then
          return Read_Failed;
@@ -14071,7 +14088,7 @@ package body SSH_Lib.Git is
            (1 .. Stream_Element_Offset (File_Size));
          File_Last : Stream_Element_Offset;
          Entry_First : Stream_Element_Offset := Data'First;
-         Entry_Last  : Stream_Element_Offset := Data'Last - 1;
+         Entry_Last  : constant Stream_Element_Offset := Data'Last - 1;
       begin
          Stream_IO.Read (File, Data, File_Last);
          Stream_IO.Close (File);
@@ -14706,7 +14723,7 @@ package body SSH_Lib.Git is
          begin
             while Read_Cursor <= Existing'Last loop
                declare
-                  Line_First : Stream_Element_Offset := Read_Cursor;
+                  Line_First : constant Stream_Element_Offset := Read_Cursor;
                   Line_End   : Stream_Element_Offset := Read_Cursor;
                   Line_Last  : Stream_Element_Offset;
                   Trim_First : Stream_Element_Offset;
@@ -15016,7 +15033,7 @@ package body SSH_Lib.Git is
          begin
             while Read_Cursor <= Existing'Last loop
                declare
-                  Line_First : Stream_Element_Offset := Read_Cursor;
+                  Line_First : constant Stream_Element_Offset := Read_Cursor;
                   Line_End   : Stream_Element_Offset := Read_Cursor;
                   Line_Last  : Stream_Element_Offset;
                   Trim_First : Stream_Element_Offset;
@@ -15251,7 +15268,7 @@ package body SSH_Lib.Git is
          begin
             while Read_Cursor <= Existing'Last loop
                declare
-                  Line_First : Stream_Element_Offset := Read_Cursor;
+                  Line_First : constant Stream_Element_Offset := Read_Cursor;
                   Line_End   : Stream_Element_Offset := Read_Cursor;
                   Line_Last  : Stream_Element_Offset;
                   Trim_First : Stream_Element_Offset;
@@ -15391,7 +15408,7 @@ package body SSH_Lib.Git is
            or else Ch = ']'
            or else Ch = '='
            or else Ch = Character'Val (9)
-        then
+         then
             return False;
          end if;
       end loop;
@@ -17016,7 +17033,7 @@ package body SSH_Lib.Git is
       Removed         : out Boolean)
       return Status
    is
-      Empty_Record : Stream_Element_Array (1 .. 1) := [1 => 0];
+      Empty_Record : constant Stream_Element_Array (1 .. 1) := [1 => 0];
    begin
       Removed := False;
       if not Valid_Repository_Root (Repository_Root)
@@ -17092,7 +17109,7 @@ package body SSH_Lib.Git is
         Read_Config_Value
           (Repository_Root, "core", "bare", Value, Last, Found);
 
-      if Status_Value /= OK or else not Found then
+      if Status_Value /= Ok or else not Found then
          return Status_Value;
       end if;
 
@@ -17103,7 +17120,7 @@ package body SSH_Lib.Git is
         and then Value (Value'First + 3) = Character'Pos ('e')
       then
          Is_Bare := True;
-         return OK;
+         return Ok;
       elsif Last = Value'First + 4
         and then Value (Value'First) = Character'Pos ('f')
         and then Value (Value'First + 1) = Character'Pos ('a')
@@ -17112,7 +17129,7 @@ package body SSH_Lib.Git is
         and then Value (Value'First + 4) = Character'Pos ('e')
       then
          Is_Bare := False;
-         return OK;
+         return Ok;
       else
          Found := False;
          return Invalid_Command;
@@ -17180,7 +17197,7 @@ package body SSH_Lib.Git is
         Read_Config_Value
           (Repository_Root, "core", "filemode", Value, Last, Found);
 
-      if Status_Value /= OK or else not Found then
+      if Status_Value /= Ok or else not Found then
          return Status_Value;
       end if;
 
@@ -17191,7 +17208,7 @@ package body SSH_Lib.Git is
         and then Value (Value'First + 3) = Character'Pos ('e')
       then
          Filemode := True;
-         return OK;
+         return Ok;
       elsif Last = Value'First + 4
         and then Value (Value'First) = Character'Pos ('f')
         and then Value (Value'First + 1) = Character'Pos ('a')
@@ -17200,7 +17217,7 @@ package body SSH_Lib.Git is
         and then Value (Value'First + 4) = Character'Pos ('e')
       then
          Filemode := False;
-         return OK;
+         return Ok;
       else
          Found := False;
          return Invalid_Command;
@@ -17272,7 +17289,7 @@ package body SSH_Lib.Git is
         Read_Config_Value
           (Repository_Root, "core", "logAllRefUpdates", Value, Last, Found);
 
-      if Status_Value /= OK or else not Found then
+      if Status_Value /= Ok or else not Found then
          return Status_Value;
       end if;
 
@@ -17283,7 +17300,7 @@ package body SSH_Lib.Git is
         and then Value (Value'First + 3) = Character'Pos ('e')
       then
          Log_All_Ref_Updates := True;
-         return OK;
+         return Ok;
       elsif Last = Value'First + 4
         and then Value (Value'First) = Character'Pos ('f')
         and then Value (Value'First + 1) = Character'Pos ('a')
@@ -17292,7 +17309,7 @@ package body SSH_Lib.Git is
         and then Value (Value'First + 4) = Character'Pos ('e')
       then
          Log_All_Ref_Updates := False;
-         return OK;
+         return Ok;
       else
          Found := False;
          return Invalid_Command;
@@ -18481,7 +18498,7 @@ package body SSH_Lib.Git is
    begin
       if Capabilities'Length = 0 then
          return Build_Upload_Pack_Line ("want ", Object_ID_Hex,
-                                        (1 .. 0 => 0));
+                                        [1 .. 0 => 0]);
       end if;
 
       Status_Value := Validate_Capability_List (Capabilities, Summary);
@@ -18508,7 +18525,7 @@ package body SSH_Lib.Git is
       return Packet_Buffer
    is
    begin
-      return Build_Upload_Pack_Line ("have ", Object_ID_Hex, (1 .. 0 => 0));
+      return Build_Upload_Pack_Line ("have ", Object_ID_Hex, [1 .. 0 => 0]);
    end Encode_Upload_Pack_Have_Line;
 
    function Encode_Upload_Pack_Done_Line
@@ -18555,7 +18572,7 @@ package body SSH_Lib.Git is
    is
    begin
       return Build_Upload_Pack_Line ("shallow ", Object_ID_Hex,
-                                     (1 .. 0 => 0));
+                                     [1 .. 0 => 0]);
    end Encode_Upload_Pack_Shallow_Line;
 
    function Encode_Upload_Pack_Filter_Line
@@ -19302,7 +19319,7 @@ package body SSH_Lib.Git is
       for Index in Wants'Range loop
          declare
             Caps : constant Stream_Element_Array :=
-              (if Index = Wants'First then Capabilities else (1 .. 0 => 0));
+              (if Index = Wants'First then Capabilities else [1 .. 0 => 0]);
          begin
             Status_Value :=
               Append_Buffer
@@ -20387,31 +20404,6 @@ package body SSH_Lib.Git is
             return False;
       end Line_Equals;
 
-      function Line_Starts_With
-        (First : Stream_Element_Offset;
-         Last  : Stream_Element_Offset;
-         Text  : String)
-         return Boolean
-      is
-      begin
-         if Last < First
-           or else Natural (Last - First + 1) < Text'Length
-         then
-            return False;
-         end if;
-         for Offset in 0 .. Text'Length - 1 loop
-            if Data (First + Stream_Element_Offset (Offset))
-              /= Character'Pos (Text (Text'First + Offset))
-            then
-               return False;
-            end if;
-         end loop;
-         return True;
-      exception
-         when others =>
-            return False;
-      end Line_Starts_With;
-
       function Capability_Name_Equals
         (First : Stream_Element_Offset;
          Last  : Stream_Element_Offset;
@@ -20439,6 +20431,31 @@ package body SSH_Lib.Git is
          when others =>
             return False;
       end Capability_Name_Equals;
+
+      function Line_Starts_With
+        (First : Stream_Element_Offset;
+         Last  : Stream_Element_Offset;
+         Text  : String)
+         return Boolean
+      is
+      begin
+         if Last < First
+           or else Natural (Last - First + 1) < Text'Length
+         then
+            return False;
+         end if;
+         for Offset in 0 .. Text'Length - 1 loop
+            if Data (First + Stream_Element_Offset (Offset))
+              /= Character'Pos (Text (Text'First + Offset))
+            then
+               return False;
+            end if;
+         end loop;
+         return True;
+      exception
+         when others =>
+            return False;
+      end Line_Starts_With;
    begin
       Summary := (others => <>);
       if Data'Length = 0 then
@@ -21911,8 +21928,6 @@ package body SSH_Lib.Git is
                     or else Next_Offset > Trailer_Offset
                   then
                      return Invalid_Command;
-                  elsif Cursor > 16#7FFF_FFFF# then
-                     return Unsupported_Feature;
                   end if;
 
                   Status_Value :=
@@ -22918,10 +22933,10 @@ package body SSH_Lib.Git is
         (Data : Stream_Element_Array)
          return Interfaces.Unsigned_32
       is
-	         CRC : Interfaces.Unsigned_32 := 16#FFFF_FFFF#;
-	      begin
-	         for B of Data loop
-	            CRC := CRC xor Interfaces.Unsigned_32 (B);
+         CRC : Interfaces.Unsigned_32 := 16#FFFF_FFFF#;
+      begin
+         for B of Data loop
+            CRC := CRC xor Interfaces.Unsigned_32 (B);
             for Bit in 1 .. 8 loop
                if (CRC and 1) = 1 then
                   CRC := Interfaces.Shift_Right (CRC, 1) xor 16#EDB8_8320#;
@@ -22931,8 +22946,8 @@ package body SSH_Lib.Git is
             end loop;
          end loop;
 
-	         return not CRC;
-	      end CRC32;
+         return not CRC;
+      end CRC32;
 
       function Resolve_Index_Offset
         (Index       : Natural;
@@ -23016,9 +23031,9 @@ package body SSH_Lib.Git is
             declare
                Start_Offset : Natural := 0;
                End_Offset   : Natural := 0;
-	               Expected_CRC : Interfaces.Unsigned_32 := 0;
-	               Actual_CRC   : Interfaces.Unsigned_32 := 0;
-	            begin
+               Expected_CRC : Interfaces.Unsigned_32 := 0;
+               Actual_CRC   : Interfaces.Unsigned_32 := 0;
+            begin
                Status_Value := Resolve_Index_Offset (Index, Start_Offset);
                if Status_Value /= Ok then
                   return Status_Value;
@@ -23031,13 +23046,13 @@ package body SSH_Lib.Git is
                   return Invalid_Command;
                end if;
 
-	               Expected_CRC :=
-	                 U32_Raw_At
-	                   (Index_Data,
-	                    Offset_At (Layout.CRCs_Offset + Index * 4));
+               Expected_CRC :=
+                 U32_Raw_At
+                   (Index_Data,
+                    Offset_At (Layout.CRCs_Offset + Index * 4));
 
-	               Actual_CRC :=
-	                 CRC32
+               Actual_CRC :=
+                 CRC32
                    (Pack_Data
                       (Pack_Data'First + Stream_Element_Offset (Start_Offset)
                        .. Pack_Data'First
@@ -23582,9 +23597,7 @@ package body SSH_Lib.Git is
          end if;
 
          Total_Length := Header_Length + Payload_Length;
-         if Stream_Element_Offset (Total_Length) > Stream_Element_Offset'Last then
-            return Unsupported_Feature;
-         elsif Payload_Length > Natural (Scratch'Length) then
+         if Payload_Length > Natural (Scratch'Length) then
             return Read_Failed;
          elsif Payload_Length = 0
            and then Last_Value /= Scratch'First - 1
@@ -24807,7 +24820,7 @@ package body SSH_Lib.Git is
          Verified_Count := 0;
          Resolved_Count := 0;
          Trailer_Offset := 0;
-	         return Internal_Error;
+         return Internal_Error;
    end Validate_Pack_Integrity;
 
    function Inventory_Pack_Objects
@@ -24967,9 +24980,6 @@ package body SSH_Lib.Git is
       end if;
 
       Total_Length := Header_Length + Payload_Length;
-      if Stream_Element_Offset (Total_Length) > Stream_Element_Offset'Last then
-         return Unsupported_Feature;
-      end if;
 
       declare
          Preimage : Stream_Element_Array (1 .. Stream_Element_Offset (Total_Length));
@@ -25815,6 +25825,98 @@ package body SSH_Lib.Git is
          Last := Line'First - 1;
          return Write_Failed;
    end Build_Sequencer_Pick_Line;
+
+   function Build_Sequencer_Pick_Todo
+     (Commit_IDs_Hex : Object_ID_Hex_Array;
+      Subjects       : Stream_Element_Array;
+      Subject_Lasts  : Index_Path_Last_Array;
+      Count          : Natural;
+      Todo           : out Stream_Element_Array;
+      Last           : out Stream_Element_Offset)
+      return Status
+   is
+      Cursor        : Stream_Element_Offset := Todo'First;
+      Subject_First : Stream_Element_Offset := Subjects'First;
+      Line_Data     : Stream_Element_Array
+        (1 .. Stream_Element_Offset (Maximum_Pkt_Line_Payload_Length));
+      Line_Last     : Stream_Element_Offset;
+      Status_Value  : Status;
+
+      function Subject_Text
+        (First_Index : Stream_Element_Offset;
+         Last_Index  : Stream_Element_Offset) return String
+      is
+         Result : String
+           (1 .. Natural (Last_Index - First_Index + 1));
+      begin
+         for Offset in 0 .. Last_Index - First_Index loop
+            if Subjects (First_Index + Offset) > 127 then
+               return "";
+            end if;
+            Result (Natural (Offset) + 1) :=
+              Character'Val (Subjects (First_Index + Offset));
+         end loop;
+         return Result;
+      exception
+         when others =>
+            return "";
+      end Subject_Text;
+   begin
+      Last := Todo'First - 1;
+      if Count = 0
+        or else Count > Commit_IDs_Hex'Length
+        or else Count > Subject_Lasts'Length
+      then
+         return Invalid_Command;
+      end if;
+
+      for Index_Value in 1 .. Count loop
+         if Subject_Lasts (Subject_Lasts'First + Index_Value - 1)
+           < Subject_First
+         then
+            return Invalid_Command;
+         end if;
+
+         declare
+            Subject_Last : constant Stream_Element_Offset :=
+              Subject_Lasts (Subject_Lasts'First + Index_Value - 1);
+            Subject_Value : constant String :=
+              Subject_Text (Subject_First, Subject_Last);
+         begin
+            if Subject_Value'Length = 0 then
+               return Invalid_Command;
+            end if;
+            Status_Value :=
+              Build_Sequencer_Pick_Line
+                (Stream_Element_Array
+                   (Commit_IDs_Hex
+                      (Commit_IDs_Hex'First + Index_Value - 1)),
+                 Subject_Value,
+                 Line_Data,
+                 Line_Last);
+            if Status_Value /= Ok then
+               return Status_Value;
+            elsif Cursor + (Line_Last - Line_Data'First) > Todo'Last then
+               return Write_Failed;
+            end if;
+
+            Todo (Cursor .. Cursor + (Line_Last - Line_Data'First)) :=
+              Line_Data (Line_Data'First .. Line_Last);
+            Cursor := Cursor + (Line_Last - Line_Data'First) + 1;
+            Subject_First := Subject_Last + 1;
+         end;
+      end loop;
+
+      Last := Cursor - 1;
+      return Ok;
+   exception
+      when Constraint_Error =>
+         Last := Todo'First - 1;
+         return Invalid_Command;
+      when others =>
+         Last := Todo'First - 1;
+         return Write_Failed;
+   end Build_Sequencer_Pick_Todo;
 
    function Build_Tag_Object
      (Target_ID_Hex : Stream_Element_Array;
@@ -27920,6 +28022,7 @@ package body SSH_Lib.Git is
         (Offset : Natural)
          return Stream_Element
       is
+         pragma Unreferenced (Offset);
       begin
          if Cursor > Delta_Data'Last then
             raise Constraint_Error;
@@ -28879,11 +28982,6 @@ package body SSH_Lib.Git is
             Text : String (1 .. Length);
          begin
             for Offset in 0 .. Length - 1 loop
-               if Data (First + Stream_Element_Offset (Offset))
-                 > Character'Pos (Character'Last)
-               then
-                  return False;
-               end if;
                Text (Text'First + Offset) :=
                  Character'Val
                    (Data (First + Stream_Element_Offset (Offset)));
@@ -29012,7 +29110,6 @@ package body SSH_Lib.Git is
       begin
          if Item <= Character'Pos (' ')
            or else Item = Character'Pos (Character'Val (127))
-           or else Item > Character'Pos (Character'Last)
          then
             return False;
          elsif not In_Value and then Item = Character'Pos ('=') then

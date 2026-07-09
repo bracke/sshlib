@@ -1,7 +1,8 @@
 with Ada.Command_Line;
-with Ada.Directories;
-with Ada.Environment_Variables;
 with Ada.Text_IO;
+
+with Project_Tools.Files;
+with Project_Tools.Processes;
 
 procedure Check_Release_Toolchain is
    Failure_Count : Natural := 0;
@@ -12,88 +13,47 @@ procedure Check_Release_Toolchain is
       Failure_Count := Failure_Count + 1;
    end Fail;
 
-   function Exists_Executable (Path : String) return Boolean is
-   begin
-      return Ada.Directories.Exists (Path)
-        or else Ada.Directories.Exists (Path & ".exe");
-   end Exists_Executable;
-
-   function Join_Path (Directory_Text : String; Name_Text : String) return String is
-   begin
-      if Directory_Text'Length = 0 then
-         return Name_Text;
-      elsif Directory_Text (Directory_Text'Last) = '/'
-        or else Directory_Text (Directory_Text'Last) = '\'
-      then
-         return Directory_Text & Name_Text;
-      else
-         return Directory_Text & "/" & Name_Text;
-      end if;
-   end Join_Path;
-
-   function Find_In_Path (Program_Name : String) return Boolean is
-      Path_Text : constant String :=
-        (if Ada.Environment_Variables.Exists ("PATH")
-         then Ada.Environment_Variables.Value ("PATH")
-         else "");
-      Start_Index : Positive := Path_Text'First;
-      Stop_Index  : Natural;
-   begin
-      if Exists_Executable (Program_Name) then
-         return True;
-      end if;
-
-      if Path_Text'Length = 0 then
-         return False;
-      end if;
-
-      while Start_Index <= Path_Text'Last loop
-         Stop_Index := Start_Index;
-         while Stop_Index <= Path_Text'Last
-           and then Path_Text (Stop_Index) /= ':'
-           and then Path_Text (Stop_Index) /= ';'
-         loop
-            Stop_Index := Stop_Index + 1;
-         end loop;
-
-         declare
-            Directory_Text : constant String := Path_Text (Start_Index .. Stop_Index - 1);
-         begin
-            if Directory_Text'Length > 0
-              and then Exists_Executable (Join_Path (Directory_Text, Program_Name))
-            then
-               return True;
-            end if;
-         end;
-
-         Start_Index := Stop_Index + 1;
-      end loop;
-
-      return False;
-   end Find_In_Path;
-
    procedure Require_Program (Program_Name : String; Purpose_Text : String) is
    begin
-      if not Find_In_Path (Program_Name) then
+      if Project_Tools.Processes.Locate_Command (Program_Name) = "" then
          Fail ("required release tool not found on PATH: " & Program_Name
                & " (" & Purpose_Text & ")");
       end if;
    end Require_Program;
 
+   procedure Require_Text (Path : String; Needle : String) is
+   begin
+      if not Project_Tools.Files.File_Exists (Path) then
+         Fail ("required toolchain file not found: " & Path);
+      elsif not Project_Tools.Files.File_Contains (Path, Needle) then
+         Fail ("missing toolchain text in " & Path & ": " & Needle);
+      end if;
+   end Require_Text;
+
+   procedure Require_Alire_GNAT_15 is
+   begin
+      Require_Text ("alire.toml", "gnat_native = ""^15""");
+      Require_Text ("tests/alire.toml", "gnat_native = ""^15""");
+      Require_Text ("tools/alire.toml", "gnat_native = ""^15""");
+      Require_Text ("alire/alire.lock", "gnat=15.2.1");
+      Require_Text ("alire/alire.lock", "version = ""15.2.1""");
+      Require_Text ("tools/alire/alire.lock", "gnat=15.2.1");
+      Require_Text ("tools/alire/alire.lock", "version = ""15.2.1""");
+   end Require_Alire_GNAT_15;
+
 begin
    Ada.Text_IO.Put_Line ("Phase 19 release toolchain guard");
-   Ada.Text_IO.Put_Line ("This guard is intentionally non-executing; it checks availability before the release command sequence is trusted.");
+   Ada.Text_IO.Put_Line
+     ("This guard requires Alire GNAT 15 manifests and synced lock files.");
 
    Require_Program ("alr", "Alire crate build and execution wrapper");
-   Require_Program ("gprbuild", "GPR project build execution");
-   Require_Program ("gnatmake", "GNAT Ada compiler frontend availability");
-   Require_Program ("gcc", "compiler driver used by GNAT installations");
+   Require_Alire_GNAT_15;
 
    if Failure_Count = 0 then
       Ada.Text_IO.Put_Line ("release toolchain guard passed");
    else
       Ada.Text_IO.Put_Line
-        ("Install Alire and a complete GNAT/GPR toolchain before running the release sequence. A gcc binary without gnat1 is not sufficient.");
+        ("Sync Alire GNAT 15 before running the release sequence; plain system GNAT is not accepted.");
       Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
    end if;
 end Check_Release_Toolchain;

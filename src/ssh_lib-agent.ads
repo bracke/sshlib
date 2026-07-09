@@ -3,6 +3,11 @@ with Ada.Strings.Unbounded;
 with CryptoLib.Errors;
 with SSH_Lib.Protocol.Buffers;
 
+--  @summary In-memory list of ssh-agent identities (public-key blob plus comment).
+--
+--  Holds the identities returned by an agent, each a public-key blob and its
+--  human-readable comment, with fixed capacity and size bounds so parsing an
+--  untrusted SSH_AGENT_IDENTITIES_ANSWER cannot exhaust memory.
 package SSH_Lib.Agent is
 
    Max_Identities          : constant Natural := 128;
@@ -12,21 +17,40 @@ package SSH_Lib.Agent is
 
    type Identity_List is private;
 
+   --  Reset the list to empty, discarding all stored identities.
+   --  @param Item the identity list to clear
    procedure Clear (Item : out Identity_List);
 
+   --  Return the number of identities currently held.
+   --  @param Item the identity list to inspect
+   --  @return the count of stored identities
    function Count (Item : Identity_List) return Natural;
 
+   --  Append one identity (public-key blob and comment) to the list.
+   --  @param Item     the identity list to extend
+   --  @param Key_Blob the SSH public-key blob for the identity
+   --  @param Comment  the identity's human-readable comment
+   --  @return Ok if added, or a failure status if the list is full or a bound
+   --          is exceeded
    function Add_Identity
      (Item     : in out Identity_List;
       Key_Blob : Ada.Streams.Stream_Element_Array;
       Comment  : String)
       return CryptoLib.Errors.Status;
 
+   --  Return the public-key blob of the identity at the given position.
+   --  @param Item  the identity list to inspect
+   --  @param Index the 1-based position of the identity
+   --  @return the stored public-key blob
    function Public_Key_Blob
      (Item  : Identity_List;
       Index : Positive)
       return Ada.Streams.Stream_Element_Array;
 
+   --  Return the comment of the identity at the given position.
+   --  @param Item  the identity list to inspect
+   --  @param Index the 1-based position of the identity
+   --  @return the stored comment string
    function Comment
      (Item  : Identity_List;
       Index : Positive)

@@ -1,0 +1,27 @@
+name = "ssh_lib_tools"
+description = "Release and verification tooling for the ssh_lib crate"
+version = "0.1.0-dev"
+
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+licenses = "MIT OR Apache-2.0 WITH LLVM-exception"
+website = ""
+tags = []
+project-files = ["tools.gpr"]
+
+[[depends-on]]
+gnat_native = "^15"
+
+[[depends-on]]
+ssh_lib = "*"
+
+[[depends-on]]
+project_tools = "~0.1.0"
+
+# Local development overrides; dev-only, not for publication.
+[[pins]]
+ssh_lib = { path = ".." }
+
+[[pins]]
+project_tools = { path = "../../project_tools" }

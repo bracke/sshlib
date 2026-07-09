@@ -231,6 +231,14 @@ package body SSH_Lib.Tests.Fixtures.Config_Security is
              "PubkeyAcceptedAlgorithms default list keeps SK ECDSA certificate userauth algorithm");
       Check (Ada.Strings.Fixed.Index
                (To_String (Options.Pubkey_Accepted_Algorithms),
+                "ecdsa-sha2-nistp384-cert-v01@openssh.com") /= 0,
+             "PubkeyAcceptedAlgorithms default list keeps ECDSA P-384 certificate userauth algorithm");
+      Check (Ada.Strings.Fixed.Index
+               (To_String (Options.Pubkey_Accepted_Algorithms),
+                "ecdsa-sha2-nistp521-cert-v01@openssh.com") /= 0,
+             "PubkeyAcceptedAlgorithms default list keeps ECDSA P-521 certificate userauth algorithm");
+      Check (Ada.Strings.Fixed.Index
+               (To_String (Options.Pubkey_Accepted_Algorithms),
                 "sk-ssh-ed25519@openssh.com") = 0,
              "PubkeyAcceptedAlgorithms -modifier removes raw SK Ed25519 userauth algorithm");
       Check (Ada.Strings.Fixed.Index

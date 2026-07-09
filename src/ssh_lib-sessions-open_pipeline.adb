@@ -156,6 +156,19 @@ package body SSH_Lib.Sessions.Open_Pipeline is
       List_Text : constant String :=
         To_String (Options.Preferred_Authentications);
    begin
+      if Method_Name = "publickey" and then not Options.Pubkey_Authentication
+      then
+         return False;
+      elsif Method_Name = "keyboard-interactive"
+        and then not Options.Kbd_Interactive_Authentication
+      then
+         return False;
+      elsif Method_Name = "password"
+        and then not Options.Password_Authentication
+      then
+         return False;
+      end if;
+
       return
         List_Text'Length = 0
         or else Name_In_Comma_List (List_Text, Method_Name);
@@ -295,6 +308,15 @@ package body SSH_Lib.Sessions.Open_Pipeline is
         To_String (Options.Identity_File);
       Certificate_File_Text           : constant String :=
         To_String (Options.Certificate_File);
+      Update_Host_Keys_Text           : constant String :=
+        Ada.Characters.Handling.To_Lower
+          (To_String (Options.Update_Host_Keys));
+      Verify_Host_Key_DNS_Text        : constant String :=
+        Ada.Characters.Handling.To_Lower
+          (To_String (Options.Verify_Host_Key_DNS));
+      Add_Keys_To_Agent_Text          : constant String :=
+        Ada.Characters.Handling.To_Lower
+          (To_String (Options.Add_Keys_To_Agent));
       Identity_Agent_Text             : constant String :=
         To_String (Options.Identity_Agent);
       Password_Text                   : constant String :=
@@ -312,6 +334,36 @@ package body SSH_Lib.Sessions.Open_Pipeline is
 
       if not SSH_Lib.Internal.Valid_User (User_Text) then
          return Invalid_User;
+      end if;
+
+      if Verify_Host_Key_DNS_Text = "yes"
+        or else Verify_Host_Key_DNS_Text = "ask"
+      then
+         return Unsupported_Feature;
+      end if;
+
+      if Options.Check_Host_IP
+        or else
+          (Update_Host_Keys_Text'Length > 0
+           and then Update_Host_Keys_Text /= "no")
+      then
+         return Unsupported_Feature;
+      end if;
+
+      if Options.Hostbased_Authentication
+        or else Options.Fork_After_Authentication
+        or else Options.Proxy_Use_Fdpass
+        or else Options.Enable_SSH_Keysign
+        or else Options.GSSAPI_Authentication
+        or else Options.GSSAPI_Delegate_Credentials
+      then
+         return Unsupported_Feature;
+      end if;
+
+      if Add_Keys_To_Agent_Text'Length > 0
+        and then Add_Keys_To_Agent_Text /= "no"
+      then
+         return Unsupported_Feature;
       end if;
 
       if Known_Hosts_Text'Length > 0
@@ -511,6 +563,7 @@ package body SSH_Lib.Sessions.Open_Pipeline is
       end if;
 
       if Authentication_Method_Enabled (Options, "keyboard-interactive")
+        and then Options.Number_Of_Password_Prompts > 0
         and then
           (Options.Keyboard_Interactive_Callback /= null
            or else
@@ -523,6 +576,7 @@ package body SSH_Lib.Sessions.Open_Pipeline is
       end if;
 
       if Authentication_Method_Enabled (Options, "password")
+        and then Options.Number_Of_Password_Prompts > 0
         and then Options.Use_Password
         and then
           (Password_Text'Length > 0 or else Options.Password_Callback /= null)

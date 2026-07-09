@@ -11,12 +11,118 @@ with SSH_Lib.Sessions.Open_Guards;
 with SSH_Lib.Sessions.Open_Pipeline;
 with SSH_Lib.Sessions.Userauth_IO;
 with SSH_Lib.Sessions.Live_Transport;
+with SSH_Lib.Config_Apply;
 
 package body SSH_Lib.Sessions.Open_Runtime is
    use Ada.Strings.Unbounded;
    use CryptoLib.Errors;
 
    Local_Runtime_Host : constant String := "transcript.example.test";
+   Max_Connection_Attempts : constant Positive := 64;
+
+   function Effective_Connection_Attempts
+     (Options : Session_Options) return Positive is
+   begin
+      if Options.Connection_Attempts = 0 then
+         return 1;
+      elsif Options.Connection_Attempts > Max_Connection_Attempts then
+         return Max_Connection_Attempts;
+      else
+         return Options.Connection_Attempts;
+      end if;
+   end Effective_Connection_Attempts;
+
+   function Retryable_Connection_Status (Value : Status) return Boolean is
+   begin
+      return Value = DNS_Failed
+        or else Value = Connection_Failed
+        or else Value = Timeout;
+   end Retryable_Connection_Status;
+
+   function Connect_Control_Master_With_Attempts
+     (Options      : Session_Options;
+      Control_Path : String;
+      Item         : in out Session) return Status
+   is
+      Attempts     : constant Positive := Effective_Connection_Attempts (Options);
+      Status_Value : Status := Connection_Failed;
+   begin
+      for Attempt in 1 .. Attempts loop
+         Status_Value :=
+           SSH_Lib.Sessions.Live_Transport.Connect_Through_Control_Master
+             (Options, Control_Path, Item);
+         exit when Status_Value = Ok
+           or else not Retryable_Connection_Status (Status_Value)
+           or else Attempt = Attempts;
+      end loop;
+      return Status_Value;
+   exception
+      when others =>
+         return Internal_Error;
+   end Connect_Control_Master_With_Attempts;
+
+   function Connect_Proxy_Command_With_Attempts
+     (Options : Session_Options;
+      Item    : in out Session) return Status
+   is
+      Attempts     : constant Positive := Effective_Connection_Attempts (Options);
+      Status_Value : Status := Connection_Failed;
+   begin
+      for Attempt in 1 .. Attempts loop
+         Status_Value :=
+           SSH_Lib.Sessions.Live_Transport.Connect_Through_Proxy_Command
+             (Options, Item);
+         exit when Status_Value = Ok
+           or else not Retryable_Connection_Status (Status_Value)
+           or else Attempt = Attempts;
+      end loop;
+      return Status_Value;
+   exception
+      when others =>
+         return Internal_Error;
+   end Connect_Proxy_Command_With_Attempts;
+
+   function Connect_Proxy_Jump_With_Attempts
+     (Options : Session_Options;
+      Item    : in out Session) return Status
+   is
+      Attempts     : constant Positive := Effective_Connection_Attempts (Options);
+      Status_Value : Status := Connection_Failed;
+   begin
+      for Attempt in 1 .. Attempts loop
+         Status_Value :=
+           SSH_Lib.Sessions.Live_Transport.Connect_Through_Proxy_Jump
+             (Options, Item);
+         exit when Status_Value = Ok
+           or else not Retryable_Connection_Status (Status_Value)
+           or else Attempt = Attempts;
+      end loop;
+      return Status_Value;
+   exception
+      when others =>
+         return Internal_Error;
+   end Connect_Proxy_Jump_With_Attempts;
+
+   function Connect_Direct_With_Attempts
+     (Options : Session_Options;
+      Item    : in out Session) return Status
+   is
+      Attempts     : constant Positive := Effective_Connection_Attempts (Options);
+      Status_Value : Status := Connection_Failed;
+   begin
+      for Attempt in 1 .. Attempts loop
+         Status_Value :=
+           SSH_Lib.Sessions.Live_Transport.Connect_And_Run_Handshake
+             (Options, Item);
+         exit when Status_Value = Ok
+           or else not Retryable_Connection_Status (Status_Value)
+           or else Attempt = Attempts;
+      end loop;
+      return Status_Value;
+   exception
+      when others =>
+         return Internal_Error;
+   end Connect_Direct_With_Attempts;
 
    function Required_Algorithm_Primitives_Available return Boolean is
    begin
@@ -429,8 +535,9 @@ package body SSH_Lib.Sessions.Open_Runtime is
                return Load_Status;
             end if;
 
-            --  Identity-file runtime now exercises the concrete userauth
-            --  transcript boundary: build the SSH publickey signature payload,
+            --  identity-file runtime authenticates through the signing backend
+            --  and exercises the concrete userauth transcript boundary: build
+            --  the SSH publickey signature payload,
             --  sign it through the identity backend, send USERAUTH_REQUEST over
             --  the protected packet path, parse USERAUTH_SUCCESS, and only then
             --  publish authenticated user state.  Unsupported key/signature
@@ -555,6 +662,64 @@ package body SSH_Lib.Sessions.Open_Runtime is
       end if;
 
       declare
+         Control_Path    : Unbounded_String;
+         Persist_Seconds : Natural := 0;
+         Control_Action  : SSH_Lib.Config_Apply.Control_Master_Action;
+      begin
+         if Length (Options.Control_Master) > 0 then
+            Status_Value :=
+              SSH_Lib.Config_Apply.Plan_Control_Master
+                (Options,
+                 Original_Host   => To_String (Options.Host),
+                 Local_Host_Name => "localhost",
+                 Control_Path    => Control_Path,
+                 Persist_Seconds => Persist_Seconds,
+                 Action          => Control_Action);
+            if Status_Value /= Ok then
+               return Status_Value;
+            end if;
+
+            case Control_Action is
+               when SSH_Lib.Config_Apply.Control_Master_Use_Existing =>
+                  if not Required_Algorithm_Primitives_Available then
+                     return Unsupported_Feature;
+                  end if;
+                  return
+                    Connect_Control_Master_With_Attempts
+                      (Options, To_String (Control_Path), Item);
+               when SSH_Lib.Config_Apply.Control_Master_Use_Existing_Ask =>
+                  if Options.Control_Master_Approval_Callback = null
+                    or else not Options.Control_Master_Approval_Callback
+                      (To_String (Options.Host),
+                       To_String (Options.User),
+                       To_String (Control_Path),
+                       False)
+                  then
+                     return Cancelled;
+                  end if;
+                  if not Required_Algorithm_Primitives_Available then
+                     return Unsupported_Feature;
+                  end if;
+                  return
+                    Connect_Control_Master_With_Attempts
+                      (Options, To_String (Control_Path), Item);
+               when SSH_Lib.Config_Apply.Control_Master_Start_Master_Ask =>
+                  if Options.Control_Master_Approval_Callback = null
+                    or else not Options.Control_Master_Approval_Callback
+                      (To_String (Options.Host),
+                       To_String (Options.User),
+                       To_String (Control_Path),
+                       True)
+                  then
+                     return Cancelled;
+                  end if;
+               when others =>
+                  null;
+            end case;
+         end if;
+      end;
+
+      declare
          Proxy_Command_Text : constant String := Effective_Proxy_Command (Options);
       begin
          if Proxy_Command_Text'Length > 0 then
@@ -567,8 +732,7 @@ package body SSH_Lib.Sessions.Open_Runtime is
             begin
                Target_Options.Proxy_Command := To_Unbounded_String (Proxy_Command_Text);
                return
-                 SSH_Lib.Sessions.Live_Transport.Connect_Through_Proxy_Command
-                   (Target_Options, Item);
+                 Connect_Proxy_Command_With_Attempts (Target_Options, Item);
             end;
          end if;
       end;
@@ -579,8 +743,7 @@ package body SSH_Lib.Sessions.Open_Runtime is
          end if;
 
          return
-           SSH_Lib.Sessions.Live_Transport.Connect_Through_Proxy_Jump
-             (Options, Item);
+           Connect_Proxy_Jump_With_Attempts (Options, Item);
       end if;
 
       if Is_Deterministic_Local_Runtime (Options) then
@@ -599,8 +762,7 @@ package body SSH_Lib.Sessions.Open_Runtime is
       --  channel setup/data.  Any failure remains Status-returning and the
       --  live transcript owner is cleaned up before this call returns.
       return
-        SSH_Lib.Sessions.Live_Transport.Connect_And_Run_Handshake
-          (Options, Item);
+        Connect_Direct_With_Attempts (Options, Item);
    exception
       when others =>
          return Internal_Error;

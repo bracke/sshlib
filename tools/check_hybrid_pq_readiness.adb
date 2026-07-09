@@ -1,11 +1,9 @@
 with Ada.Command_Line;
-with Ada.Directories;
-with Ada.Strings.Fixed;
 with Ada.Text_IO;
 
-procedure Check_Hybrid_PQ_Readiness is
-   use Ada.Strings.Fixed;
+with Project_Tools.Files;
 
+procedure Check_Hybrid_PQ_Readiness is
    Failure_Count : Natural := 0;
 
    procedure Fail (Message_Text : String) is
@@ -14,37 +12,14 @@ procedure Check_Hybrid_PQ_Readiness is
       Failure_Count := Failure_Count + 1;
    end Fail;
 
-   function File_Contains (Path : String; Needle : String) return Boolean is
-      File_Item : Ada.Text_IO.File_Type;
-   begin
-      if not Ada.Directories.Exists (Path) then
-         return False;
-      end if;
-
-      Ada.Text_IO.Open (File_Item, Ada.Text_IO.In_File, Path);
-      while not Ada.Text_IO.End_Of_File (File_Item) loop
-         declare
-            Line_Text : constant String := Ada.Text_IO.Get_Line (File_Item);
-         begin
-            if Index (Line_Text, Needle) /= 0 then
-               Ada.Text_IO.Close (File_Item);
-               return True;
-            end if;
-         end;
-      end loop;
-      Ada.Text_IO.Close (File_Item);
-      return False;
-   exception
-      when others =>
-         if Ada.Text_IO.Is_Open (File_Item) then
-            Ada.Text_IO.Close (File_Item);
-         end if;
-         return False;
-   end File_Contains;
-
+   --  A required token is present only when the file exists and contains it;
+   --  a missing file is treated as "not present" (graceful Fail, not a crash),
+   --  matching the previous hand-rolled File_Contains behavior.
    procedure Require_Text (Path : String; Needle : String) is
    begin
-      if not File_Contains (Path, Needle) then
+      if not (Project_Tools.Files.File_Exists (Path)
+              and then Project_Tools.Files.File_Contains (Path, Needle))
+      then
          Fail ("missing readiness token in " & Path & ": " & Needle);
       end if;
    end Require_Text;

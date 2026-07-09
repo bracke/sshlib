@@ -2,11 +2,13 @@ with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Strings.Fixed;
 with Ada.Strings.Maps.Constants;
+with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+
+with Project_Tools.Files;
 
 procedure Check_Release is
    use Ada.Strings.Fixed;
-   use type Ada.Directories.File_Kind;
 
    Failure_Count : Natural := 0;
 
@@ -28,37 +30,17 @@ procedure Check_Release is
         and then Value (Value'Last - Suffix'Length + 1 .. Value'Last) = Suffix;
    end Has_Suffix;
 
+   --  Delegates to the shared project_tools helpers; File_Exists preserves the
+   --  previous "missing file => not present" behaviour (rather than raising).
    function File_Contains (Path : String; Needle : String) return Boolean is
-      File_Item : Ada.Text_IO.File_Type;
    begin
-      if not Ada.Directories.Exists (Path) then
-         return False;
-      end if;
-
-      Ada.Text_IO.Open (File_Item, Ada.Text_IO.In_File, Path);
-      while not Ada.Text_IO.End_Of_File (File_Item) loop
-         declare
-            Line_Text : constant String := Ada.Text_IO.Get_Line (File_Item);
-         begin
-            if Index (Line_Text, Needle) /= 0 then
-               Ada.Text_IO.Close (File_Item);
-               return True;
-            end if;
-         end;
-      end loop;
-      Ada.Text_IO.Close (File_Item);
-      return False;
-   exception
-      when others =>
-         if Ada.Text_IO.Is_Open (File_Item) then
-            Ada.Text_IO.Close (File_Item);
-         end if;
-         return False;
+      return Project_Tools.Files.File_Exists (Path)
+        and then Project_Tools.Files.File_Contains (Path, Needle);
    end File_Contains;
 
    procedure Require_File (Path : String) is
    begin
-      if not Ada.Directories.Exists (Path) then
+      if not Project_Tools.Files.File_Exists (Path) then
          Fail ("missing release file: " & Path);
       end if;
    end Require_File;
@@ -155,56 +137,40 @@ procedure Check_Release is
          Fail ("unable to scan source file: " & Path);
    end Scan_Source_File;
 
+   Skip_Dirs : constant Project_Tools.Files.Name_List :=
+     [Ada.Strings.Unbounded.To_Unbounded_String (".git"),
+      Ada.Strings.Unbounded.To_Unbounded_String ("obj"),
+      Ada.Strings.Unbounded.To_Unbounded_String ("bin"),
+      Ada.Strings.Unbounded.To_Unbounded_String ("alire"),
+      Ada.Strings.Unbounded.To_Unbounded_String ("release_artifacts")];
+
    procedure Scan_Source_Tree (Directory_Path : String) is
-      Search_Item    : Ada.Directories.Search_Type;
-      Directory_Item : Ada.Directories.Directory_Entry_Type;
    begin
-      if not Ada.Directories.Exists (Directory_Path) then
-         return;
-      end if;
-
-      Ada.Directories.Start_Search
-        (Search    => Search_Item,
-         Directory => Directory_Path,
-         Pattern   => "*",
-         Filter    => [Ada.Directories.Ordinary_File => True,
-                       Ada.Directories.Directory => True,
-                       Ada.Directories.Special_File => False]);
-
-      while Ada.Directories.More_Entries (Search_Item) loop
-         Ada.Directories.Get_Next_Entry (Search_Item, Directory_Item);
+      --  Recursive file walk via the shared project_tools helper (skipping the
+      --  same build/VCS directories); the file set, order, and output match the
+      --  previous hand-rolled Ada.Directories recursion.
+      for Path_Item of
+        Project_Tools.Files.List_Tree (Directory_Path, "*", Skip_Dirs)
+      loop
          declare
-            Full_Path : constant String := Ada.Directories.Full_Name (Directory_Item);
-            Name_Text : constant String := Ada.Directories.Simple_Name (Directory_Item);
-            Kind      : constant Ada.Directories.File_Kind :=
-              Ada.Directories.Kind (Directory_Item);
+            Full_Path : constant String :=
+              Ada.Strings.Unbounded.To_String (Path_Item);
+            Name_Text : constant String :=
+              Ada.Directories.Simple_Name (Full_Path);
          begin
-            if Kind = Ada.Directories.Directory then
-               if Name_Text /= "." and then Name_Text /= ".."
-                 and then Name_Text /= ".git"
-                 and then Name_Text /= "obj"
-                 and then Name_Text /= "bin"
-                 and then Name_Text /= "alire"
-                 and then Name_Text /= "release_artifacts"
-               then
-                  Scan_Source_Tree (Full_Path);
-               end if;
-            else
-               if Is_C_Source (Name_Text)
-                 and then not Is_Allowed_Generated_C_Header (Full_Path)
-               then
-                  Fail ("C or C-family source is not allowed: " & Full_Path);
-               end if;
+            if Is_C_Source (Name_Text)
+              and then not Is_Allowed_Generated_C_Header (Full_Path)
+            then
+               Fail ("C or C-family source is not allowed: " & Full_Path);
+            end if;
 
-               if Has_Suffix (Lower (Name_Text), ".adb")
-                 or else Has_Suffix (Lower (Name_Text), ".ads")
-               then
-                  Scan_Source_File (Full_Path);
-               end if;
+            if Has_Suffix (Lower (Name_Text), ".adb")
+              or else Has_Suffix (Lower (Name_Text), ".ads")
+            then
+               Scan_Source_File (Full_Path);
             end if;
          end;
       end loop;
-      Ada.Directories.End_Search (Search_Item);
    exception
       when others =>
          Fail ("unable to scan source tree: " & Directory_Path);

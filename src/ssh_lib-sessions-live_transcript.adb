@@ -1,13 +1,17 @@
 with Ada.Calendar;
+with Ada.Characters.Handling;
+with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Unchecked_Deallocation;
 with GNAT.OS_Lib;
 with Interfaces.C;
+with System;
 with SSH_Lib.Protocol.Identification;
 with SSH_Lib.Protocol.Numbers;
 with SSH_Lib.Protocol.Channels;
 with SSH_Lib.Protocol.Global_Requests;
 with SSH_Lib.Protocol.Transport_Messages;
+with SSH_Lib.Mux;
 
 package body SSH_Lib.Sessions.Live_Transcript is
    use type Ada.Calendar.Time;
@@ -17,7 +21,9 @@ package body SSH_Lib.Sessions.Live_Transcript is
    use CryptoLib.Errors;
    use type GNAT.OS_Lib.File_Descriptor;
    use type GNAT.OS_Lib.String_Access;
+   use type GNAT.Sockets.Family_Type;
    use type Interfaces.C.int;
+   use type SSH_Lib.Mux.Mux_Message_Kind;
 
    procedure Free_Driver is new
      Ada.Unchecked_Deallocation (Driver, Driver_Access);
@@ -44,6 +50,14 @@ package body SSH_Lib.Sessions.Live_Transcript is
       NFDs    : Interfaces.C.unsigned_long;
       Timeout : Interfaces.C.int) return Interfaces.C.int
      with Import, Convention => C, External_Name => "poll";
+
+   function C_Setsockopt
+     (Socket : Interfaces.C.int;
+      Level  : Interfaces.C.int;
+      Option : Interfaces.C.int;
+      Optval : System.Address;
+      Optlen : Interfaces.C.int) return Interfaces.C.int
+     with Import, Convention => C, External_Name => "setsockopt";
 
    Max_Proxy_IO_Chunk : constant Stream_Element_Offset := 4096;
 
@@ -81,11 +95,82 @@ package body SSH_Lib.Sessions.Live_Transcript is
       Item.Write_Timeout_Configured := False;
       Item.Read_Timeout_MS := 0;
       Item.Write_Timeout_MS := 0;
+      Item.Caller_Read_Timeout_Configured := False;
+      Item.Server_Alive_Interval_MS := 0;
+      Item.Server_Alive_Count_Max := 3;
+      Item.Server_Alive_Missed := 0;
+      Item.Server_Alive_Awaiting_Reply := False;
       Item.Proxy_Command_Diagnostic_Item := (others => <>);
    exception
       when others =>
          null;
    end Reset;
+
+   function Timeout_Value (Milliseconds : Natural) return Duration is
+   begin
+      if Milliseconds = 0 then
+         return 0.0;
+      end if;
+      return Duration (Milliseconds) / 1000.0;
+   end Timeout_Value;
+
+   procedure Apply_Socket_Read_Timeout (Item : in out Driver) is
+   begin
+      if Item.Mode = Socket_Mode
+        and then Item.Connected
+        and then Item.Read_Timeout_Configured
+      then
+         GNAT.Sockets.Set_Socket_Option
+           (Item.Socket_Item,
+            GNAT.Sockets.Socket_Level,
+            (Name    => GNAT.Sockets.Receive_Timeout,
+             Timeout => Timeout_Value (Item.Read_Timeout_MS)));
+      end if;
+   exception
+      when others =>
+         null;
+   end Apply_Socket_Read_Timeout;
+
+   procedure Configure_Server_Alive
+     (Item             : in out Driver;
+      Interval_Seconds : Natural;
+      Count_Max        : Natural)
+   is
+      Interval_MS : Natural := 0;
+   begin
+      Item.Server_Alive_Missed := 0;
+      Item.Server_Alive_Awaiting_Reply := False;
+      Item.Server_Alive_Count_Max := Count_Max;
+      Item.Server_Alive_Interval_MS := 0;
+
+      if Interval_Seconds = 0 then
+         return;
+      elsif Interval_Seconds > Natural'Last / 1000 then
+         Interval_MS := Natural'Last;
+      else
+         Interval_MS := Interval_Seconds * 1000;
+      end if;
+
+      Item.Server_Alive_Interval_MS := Interval_MS;
+      if not Item.Caller_Read_Timeout_Configured then
+         Item.Read_Timeout_Configured := True;
+         Item.Read_Timeout_MS := Interval_MS;
+         Apply_Socket_Read_Timeout (Item);
+         if Item.Mode = Jump_Channel_Mode
+           and then Item.Outer_Driver /= null
+           and then not Item.Outer_Driver.Caller_Read_Timeout_Configured
+         then
+            Item.Outer_Driver.Read_Timeout_Configured := True;
+            Item.Outer_Driver.Read_Timeout_MS := Interval_MS;
+            Apply_Socket_Read_Timeout (Item.Outer_Driver.all);
+         end if;
+      end if;
+   exception
+      when others =>
+         Item.Server_Alive_Interval_MS := 0;
+         Item.Server_Alive_Missed := 0;
+         Item.Server_Alive_Awaiting_Reply := False;
+   end Configure_Server_Alive;
 
    procedure Reset_After_Close_Preserving_Proxy_Diagnostic
      (Item : out Driver)
@@ -213,18 +298,50 @@ package body SSH_Lib.Sessions.Live_Transcript is
          return False;
    end Is_Connected;
 
+   procedure Set_Strict_Kex (Item : in out Driver) is
+   begin
+      Item.Strict_Kex := True;
+   end Set_Strict_Kex;
+
+   function Is_Strict_Kex (Item : Driver) return Boolean is
+   begin
+      return Item.Strict_Kex;
+   end Is_Strict_Kex;
+
    function Connect
      (Item               : in out Driver;
       Host               : String;
       Port               : Natural;
       Connect_Timeout_MS : Natural := 0;
       Read_Timeout_MS    : Natural := 0;
-      Write_Timeout_MS   : Natural := 0) return Status
+      Write_Timeout_MS   : Natural := 0;
+      Address_Family     : String := "";
+      Bind_Address       : String := "";
+      TCP_Keep_Alive     : Boolean := True;
+      IP_QoS             : String := "";
+      Bind_Interface     : String := "") return Status
    is
-      Address_Value : GNAT.Sockets.Sock_Addr_Type;
-      Host_Entry    : constant GNAT.Sockets.Host_Entry_Type :=
-        GNAT.Sockets.Get_Host_By_Name (Host);
-      Started_At    : constant Ada.Calendar.Time := Ada.Calendar.Clock;
+      type Address_Family_Mode is
+        (Address_Family_Any,
+         Address_Family_Inet,
+         Address_Family_Inet6,
+         Address_Family_Invalid);
+
+      Family_Mode : constant Address_Family_Mode :=
+        (if Address_Family'Length = 0
+         or else Ada.Characters.Handling.To_Lower (Address_Family) = "any"
+         then Address_Family_Any
+         elsif Ada.Characters.Handling.To_Lower (Address_Family) = "inet"
+         then Address_Family_Inet
+         elsif Ada.Characters.Handling.To_Lower (Address_Family) = "inet6"
+         then Address_Family_Inet6
+         else Address_Family_Invalid);
+      Started_At  : constant Ada.Calendar.Time := Ada.Calendar.Clock;
+      Linux_IP_TOS      : constant Interfaces.C.int := 1;
+      Linux_IPV6_TCLASS : constant Interfaces.C.int := 67;
+      Linux_SOL_SOCKET  : constant Interfaces.C.int := 1;
+      Linux_SO_BINDTODEVICE : constant Interfaces.C.int := 25;
+      Linux_IFNAMSIZ : constant Natural := 16;
 
       function Connect_Deadline_Expired return Boolean is
       begin
@@ -267,31 +384,349 @@ package body SSH_Lib.Sessions.Live_Transcript is
          when others =>
             null;
       end Apply_IO_Timeouts;
+
+      procedure Apply_TCP_Keep_Alive is
+      begin
+         GNAT.Sockets.Set_Socket_Option
+           (Item.Socket_Item,
+            GNAT.Sockets.Socket_Level,
+            (Name    => GNAT.Sockets.Keep_Alive,
+             Enabled => TCP_Keep_Alive));
+      exception
+         when others =>
+            null;
+      end Apply_TCP_Keep_Alive;
+
+      function Bind_Interface_Valid return Boolean is
+      begin
+         if Bind_Interface'Length = 0 then
+            return True;
+         elsif Bind_Interface'Length >= Linux_IFNAMSIZ then
+            return False;
+         end if;
+
+         for Ch of Bind_Interface loop
+            if Ch <= ' ' or else Ch = '/' or else Ch = Character'Val (127) then
+               return False;
+            end if;
+         end loop;
+         return True;
+      exception
+         when others =>
+            return False;
+      end Bind_Interface_Valid;
+
+      function Apply_Bind_Interface return Status is
+      begin
+         if Bind_Interface'Length = 0 then
+            return Ok;
+         end if;
+
+         declare
+            Name_C : aliased Interfaces.C.char_array :=
+              Interfaces.C.To_C (Bind_Interface);
+            Result : constant Interfaces.C.int :=
+              C_Setsockopt
+                (Interfaces.C.int
+                   (GNAT.Sockets.To_C (Item.Socket_Item)),
+                 Linux_SOL_SOCKET,
+                 Linux_SO_BINDTODEVICE,
+                 Name_C'Address,
+                 Interfaces.C.int (Name_C'Length));
+         begin
+            if Result = 0 then
+               return Ok;
+            end if;
+            return Connection_Failed;
+         end;
+      exception
+         when others =>
+            return Connection_Failed;
+      end Apply_Bind_Interface;
+
+      function First_QoS_Token return String is
+         Clean : constant String := Ada.Strings.Fixed.Trim
+           (IP_QoS, Ada.Strings.Both);
+         Stop_Index : Natural;
+      begin
+         if Clean'Length = 0 then
+            return "";
+         end if;
+         Stop_Index := Clean'First;
+         while Stop_Index <= Clean'Last
+           and then Clean (Stop_Index) /= ' '
+         loop
+            Stop_Index := Stop_Index + 1;
+         end loop;
+         return Ada.Characters.Handling.To_Lower
+           (Clean (Clean'First .. Stop_Index - 1));
+      exception
+         when others =>
+            return "";
+      end First_QoS_Token;
+
+      function QoS_Value (Token : String; Value : out Natural) return Boolean is
+      begin
+         if Token'Length = 0 or else Token = "none" or else Token = "cs0" then
+            Value := 0;
+         elsif Token = "lowdelay" then
+            Value := 16#10#;
+         elsif Token = "throughput" then
+            Value := 16#08#;
+         elsif Token = "reliability" then
+            Value := 16#04#;
+         elsif Token = "cs1" then
+            Value := 16#20#;
+         elsif Token = "cs2" then
+            Value := 16#40#;
+         elsif Token = "cs3" then
+            Value := 16#60#;
+         elsif Token = "cs4" then
+            Value := 16#80#;
+         elsif Token = "cs5" then
+            Value := 16#A0#;
+         elsif Token = "cs6" then
+            Value := 16#C0#;
+         elsif Token = "cs7" then
+            Value := 16#E0#;
+         elsif Token = "af11" then
+            Value := 16#28#;
+         elsif Token = "af12" then
+            Value := 16#30#;
+         elsif Token = "af13" then
+            Value := 16#38#;
+         elsif Token = "af21" then
+            Value := 16#48#;
+         elsif Token = "af22" then
+            Value := 16#50#;
+         elsif Token = "af23" then
+            Value := 16#58#;
+         elsif Token = "af31" then
+            Value := 16#68#;
+         elsif Token = "af32" then
+            Value := 16#70#;
+         elsif Token = "af33" then
+            Value := 16#78#;
+         elsif Token = "af41" then
+            Value := 16#88#;
+         elsif Token = "af42" then
+            Value := 16#90#;
+         elsif Token = "af43" then
+            Value := 16#98#;
+         elsif Token = "ef" then
+            Value := 16#B8#;
+         else
+            return False;
+         end if;
+         return True;
+      end QoS_Value;
+
+      function IP_QoS_Valid return Boolean is
+         Value : Natural := 0;
+      begin
+         return QoS_Value (First_QoS_Token, Value);
+      end IP_QoS_Valid;
+
+      procedure Apply_IP_QoS (Family : GNAT.Sockets.Family_Inet_4_6) is
+         Token : constant String := First_QoS_Token;
+         Value : Natural := 0;
+      begin
+         if Token'Length = 0 or else not QoS_Value (Token, Value) then
+            return;
+         end if;
+
+         if Family = GNAT.Sockets.Family_Inet then
+            GNAT.Sockets.Set_Socket_Option
+              (Item.Socket_Item,
+               GNAT.Sockets.IP_Protocol_For_IP_Level,
+               (Name    => GNAT.Sockets.Generic_Option,
+                Optname => Linux_IP_TOS,
+                Optval  => Interfaces.C.int (Value)));
+         else
+            GNAT.Sockets.Set_Socket_Option
+              (Item.Socket_Item,
+               GNAT.Sockets.IP_Protocol_For_IPv6_Level,
+               (Name    => GNAT.Sockets.Generic_Option,
+                Optname => Linux_IPV6_TCLASS,
+                Optval  => Interfaces.C.int (Value)));
+         end if;
+      exception
+         when others =>
+            null;
+      end Apply_IP_QoS;
+
+      function Bind_Configured_Address
+        (Remote_Family : GNAT.Sockets.Family_Inet_4_6) return Status
+      is
+      begin
+         if Bind_Address'Length = 0 then
+            return Ok;
+         end if;
+
+         declare
+            Host_Entry : constant GNAT.Sockets.Host_Entry_Type :=
+              GNAT.Sockets.Get_Host_By_Name (Bind_Address);
+            Bind_Value : GNAT.Sockets.Sock_Addr_Type (Remote_Family);
+         begin
+            for Index in 1 .. GNAT.Sockets.Addresses_Length (Host_Entry) loop
+               declare
+                  Candidate : constant GNAT.Sockets.Inet_Addr_Type :=
+                    GNAT.Sockets.Addresses (Host_Entry, Index);
+               begin
+                  if Candidate.Family = Remote_Family then
+                     Bind_Value.Addr := Candidate;
+                     Bind_Value.Port := 0;
+                     GNAT.Sockets.Bind_Socket
+                       (Item.Socket_Item, Bind_Value);
+                     return Ok;
+                  end if;
+               end;
+            end loop;
+         end;
+
+         return Connection_Failed;
+      exception
+         when others =>
+            return Connection_Failed;
+      end Bind_Configured_Address;
+
+      function Try_Address
+        (Address : GNAT.Sockets.Inet_Addr_Type) return Status
+      is
+         Address_Value : GNAT.Sockets.Sock_Addr_Type (Address.Family);
+         Status_Value  : Status;
+      begin
+         if Connect_Deadline_Expired then
+            return Timeout;
+         end if;
+
+         GNAT.Sockets.Create_Socket
+           (Item.Socket_Item,
+            Address.Family,
+            GNAT.Sockets.Socket_Stream);
+         Apply_TCP_Keep_Alive;
+         Status_Value := Apply_Bind_Interface;
+         if Status_Value /= Ok then
+            Close_Socket_Quietly (Item.Socket_Item);
+            return Status_Value;
+         end if;
+         Apply_IP_QoS (Address.Family);
+         Apply_IO_Timeouts;
+
+         Status_Value := Bind_Configured_Address (Address.Family);
+         if Status_Value /= Ok then
+            Close_Socket_Quietly (Item.Socket_Item);
+            return Status_Value;
+         end if;
+
+         Address_Value.Addr := Address;
+         Address_Value.Port := GNAT.Sockets.Port_Type (Port);
+         GNAT.Sockets.Connect_Socket (Item.Socket_Item, Address_Value);
+         if Connect_Deadline_Expired then
+            Close_Socket_Quietly (Item.Socket_Item);
+            return Timeout;
+         end if;
+         Apply_IO_Timeouts;
+         return Ok;
+      exception
+         when GNAT.Sockets.Socket_Error =>
+            Close_Socket_Quietly (Item.Socket_Item);
+            return Connection_Failed;
+         when others =>
+            Close_Socket_Quietly (Item.Socket_Item);
+            return Connection_Failed;
+      end Try_Address;
+
+      function Connect_First_Address_For_Family
+        (Host_Entry : GNAT.Sockets.Host_Entry_Type;
+         Family     : GNAT.Sockets.Family_Inet_4_6;
+         Found      : out Boolean) return Status
+      is
+         Status_Value : Status;
+      begin
+         Found := False;
+         for Index in 1 .. GNAT.Sockets.Addresses_Length (Host_Entry) loop
+            declare
+               Candidate : constant GNAT.Sockets.Inet_Addr_Type :=
+                 GNAT.Sockets.Addresses (Host_Entry, Index);
+            begin
+               if Candidate.Family = Family then
+                  Found := True;
+                  Status_Value := Try_Address (Candidate);
+                  if Status_Value = Ok then
+                     Item.Connected := True;
+                  else
+                     Close (Item);
+                  end if;
+                  return Status_Value;
+               end if;
+            end;
+         end loop;
+         return Connection_Failed;
+      exception
+         when others =>
+            Found := False;
+            Close (Item);
+            return Connection_Failed;
+      end Connect_First_Address_For_Family;
    begin
       Close (Item);
       Item.Read_Timeout_Configured := Read_Timeout_MS > 0;
+      Item.Caller_Read_Timeout_Configured := Read_Timeout_MS > 0;
       Item.Write_Timeout_Configured := Write_Timeout_MS > 0;
       Item.Read_Timeout_MS := Read_Timeout_MS;
       Item.Write_Timeout_MS := Write_Timeout_MS;
       if Connect_Deadline_Expired then
          return Timeout;
+      elsif Family_Mode = Address_Family_Invalid then
+         return Invalid_Command;
+      elsif not Bind_Interface_Valid then
+         return Invalid_Command;
+      elsif not IP_QoS_Valid then
+         return Invalid_Command;
       end if;
 
       begin
-         GNAT.Sockets.Create_Socket
-           (Item.Socket_Item,
-            GNAT.Sockets.Family_Inet,
-            GNAT.Sockets.Socket_Stream);
-         Apply_IO_Timeouts;
-         Address_Value.Addr := GNAT.Sockets.Addresses (Host_Entry, 1);
-         Address_Value.Port := GNAT.Sockets.Port_Type (Port);
-         GNAT.Sockets.Connect_Socket (Item.Socket_Item, Address_Value);
-         if Connect_Deadline_Expired then
-            Close_Socket_Quietly (Item.Socket_Item);
-            Close (Item);
-            return Timeout;
-         end if;
-         Apply_IO_Timeouts;
+         declare
+            Host_Entry : constant GNAT.Sockets.Host_Entry_Type :=
+              GNAT.Sockets.Get_Host_By_Name (Host);
+            Found_Address        : Boolean := False;
+            Status_Value         : Status := Connection_Failed;
+         begin
+            case Family_Mode is
+               when Address_Family_Any =>
+                  Status_Value :=
+                    Connect_First_Address_For_Family
+                      (Host_Entry, GNAT.Sockets.Family_Inet, Found_Address);
+                  if Found_Address then
+                     return Status_Value;
+                  end if;
+                  Status_Value :=
+                    Connect_First_Address_For_Family
+                      (Host_Entry, GNAT.Sockets.Family_Inet6, Found_Address);
+                  if Found_Address then
+                     return Status_Value;
+                  end if;
+               when Address_Family_Inet =>
+                  Status_Value :=
+                    Connect_First_Address_For_Family
+                      (Host_Entry, GNAT.Sockets.Family_Inet, Found_Address);
+                  if Found_Address then
+                     return Status_Value;
+                  end if;
+               when Address_Family_Inet6 =>
+                  Status_Value :=
+                    Connect_First_Address_For_Family
+                      (Host_Entry, GNAT.Sockets.Family_Inet6, Found_Address);
+                  if Found_Address then
+                     return Status_Value;
+                  end if;
+               when Address_Family_Invalid =>
+                  return Invalid_Command;
+            end case;
+         end;
+         Close (Item);
+         return Connection_Failed;
       exception
          when GNAT.Sockets.Socket_Error =>
             Close_Socket_Quietly (Item.Socket_Item);
@@ -302,14 +737,110 @@ package body SSH_Lib.Sessions.Live_Transcript is
             Close (Item);
             return Connection_Failed;
       end;
-
-      Item.Connected := True;
-      return Ok;
    exception
       when others =>
          Close (Item);
          return Internal_Error;
    end Connect;
+
+   function Connect_Through_Mux_Proxy
+     (Item             : in out Driver;
+      Control_Path     : String;
+      Read_Timeout_MS  : Natural := 0;
+      Write_Timeout_MS : Natural := 0) return Status
+   is
+      Client       : SSH_Lib.Mux.Mux_Client;
+      Response     : SSH_Lib.Mux.Mux_Message;
+      Peer_Version : Interfaces.Unsigned_32 := 0;
+      Detached     : GNAT.Sockets.Socket_Type;
+      Status_Value : Status;
+
+      function Timeout_Value (Milliseconds : Natural) return Duration is
+      begin
+         if Milliseconds = 0 then
+            return 0.0;
+         end if;
+         return Duration (Milliseconds) / 1000.0;
+      end Timeout_Value;
+
+      procedure Apply_IO_Timeouts is
+      begin
+         if Read_Timeout_MS > 0 then
+            GNAT.Sockets.Set_Socket_Option
+              (Item.Socket_Item,
+               GNAT.Sockets.Socket_Level,
+               (Name    => GNAT.Sockets.Receive_Timeout,
+                Timeout => Timeout_Value (Read_Timeout_MS)));
+         end if;
+
+         if Write_Timeout_MS > 0 then
+            GNAT.Sockets.Set_Socket_Option
+              (Item.Socket_Item,
+               GNAT.Sockets.Socket_Level,
+               (Name    => GNAT.Sockets.Send_Timeout,
+                Timeout => Timeout_Value (Write_Timeout_MS)));
+         end if;
+      exception
+         when others =>
+            null;
+      end Apply_IO_Timeouts;
+   begin
+      Close (Item);
+      if Control_Path'Length = 0 then
+         return Connection_Failed;
+      end if;
+
+      Status_Value := SSH_Lib.Mux.Connect_Control (Control_Path, Client);
+      if Status_Value /= Ok then
+         SSH_Lib.Mux.Close (Client);
+         return Status_Value;
+      end if;
+
+      Status_Value := SSH_Lib.Mux.Exchange_Hello (Client, Peer_Version);
+      if Status_Value /= Ok then
+         SSH_Lib.Mux.Close (Client);
+         return Status_Value;
+      end if;
+
+      Status_Value := SSH_Lib.Mux.Request
+        (Client,
+         SSH_Lib.Mux.Mux_Proxy,
+         1,
+         Ada.Streams.Stream_Element_Array'(1 .. 0 => 0),
+         Response);
+      if Status_Value /= Ok then
+         SSH_Lib.Mux.Close (Client);
+         return Status_Value;
+      elsif Response.Kind /= SSH_Lib.Mux.Mux_Proxy_Response
+        or else Response.Request_Id /= 1
+        or else Response.Payload_Length /= 0
+      then
+         SSH_Lib.Mux.Close (Client);
+         return Invalid_Command;
+      end if;
+
+      Status_Value := SSH_Lib.Mux.Detach_Control_Socket (Client, Detached);
+      if Status_Value /= Ok then
+         SSH_Lib.Mux.Close (Client);
+         return Status_Value;
+      end if;
+
+      Item.Mode := Socket_Mode;
+      Item.Socket_Item := Detached;
+      Item.Connected := True;
+      Item.Read_Timeout_Configured := Read_Timeout_MS > 0;
+      Item.Caller_Read_Timeout_Configured := Read_Timeout_MS > 0;
+      Item.Write_Timeout_Configured := Write_Timeout_MS > 0;
+      Item.Read_Timeout_MS := Read_Timeout_MS;
+      Item.Write_Timeout_MS := Write_Timeout_MS;
+      Apply_IO_Timeouts;
+      return Ok;
+   exception
+      when others =>
+         SSH_Lib.Mux.Close (Client);
+         Close (Item);
+         return Internal_Error;
+   end Connect_Through_Mux_Proxy;
 
    function Connect_Through_Jump
      (Item             : in out Driver;
@@ -335,6 +866,7 @@ package body SSH_Lib.Sessions.Live_Transcript is
       Item.Jump_Remote_Channel := Remote_Channel;
       Item.Connected := True;
       Item.Read_Timeout_Configured := Read_Timeout_MS > 0;
+      Item.Caller_Read_Timeout_Configured := Read_Timeout_MS > 0;
       Item.Write_Timeout_Configured := Write_Timeout_MS > 0;
       Item.Read_Timeout_MS := Read_Timeout_MS;
       Item.Write_Timeout_MS := Write_Timeout_MS;
@@ -515,6 +1047,7 @@ package body SSH_Lib.Sessions.Live_Transcript is
         To_Unbounded_String ("spawned");
       Item.Connected := True;
       Item.Read_Timeout_Configured := Effective_Read_Timeout_MS > 0;
+      Item.Caller_Read_Timeout_Configured := Effective_Read_Timeout_MS > 0;
       Item.Write_Timeout_Configured := Effective_Write_Timeout_MS > 0;
       Item.Read_Timeout_MS := Effective_Read_Timeout_MS;
       Item.Write_Timeout_MS := Effective_Write_Timeout_MS;
@@ -570,6 +1103,38 @@ package body SSH_Lib.Sessions.Live_Transcript is
       when others =>
          return Internal_Error;
    end Send_Jump_Channel_Data;
+
+   function Send_Server_Alive_Probe (Item : in out Driver) return Status is
+      Payload : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Status_Value : Status;
+   begin
+      if Item.Server_Alive_Interval_MS = 0
+        or else Item.Caller_Read_Timeout_Configured
+      then
+         return Timeout;
+      elsif Item.Server_Alive_Missed >= Item.Server_Alive_Count_Max then
+         return Timeout;
+      end if;
+
+      Payload := SSH_Lib.Protocol.Global_Requests.Encode_Keepalive_Request;
+      if SSH_Lib.Protocol.Buffers.Is_Empty (Payload) then
+         return Write_Failed;
+      end if;
+
+      Status_Value :=
+        Send_Protected_Packet
+          (Item, SSH_Lib.Protocol.Buffers.To_Array (Payload));
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      Item.Server_Alive_Missed := Item.Server_Alive_Missed + 1;
+      Item.Server_Alive_Awaiting_Reply := True;
+      return Ok;
+   exception
+      when others =>
+         return Internal_Error;
+   end Send_Server_Alive_Probe;
 
    function Drain_Jump_Buffer
      (Item : in out Driver; Data : out Stream_Element_Array) return Boolean
@@ -650,6 +1215,12 @@ package body SSH_Lib.Sessions.Live_Transcript is
          Status_Value :=
            Read_Protected_Packet (Item.Outer_Driver.all, Payload);
          if Status_Value /= Ok then
+            if Status_Value = Timeout then
+               Status_Value := Send_Server_Alive_Probe (Item);
+               if Status_Value = Ok then
+                  goto Continue_Jump_Read;
+               end if;
+            end if;
             return Status_Value;
          end if;
 
@@ -761,6 +1332,8 @@ package body SSH_Lib.Sessions.Live_Transcript is
                    (Payload_Data, Read_Failed);
             end if;
          end;
+         <<Continue_Jump_Read>>
+         null;
       end loop;
 
       return Timeout;
@@ -1252,12 +1825,19 @@ package body SSH_Lib.Sessions.Live_Transcript is
            SSH_Lib.Protocol.Protected_Packets.Last_Failure
              (Item.Protected_State);
       end if;
-      SSH_Lib.Protocol.Protected_Packets.Set_Sequences_For_Test
-        (Item.Protected_State,
-         Inbound_Value  =>
-           SSH_Lib.Protocol.Packets.Inbound_Sequence (Item.Clear_State),
-         Outbound_Value =>
-           SSH_Lib.Protocol.Packets.Outbound_Sequence (Item.Clear_State));
+      --  Terrapin strict-kex resets the packet sequence to zero after NEWKEYS;
+      --  otherwise the encrypted stream continues the cleartext handshake count.
+      if Item.Strict_Kex then
+         SSH_Lib.Protocol.Protected_Packets.Set_Sequences_For_Test
+           (Item.Protected_State, Inbound_Value => 0, Outbound_Value => 0);
+      else
+         SSH_Lib.Protocol.Protected_Packets.Set_Sequences_For_Test
+           (Item.Protected_State,
+            Inbound_Value  =>
+              SSH_Lib.Protocol.Packets.Inbound_Sequence (Item.Clear_State),
+            Outbound_Value =>
+              SSH_Lib.Protocol.Packets.Outbound_Sequence (Item.Clear_State));
+      end if;
       Item.Protected_Installed := True;
       SSH_Lib.Protocol.Buffers.Clear (Item.Last_Protected_Out);
       SSH_Lib.Protocol.Buffers.Clear (Item.Last_Protected_In);
@@ -1333,14 +1913,137 @@ package body SSH_Lib.Sessions.Live_Transcript is
       Wire_Packet         : SSH_Lib.Protocol.Buffers.Packet_Buffer;
       Status_Value        : Status;
    begin
+      <<Restart_Protected_Read>>
       SSH_Lib.Protocol.Buffers.Clear (Payload);
       SSH_Lib.Protocol.Buffers.Clear (Item.Last_Protected_In);
       if not Item.Protected_Installed then
          return Handshake_Failed;
       end if;
 
+      if SSH_Lib.Protocol.Protected_Packets.Inbound_Header_Requires_Block
+           (Item.Protected_State)
+      then
+         declare
+            Block_Size : constant Natural :=
+              SSH_Lib.Protocol.Protected_Packets.Inbound_Block_Size
+                (Item.Protected_State);
+            First_Block :
+              Stream_Element_Array (1 .. Stream_Element_Offset (Block_Size));
+            Plain_First_Block :
+              Stream_Element_Array (1 .. Stream_Element_Offset (Block_Size));
+         begin
+            Status_Value := Read_Exact (Item, First_Block);
+            if Status_Value /= Ok then
+               if Status_Value = Timeout then
+                  Status_Value := Send_Server_Alive_Probe (Item);
+                  if Status_Value = Ok then
+                     goto Restart_Protected_Read;
+                  end if;
+               end if;
+               return Status_Value;
+            end if;
+
+            Status_Value :=
+              SSH_Lib.Protocol.Protected_Packets.Decode_Protected_First_Block_Header
+                (Item.Protected_State, First_Block, Plain_First_Block);
+            if Status_Value /= Ok then
+               return Status_Value;
+            end if;
+
+            Status_Value :=
+              SSH_Lib.Protocol.Numbers.Decode_Uint32
+                (Plain_First_Block,
+                 Plain_First_Block'First,
+                 Packet_Length_Value,
+                 Next_Cursor);
+            if Status_Value /= Ok then
+               return Status_Value;
+            end if;
+
+            if Packet_Length_Value
+              < Unsigned_32 (1 + SSH_Lib.Protocol.Packets.Minimum_Padding_Size)
+              or else
+                Packet_Length_Value
+                > Unsigned_32 (SSH_Lib.Protocol.Packets.Maximum_Packet_Length)
+              or else Natural (Packet_Length_Value) + 4 < Block_Size
+              or else (Natural (Packet_Length_Value) + 4) mod Block_Size /= 0
+            then
+               SSH_Lib.Protocol.Protected_Packets.Mark_Dirty
+                 (Item.Protected_State, Handshake_Failed);
+               return Handshake_Failed;
+            end if;
+
+            Status_Value := SSH_Lib.Protocol.Buffers.Set (Wire_Packet, First_Block);
+            if Status_Value /= Ok then
+               return Status_Value;
+            end if;
+
+            declare
+               Rest_And_Mac :
+                 Stream_Element_Array
+                   (1
+                    ..
+                      Stream_Element_Offset
+                        (Natural (Packet_Length_Value)
+                         + 4
+                         - Block_Size
+                         + SSH_Lib.Protocol.Protected_Packets.Inbound_Mac_Size
+                             (Item.Protected_State)));
+            begin
+               Status_Value := Read_Exact (Item, Rest_And_Mac);
+               if Status_Value /= Ok then
+                  return Status_Value;
+               end if;
+
+               Status_Value :=
+                 SSH_Lib.Protocol.Buffers.Append (Wire_Packet, Rest_And_Mac);
+               if Status_Value /= Ok then
+                  return Status_Value;
+               end if;
+
+               Status_Value :=
+                 SSH_Lib.Protocol.Buffers.Set
+                   (Item.Last_Protected_In,
+                    SSH_Lib.Protocol.Buffers.To_Array (Wire_Packet));
+               if Status_Value /= Ok then
+                  return Status_Value;
+               end if;
+
+               Status_Value :=
+                 SSH_Lib.Protocol.Protected_Packets
+                   .Decode_Protected_Packet_After_First_Block
+                      (Item.Protected_State,
+                       Plain_First_Block,
+                       Rest_And_Mac,
+                       Payload);
+               if Status_Value = Ok then
+                  declare
+                     Payload_Data : constant Stream_Element_Array :=
+                       SSH_Lib.Protocol.Buffers.To_Array (Payload);
+                  begin
+                     Item.Server_Alive_Missed := 0;
+                     if Item.Server_Alive_Awaiting_Reply
+                       and then SSH_Lib.Protocol.Global_Requests
+                         .Is_Keepalive_Success (Payload_Data)
+                     then
+                        Item.Server_Alive_Awaiting_Reply := False;
+                        goto Restart_Protected_Read;
+                     end if;
+                  end;
+               end if;
+               return Status_Value;
+            end;
+         end;
+      end if;
+
       Status_Value := Read_Exact (Item, Header_Data);
       if Status_Value /= Ok then
+         if Status_Value = Timeout then
+            Status_Value := Send_Server_Alive_Probe (Item);
+            if Status_Value = Ok then
+               goto Restart_Protected_Read;
+            end if;
+         end if;
          return Status_Value;
       end if;
 
@@ -1367,7 +2070,10 @@ package body SSH_Lib.Sessions.Live_Transcript is
           Packet_Length_Value
           > Unsigned_32 (SSH_Lib.Protocol.Packets.Maximum_Packet_Length)
         or else
-          (Natural (Packet_Length_Value) + 4)
+          (Natural (Packet_Length_Value)
+           + (if SSH_Lib.Protocol.Protected_Packets.Inbound_Length_In_Alignment
+                   (Item.Protected_State)
+              then 4 else 0))
           mod
             SSH_Lib.Protocol.Protected_Packets.Inbound_Block_Size
               (Item.Protected_State)
@@ -1426,6 +2132,21 @@ package body SSH_Lib.Sessions.Live_Transcript is
                  Plain_Header_Data,
                  Wire_Array (Wire_Array'First + 4 .. Wire_Array'Last),
                  Payload);
+         if Status_Value = Ok then
+            declare
+               Payload_Data : constant Stream_Element_Array :=
+                 SSH_Lib.Protocol.Buffers.To_Array (Payload);
+            begin
+               Item.Server_Alive_Missed := 0;
+               if Item.Server_Alive_Awaiting_Reply
+                 and then SSH_Lib.Protocol.Global_Requests
+                   .Is_Keepalive_Success (Payload_Data)
+               then
+                  Item.Server_Alive_Awaiting_Reply := False;
+                  goto Restart_Protected_Read;
+               end if;
+            end;
+         end if;
          return Status_Value;
       end;
    exception

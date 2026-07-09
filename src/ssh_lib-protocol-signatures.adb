@@ -1,4 +1,5 @@
 with SSH_Lib.Signatures;
+with Interfaces;
 with SSH_Lib.ECDSA;
 with SSH_Lib.Keys.Internal;
 with SSH_Lib.Protocol.Certificates;
@@ -58,6 +59,62 @@ package body SSH_Lib.Protocol.Signatures is
          Text := Null_Unbounded_String;
          return Internal_Error;
    end To_Algorithm_Name;
+
+   function Validate_SK_Signature_Payload
+     (Algorithm_Name  : String;
+      Signature_Bytes : Stream_Element_Array) return Status
+   is
+      Inner_Signature : Packet_Buffer;
+      Cursor          : Stream_Element_Offset;
+      Next_Index      : Stream_Element_Offset;
+      Counter_Value   : Interfaces.Unsigned_32;
+      Status_Value    : Status;
+   begin
+      if Signature_Bytes'Length < 10 then
+         return Handshake_Failed;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Numbers.Decode_SSH_String
+          (Signature_Bytes, Signature_Bytes'First, Inner_Signature, Next_Index);
+      if Status_Value /= Ok then
+         return Handshake_Failed;
+      end if;
+
+      if Next_Index + 4 /= Signature_Bytes'Last then
+         return Handshake_Failed;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Numbers.Decode_Uint32
+          (Signature_Bytes, Next_Index + 1, Counter_Value, Cursor);
+      if Status_Value /= Ok or else Cursor /= Signature_Bytes'Last + 1 then
+         return Handshake_Failed;
+      end if;
+
+      declare
+         Inner_Data : constant Stream_Element_Array := To_Array (Inner_Signature);
+      begin
+         if Algorithm_Name = "sk-ssh-ed25519@openssh.com" then
+            if Inner_Data'Length /= 64 then
+               return Handshake_Failed;
+            end if;
+         elsif Algorithm_Name = "sk-ecdsa-sha2-nistp256@openssh.com" then
+            Status_Value := SSH_Lib.ECDSA.Validate_Signature_Nistp256
+              (Inner_Data);
+            if Status_Value /= Ok then
+               return Status_Value;
+            end if;
+         else
+            return Unsupported_Feature;
+         end if;
+      end;
+
+      return Ok;
+   exception
+      when others =>
+         return Internal_Error;
+   end Validate_SK_Signature_Payload;
 
    function Parse
      (Blob                 : Stream_Element_Array;
@@ -130,6 +187,27 @@ package body SSH_Lib.Protocol.Signatures is
             if Status_Value /= Ok then
                return Status_Value;
             end if;
+         elsif Effective_Algorithm = "ecdsa-sha2-nistp384" then
+            Status_Value := SSH_Lib.ECDSA.Validate_Signature_Nistp384
+              (To_Array (Signature_Buffer));
+            if Status_Value /= Ok then
+               return Status_Value;
+            end if;
+         elsif Effective_Algorithm = "ecdsa-sha2-nistp521" then
+            Status_Value := SSH_Lib.ECDSA.Validate_Signature_Nistp521
+              (To_Array (Signature_Buffer));
+            if Status_Value /= Ok then
+               return Status_Value;
+            end if;
+         elsif Effective_Algorithm = "sk-ssh-ed25519@openssh.com"
+           or else Effective_Algorithm = "sk-ecdsa-sha2-nistp256@openssh.com"
+         then
+            Status_Value :=
+              Validate_SK_Signature_Payload
+                (Effective_Algorithm, To_Array (Signature_Buffer));
+            if Status_Value /= Ok then
+               return Status_Value;
+            end if;
          elsif Effective_Algorithm = "rsa-sha2-256"
            or else Effective_Algorithm = "rsa-sha2-512"
            or else Effective_Algorithm = "ssh-rsa"
@@ -193,6 +271,14 @@ package body SSH_Lib.Protocol.Signatures is
             return Handshake_Failed;
          elsif Effective_Algorithm = "ecdsa-sha2-nistp256"
            and then SSH_Lib.Keys.Algorithm (Key_Item) /= "ecdsa-sha2-nistp256"
+         then
+            return Handshake_Failed;
+         elsif Effective_Algorithm = "sk-ssh-ed25519@openssh.com"
+           and then SSH_Lib.Keys.Algorithm (Key_Item) /= "sk-ssh-ed25519@openssh.com"
+         then
+            return Handshake_Failed;
+         elsif Effective_Algorithm = "sk-ecdsa-sha2-nistp256@openssh.com"
+           and then SSH_Lib.Keys.Algorithm (Key_Item) /= "sk-ecdsa-sha2-nistp256@openssh.com"
          then
             return Handshake_Failed;
          elsif (Effective_Algorithm = "rsa-sha2-256"

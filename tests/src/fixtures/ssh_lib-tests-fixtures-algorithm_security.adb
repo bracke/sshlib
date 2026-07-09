@@ -35,17 +35,27 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
      "mlkem768x25519-sha256,mlkem768x25519-sha512,"
      & "sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512,"
      & "curve25519-sha256,curve25519-sha256@libssh.org,"
-     & "ecdh-sha2-nistp256,diffie-hellman-group18-sha512,"
+     & "ecdh-sha2-nistp256,ecdh-sha2-nistp384,"
+     & "ecdh-sha2-nistp521,diffie-hellman-group18-sha512,"
      & "diffie-hellman-group16-sha512,diffie-hellman-group14-sha256,"
-     & "diffie-hellman-group-exchange-sha256,ext-info-c";
+     & "diffie-hellman-group-exchange-sha256,"
+     & "diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,"
+     & "ext-info-c,kex-strict-c-v00@openssh.com";
 
    Host_Key_List : constant String :=
      "ssh-ed25519-cert-v01@openssh.com,"
      & "ecdsa-sha2-nistp256-cert-v01@openssh.com,"
+     & "ecdsa-sha2-nistp384-cert-v01@openssh.com,"
+     & "ecdsa-sha2-nistp521-cert-v01@openssh.com,"
      & "rsa-sha2-512-cert-v01@openssh.com,"
      & "rsa-sha2-256-cert-v01@openssh.com,"
-     & "ssh-rsa-cert-v01@openssh.com,ssh-ed25519,"
-     & "ecdsa-sha2-nistp256,rsa-sha2-512,rsa-sha2-256,ssh-rsa";
+     & "ssh-rsa-cert-v01@openssh.com,"
+     & "sk-ssh-ed25519-cert-v01@openssh.com,"
+     & "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,ssh-ed25519,"
+     & "ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,"
+     & "ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,"
+     & "sk-ssh-ed25519@openssh.com,"
+     & "sk-ecdsa-sha2-nistp256@openssh.com,ssh-rsa";
 
    Cipher_List : constant String :=
      "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,"
@@ -201,6 +211,30 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
       return Result;
    end Signature_Blob;
 
+   function Security_Key_Signature_Payload
+     (Inner_Signature : Ada.Streams.Stream_Element_Array)
+      return Ada.Streams.Stream_Element_Array
+   is
+      Result       : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Status_Value : CryptoLib.Errors.Status;
+   begin
+      SSH_Lib.Protocol.Buffers.Clear (Result);
+      Status_Value := SSH_Lib.Protocol.Buffers.Append
+        (Result,
+         SSH_Lib.Protocol.Buffers.To_Array
+           (SSH_Lib.Protocol.Numbers.Encode_SSH_String (Inner_Signature)));
+      if Status_Value = CryptoLib.Errors.Ok then
+         Status_Value := SSH_Lib.Protocol.Buffers.Append_Byte (Result, 1);
+      end if;
+      if Status_Value = CryptoLib.Errors.Ok then
+         Status_Value := SSH_Lib.Protocol.Buffers.Append
+           (Result, SSH_Lib.Protocol.Numbers.Encode_Uint32 (7));
+      end if;
+      Check (Status_Value = CryptoLib.Errors.Ok,
+             "security-key signature payload fixture encodes");
+      return SSH_Lib.Protocol.Buffers.To_Array (Result);
+   end Security_Key_Signature_Payload;
+
    function RSA_Host_Key_Blob
      (Exponent_Bytes : Ada.Streams.Stream_Element_Array;
       Modulus_Bytes  : Ada.Streams.Stream_Element_Array)
@@ -262,7 +296,7 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
                Check
                  (Support_Value = SSH_Lib.Algorithms.Available
                   or else Support_Value = SSH_Lib.Algorithms.Extension_Only,
-                  Label_Text & " advertised only implemented or extension marker " & Candidate);
+                  Label_Text & " advertised only implemented algorithm or extension marker " & Candidate);
             end;
          end;
 
@@ -294,10 +328,10 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
              "only implemented ciphers are advertised client-to-server");
       Check (Advertised_Name_List (Encryption_Server_To_Client) = Cipher_List,
              "only implemented ciphers are advertised server-to-client");
-      Check (Advertised_Name_List (Compression_Client_To_Server) = "zlib@openssh.com,zlib,none",
-             "delayed zlib, immediate zlib, and none are advertised client-to-server");
-      Check (Advertised_Name_List (Compression_Server_To_Client) = "zlib@openssh.com,zlib,none",
-             "delayed zlib, immediate zlib, and none are advertised server-to-client");
+      Check (Advertised_Name_List (Compression_Client_To_Server) = "none,zlib@openssh.com,zlib",
+             "none, delayed zlib, and immediate zlib are advertised client-to-server");
+      Check (Advertised_Name_List (Compression_Server_To_Client) = "none,zlib@openssh.com,zlib",
+             "none, delayed zlib, and immediate zlib are advertised server-to-client");
    end Assert_Advertised_Algorithms_Are_Implemented;
 
    procedure Assert_Selection_Preserves_Client_Preference is
@@ -365,13 +399,23 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
 
       Status_Value := SSH_Lib.Algorithms.Select_Algorithm
         (SSH_Lib.Algorithms.Key_Exchange,
-         "diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1",
+         "diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,diffie-hellman-group1-sha1",
          "diffie-hellman-group-exchange-sha1", Selected_Name);
       SSH_Lib.Tests.Assertions.Check_Status
-        (Status_Value, CryptoLib.Errors.Unsupported_Feature,
-         "algorithm security", "legacy GEX SHA-1 KEX fails closed while unsupported");
-      Check (To_String (Selected_Name)'Length = 0,
-             "legacy GEX SHA-1 rejection leaves no selected KEX");
+        (Status_Value, CryptoLib.Errors.Ok,
+         "algorithm security", "legacy GEX SHA-1 KEX intersects as final fallback");
+      Check (To_String (Selected_Name) = "diffie-hellman-group-exchange-sha1",
+             "legacy GEX SHA-1 fallback records selected KEX");
+
+      Status_Value := SSH_Lib.Algorithms.Select_Algorithm
+        (SSH_Lib.Algorithms.Key_Exchange,
+         "diffie-hellman-group1-sha1",
+         "diffie-hellman-group1-sha1", Selected_Name);
+      SSH_Lib.Tests.Assertions.Check_Status
+        (Status_Value, CryptoLib.Errors.Ok,
+         "algorithm security", "legacy group1 SHA-1 KEX intersects as final fallback");
+      Check (To_String (Selected_Name) = "diffie-hellman-group1-sha1",
+             "legacy group1 SHA-1 fallback records selected KEX");
 
       Status_Value := SSH_Lib.Algorithms.Select_Algorithm
         (SSH_Lib.Algorithms.Key_Exchange,
@@ -387,6 +431,26 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
         (SSH_Lib.Algorithms.Key_Exchange,
          Kex_List,
          "ecdh-sha2-nistp384", Selected_Name);
+      SSH_Lib.Tests.Assertions.Check_Status
+        (Status_Value, CryptoLib.Errors.Ok,
+         "algorithm security", "NIST P-384 ECDH KEX intersects successfully");
+      Check (To_String (Selected_Name) = "ecdh-sha2-nistp384",
+             "NIST P-384 ECDH success records selected KEX");
+
+      Status_Value := SSH_Lib.Algorithms.Select_Algorithm
+        (SSH_Lib.Algorithms.Key_Exchange,
+         Kex_List,
+         "ecdh-sha2-nistp521", Selected_Name);
+      SSH_Lib.Tests.Assertions.Check_Status
+        (Status_Value, CryptoLib.Errors.Ok,
+         "algorithm security", "NIST P-521 ECDH KEX intersects successfully");
+      Check (To_String (Selected_Name) = "ecdh-sha2-nistp521",
+             "NIST P-521 ECDH success records selected KEX");
+
+      Status_Value := SSH_Lib.Algorithms.Select_Algorithm
+        (SSH_Lib.Algorithms.Key_Exchange,
+         Kex_List,
+         "ecdh-sha2-unknown", Selected_Name);
       SSH_Lib.Tests.Assertions.Check_Status
         (Status_Value, CryptoLib.Errors.Unsupported_Feature,
          "algorithm security", "server offers no supported KEX");
@@ -452,10 +516,10 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
         (SSH_Lib.Algorithms.Key_Exchange,
          "diffie-hellman-group14-sha1", "diffie-hellman-group14-sha1", Selected_Name);
       SSH_Lib.Tests.Assertions.Check_Status
-        (Status_Value, CryptoLib.Errors.Unsupported_Feature,
-         "algorithm security", "group14 SHA-1 KEX fails closed while unsupported");
-      Check (To_String (Selected_Name)'Length = 0,
-             "group14 SHA-1 rejection leaves no selected KEX");
+        (Status_Value, CryptoLib.Errors.Ok,
+         "algorithm security", "group14 SHA-1 KEX intersects as final fallback");
+      Check (To_String (Selected_Name) = "diffie-hellman-group14-sha1",
+             "group14 SHA-1 fallback records selected KEX");
 
       Status_Value := SSH_Lib.Algorithms.Select_Algorithm
         (SSH_Lib.Algorithms.Server_Host_Key,
@@ -526,8 +590,8 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
         (SSH_Lib.Protocol.Algorithm_Guards.Selected_Algorithm_Accepted
            (SSH_Lib.Algorithms.Mac_Client_To_Server,
             "hmac-sha2-256,hmac-md5", "hmac-md5"),
-         CryptoLib.Errors.Unsupported_Feature,
-         "algorithm security", "unsupported MAC is not silently accepted even when present in malformed client list");
+         CryptoLib.Errors.Ok,
+         "algorithm security", "hmac-md5 fallback is accepted when advertised by the client");
 
       SSH_Lib.Tests.Assertions.Check_Status
         (SSH_Lib.Protocol.Algorithm_Guards.Selected_Algorithm_Accepted
@@ -555,16 +619,16 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
            (SSH_Lib.Algorithms.Server_Host_Key,
             "sk-ssh-ed25519-cert-v01@openssh.com",
             "sk-ssh-ed25519-cert-v01@openssh.com"),
-         CryptoLib.Errors.Unsupported_Feature,
-         "algorithm security", "SK Ed25519 host certificate selection remains unsupported");
+         CryptoLib.Errors.Ok,
+         "algorithm security", "SK Ed25519 host certificate selection is accepted");
 
       SSH_Lib.Tests.Assertions.Check_Status
         (SSH_Lib.Protocol.Algorithm_Guards.Selected_Algorithm_Accepted
            (SSH_Lib.Algorithms.Server_Host_Key,
             "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com",
             "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com"),
-         CryptoLib.Errors.Unsupported_Feature,
-         "algorithm security", "SK ECDSA host certificate selection remains unsupported");
+         CryptoLib.Errors.Ok,
+         "algorithm security", "SK ECDSA host certificate selection is accepted");
 
       SSH_Lib.Tests.Assertions.Check_Status
         (SSH_Lib.Protocol.Algorithm_Guards.Kex_Reply_Consistent
@@ -608,8 +672,8 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
    procedure Assert_Weak_Algorithms_Rejected is
       use SSH_Lib.Algorithms;
    begin
-      Check (Support_For (Key_Exchange, "diffie-hellman-group1-sha1") = Unsupported,
-             "legacy group1 KEX unsupported");
+      Check (Support_For (Key_Exchange, "diffie-hellman-group1-sha1") = Available,
+             "legacy group1 KEX retained only as final interoperability fallback");
       Check (Support_For (Key_Exchange, "sntrup761x25519-sha512@openssh.com") = Available,
              "OpenSSH SNTRUP761/X25519 hybrid PQ KEX is selectable after conformance gates");
       Check (Support_For (Key_Exchange, "sntrup761x25519-sha512") = Available,
@@ -622,16 +686,24 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
              "Ed25519 host certificates are selectable");
       Check (Support_For (Server_Host_Key, "ecdsa-sha2-nistp256-cert-v01@openssh.com") = Available,
              "ECDSA P-256 host certificates are selectable");
+      Check (Support_For (Server_Host_Key, "ecdsa-sha2-nistp384-cert-v01@openssh.com") = Available,
+             "ECDSA P-384 host certificates are selectable");
+      Check (Support_For (Server_Host_Key, "ecdsa-sha2-nistp521-cert-v01@openssh.com") = Available,
+             "ECDSA P-521 host certificates are selectable");
       Check (Support_For (Server_Host_Key, "rsa-sha2-512-cert-v01@openssh.com") = Available,
              "RSA SHA-512 host certificates are selectable");
       Check (Support_For (Server_Host_Key, "rsa-sha2-256-cert-v01@openssh.com") = Available,
              "RSA SHA-256 host certificates are selectable");
       Check (Support_For (Server_Host_Key, "ssh-rsa-cert-v01@openssh.com") = Available,
              "legacy RSA SHA-1 host certificates are selectable as fallback");
-      Check (Support_For (Server_Host_Key, "sk-ssh-ed25519-cert-v01@openssh.com") = Unsupported,
-             "SK Ed25519 host certificates stay unsupported until signature policy is implemented");
-      Check (Support_For (Server_Host_Key, "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com") = Unsupported,
-             "SK ECDSA host certificates stay unsupported until signature policy is implemented");
+      Check (Support_For (Server_Host_Key, "sk-ssh-ed25519-cert-v01@openssh.com") = Available,
+             "SK Ed25519 host certificates are selectable");
+      Check (Support_For (Server_Host_Key, "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com") = Available,
+             "SK ECDSA host certificates are selectable");
+      Check (Support_For (Server_Host_Key, "sk-ssh-ed25519@openssh.com") = Available,
+             "raw SK Ed25519 host keys are selectable");
+      Check (Support_For (Server_Host_Key, "sk-ecdsa-sha2-nistp256@openssh.com") = Available,
+             "raw SK ECDSA host keys are selectable");
       Check (Contains_Name (Advertised_Name_List (Key_Exchange), "sntrup761x25519-sha512@openssh.com"),
              "OpenSSH SNTRUP hybrid PQ KEX is advertised after conformance gates");
       Check (Contains_Name (Advertised_Name_List (Key_Exchange), "mlkem768x25519-sha256"),
@@ -656,16 +728,18 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
              "RFC8308 ext-info-c is not a selectable KEX algorithm");
       Check (Support_For (Server_Host_Key, "ssh-rsa") = Available,
              "legacy ssh-rsa SHA-1 host-key signatures retained as last-resort interoperability fallback");
-      Check (Support_For (Encryption_Client_To_Server, "3des-cbc") = Unsupported,
-             "legacy 3des cipher unsupported");
+      Check (Support_For (Encryption_Client_To_Server, "3des-cbc") = Available,
+             "legacy 3des-cbc retained only as last-resort cipher interoperability fallback");
       Check (Support_For (Mac_Client_To_Server, "hmac-sha1") = Available,
              "hmac-sha1 retained only as last-resort MAC interoperability fallback");
       Check (Support_For (Mac_Client_To_Server, "hmac-sha1-96-etm@openssh.com") = Available,
              "hmac-sha1-96-etm retained only as truncated SHA-1 MAC interoperability fallback");
       Check (Support_For (Mac_Client_To_Server, "hmac-sha1-96") = Available,
              "hmac-sha1-96 retained only as truncated SHA-1 MAC interoperability fallback");
-      Check (Support_For (Mac_Client_To_Server, "hmac-md5") = Unsupported,
-             "legacy hmac-md5 unsupported");
+      Check (Support_For (Mac_Client_To_Server, "hmac-md5") = Available,
+             "hmac-md5 retained only as last-resort MAC interoperability fallback");
+      Check (Support_For (Mac_Client_To_Server, "hmac-md5-96") = Available,
+             "hmac-md5-96 retained only as truncated MD5 MAC interoperability fallback");
       Check (Support_For (Mac_Client_To_Server, "umac-64@openssh.com") = Available,
              "umac-64 is available through the native Ada UMAC implementation");
       Check (Support_For (Mac_Client_To_Server, "umac-128@openssh.com") = Available,
@@ -1034,7 +1108,32 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
          SK_Blob          : SSH_Lib.Protocol.Buffers.Packet_Buffer;
          SK_Signature     : SSH_Lib.Protocol.Buffers.Packet_Buffer;
          Parsed_Signature : SSH_Lib.Protocol.Signatures.Parsed_Signature;
-         Signature_Bytes  : Stream_Element_Array (1 .. 69);
+         SK_Ed25519_Inner : constant Stream_Element_Array (1 .. 64) :=
+           [others => 16#A5#];
+         SK_ECDSA_Inner   : constant Stream_Element_Array (1 .. 73) :=
+           [1 => 16#00#, 2 => 16#00#, 3 => 16#00#, 4 => 16#21#,
+            5 => 16#00#, 6 => 16#EA#, 7 => 16#3A#, 8 => 16#EB#,
+            9 => 16#32#, 10 => 16#2E#, 11 => 16#3D#, 12 => 16#09#,
+            13 => 16#4C#, 14 => 16#7F#, 15 => 16#13#, 16 => 16#AA#,
+            17 => 16#5F#, 18 => 16#D8#, 19 => 16#D2#, 20 => 16#3F#,
+            21 => 16#F7#, 22 => 16#D4#, 23 => 16#59#, 24 => 16#68#,
+            25 => 16#CC#, 26 => 16#C2#, 27 => 16#7A#, 28 => 16#DF#,
+            29 => 16#1F#, 30 => 16#65#, 31 => 16#70#, 32 => 16#C3#,
+            33 => 16#E3#, 34 => 16#8A#, 35 => 16#69#, 36 => 16#36#,
+            37 => 16#1B#, 38 => 16#00#, 39 => 16#00#, 40 => 16#00#,
+            41 => 16#20#, 42 => 16#5F#, 43 => 16#B9#, 44 => 16#5B#,
+            45 => 16#B4#, 46 => 16#77#, 47 => 16#CF#, 48 => 16#81#,
+            49 => 16#7E#, 50 => 16#A2#, 51 => 16#A6#, 52 => 16#E9#,
+            53 => 16#2F#, 54 => 16#CF#, 55 => 16#B2#, 56 => 16#53#,
+            57 => 16#E8#, 58 => 16#C8#, 59 => 16#94#, 60 => 16#01#,
+            61 => 16#5E#, 62 => 16#09#, 63 => 16#1E#, 64 => 16#7F#,
+            65 => 16#F4#, 66 => 16#5A#, 67 => 16#E0#, 68 => 16#BC#,
+            69 => 16#06#, 70 => 16#EB#, 71 => 16#E7#, 72 => 16#14#,
+            73 => 16#FC#];
+         SK_Ed25519_Signature_Bytes : constant Stream_Element_Array :=
+           Security_Key_Signature_Payload (SK_Ed25519_Inner);
+         SK_ECDSA_Signature_Bytes : constant Stream_Element_Array :=
+           Security_Key_Signature_Payload (SK_ECDSA_Inner);
          ECDSA_Point      : constant Stream_Element_Array (1 .. 65) :=
            [1 => 16#04#,
             2 => 16#67#, 3 => 16#AC#, 4 => 16#AD#, 5 => 16#2D#,
@@ -1054,11 +1153,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
             58 => 16#0F#, 59 => 16#6D#, 60 => 16#D4#, 61 => 16#AB#,
             62 => 16#31#, 63 => 16#CA#, 64 => 16#CE#, 65 => 16#9D#];
       begin
-         for Index_Value in Signature_Bytes'Range loop
-            Signature_Bytes (Index_Value) :=
-              Stream_Element ((Integer (Index_Value) * 11) mod 256);
-         end loop;
-
          SK_Blob := SK_Ed25519_Host_Key_Blob (Good_Key_Bytes, "ssh:fixture");
          Status_Value := SSH_Lib.Protocol.Host_Keys.Parse
            (SSH_Lib.Protocol.Buffers.To_Array (SK_Blob),
@@ -1071,16 +1165,17 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
                 "parsed SK Ed25519 host key records algorithm");
 
          SK_Signature := Signature_Blob
-           ("sk-ssh-ed25519@openssh.com", Signature_Bytes);
+           ("sk-ssh-ed25519@openssh.com", SK_Ed25519_Signature_Bytes);
          Status_Value := SSH_Lib.Protocol.Signatures.Parse
            (SSH_Lib.Protocol.Buffers.To_Array (SK_Signature),
             "sk-ssh-ed25519@openssh.com",
             Parsed_Signature);
          SSH_Lib.Tests.Assertions.Check_Status
-           (Status_Value, CryptoLib.Errors.Unsupported_Feature,
-            "algorithm security", "SK Ed25519 signature verification remains unsupported");
-         Check (SSH_Lib.Protocol.Signatures.Algorithm (Parsed_Signature) = "",
-                "unsupported SK Ed25519 signature parse leaves no algorithm");
+           (Status_Value, CryptoLib.Errors.Ok,
+            "algorithm security", "SK Ed25519 signature payload parses");
+         Check (SSH_Lib.Protocol.Signatures.Algorithm (Parsed_Signature) =
+                  "sk-ssh-ed25519@openssh.com",
+                "SK Ed25519 signature parse records algorithm");
 
          SK_Blob := SK_Ed25519_Host_Key_Blob (Good_Key_Bytes, "https://example.invalid");
          Status_Value := SSH_Lib.Protocol.Host_Keys.Parse
@@ -1105,16 +1200,17 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
                 "parsed SK ECDSA host key records algorithm");
 
          SK_Signature := Signature_Blob
-           ("sk-ecdsa-sha2-nistp256@openssh.com", Signature_Bytes);
+           ("sk-ecdsa-sha2-nistp256@openssh.com", SK_ECDSA_Signature_Bytes);
          Status_Value := SSH_Lib.Protocol.Signatures.Parse
            (SSH_Lib.Protocol.Buffers.To_Array (SK_Signature),
             "sk-ecdsa-sha2-nistp256@openssh.com",
             Parsed_Signature);
          SSH_Lib.Tests.Assertions.Check_Status
-           (Status_Value, CryptoLib.Errors.Unsupported_Feature,
-            "algorithm security", "SK ECDSA signature verification remains unsupported");
-         Check (SSH_Lib.Protocol.Signatures.Algorithm (Parsed_Signature) = "",
-                "unsupported SK ECDSA signature parse leaves no algorithm");
+           (Status_Value, CryptoLib.Errors.Ok,
+            "algorithm security", "SK ECDSA signature payload parses");
+         Check (SSH_Lib.Protocol.Signatures.Algorithm (Parsed_Signature) =
+                  "sk-ecdsa-sha2-nistp256@openssh.com",
+                "SK ECDSA signature parse records algorithm");
 
          SK_Blob := SK_ECDSA_Nistp256_Host_Key_Blob
            (ECDSA_Point, "https://example.invalid");

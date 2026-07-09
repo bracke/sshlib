@@ -241,6 +241,92 @@ package body SSH_Lib.Protocol.Exchange_Hash is
          return Internal_Error;
    end Compute_Common_SHA256;
 
+   function Compute_Common_SHA384
+     (Client_Identification    : String;
+      Server_Identification    : String;
+      Client_Kexinit           : Packet_Buffer;
+      Server_Kexinit           : Packet_Buffer;
+      Server_Host_Key          : Stream_Element_Array;
+      First_Public_Value       : Stream_Element_Array;
+      Second_Public_Value      : Stream_Element_Array;
+      Shared_Secret            : Stream_Element_Array;
+      Public_Values_Are_Mpints : Boolean;
+      Result_Digest            : out Exchange_SHA384_Digest) return Status
+   is
+      Work_Item    : Packet_Buffer;
+      Status_Value : Status;
+   begin
+      Result_Digest := [others => 0];
+      Clear (Work_Item);
+
+      if Length (Client_Kexinit) = 0
+        or else Length (Server_Kexinit) = 0
+        or else Server_Host_Key'Length = 0
+        or else First_Public_Value'Length = 0
+        or else Second_Public_Value'Length = 0
+        or else Shared_Secret'Length = 0
+      then
+         return Handshake_Failed;
+      end if;
+
+      Status_Value :=
+        Append_SSH_String
+          (Work_Item, Bytes_From_String (Client_Identification));
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      Status_Value :=
+        Append_SSH_String
+          (Work_Item, Bytes_From_String (Server_Identification));
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      Status_Value := Append_SSH_String (Work_Item, To_Array (Client_Kexinit));
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      Status_Value := Append_SSH_String (Work_Item, To_Array (Server_Kexinit));
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      Status_Value := Append_SSH_String (Work_Item, Server_Host_Key);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      if Public_Values_Are_Mpints then
+         Status_Value := Append_Mpint (Work_Item, First_Public_Value);
+         if Status_Value /= Ok then
+            return Status_Value;
+         end if;
+         Status_Value := Append_Mpint (Work_Item, Second_Public_Value);
+         if Status_Value /= Ok then
+            return Status_Value;
+         end if;
+      else
+         Status_Value := Append_SSH_String (Work_Item, First_Public_Value);
+         if Status_Value /= Ok then
+            return Status_Value;
+         end if;
+         Status_Value := Append_SSH_String (Work_Item, Second_Public_Value);
+         if Status_Value /= Ok then
+            return Status_Value;
+         end if;
+      end if;
+
+      Status_Value := Append_Mpint (Work_Item, Shared_Secret);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      Result_Digest := CryptoLib.Hashes.SHA384 (To_Array (Work_Item));
+      return Ok;
+   exception
+      when others =>
+         Result_Digest := [others => 0];
+         return Internal_Error;
+   end Compute_Common_SHA384;
+
    function Compute_Common_SHA512
      (Client_Identification    : String;
       Server_Identification    : String;
@@ -553,6 +639,102 @@ package body SSH_Lib.Protocol.Exchange_Hash is
            False,
            Result_Digest);
    end Compute_ECDH_SHA256;
+
+   function Compute_ECDH_Nistp384_SHA384
+     (Client_Identification : String;
+      Server_Identification : String;
+      Client_Kexinit        : Packet_Buffer;
+      Server_Kexinit        : Packet_Buffer;
+      Server_Host_Key       : Stream_Element_Array;
+      Client_Public_Key     : Stream_Element_Array;
+      Server_Public_Key     : Stream_Element_Array;
+      Shared_Secret         : Stream_Element_Array;
+      Result_Digest         : out Exchange_SHA384_Digest) return Status
+   is
+      Status_Value : Status;
+   begin
+      Result_Digest := [others => 0];
+
+      Status_Value :=
+        SSH_Lib.ECDSA.Validate_Raw_Point_Nistp384 (Client_Public_Key);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.ECDSA.Validate_Raw_Point_Nistp384 (Server_Public_Key);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.ECDSA.Validate_ECDH_Nistp384_Shared_Secret
+          (Shared_Secret);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      return
+        Compute_Common_SHA384
+          (Client_Identification,
+           Server_Identification,
+           Client_Kexinit,
+           Server_Kexinit,
+           Server_Host_Key,
+           Client_Public_Key,
+           Server_Public_Key,
+           Shared_Secret,
+           False,
+           Result_Digest);
+   end Compute_ECDH_Nistp384_SHA384;
+
+   function Compute_ECDH_Nistp521_SHA512
+     (Client_Identification : String;
+      Server_Identification : String;
+      Client_Kexinit        : Packet_Buffer;
+      Server_Kexinit        : Packet_Buffer;
+      Server_Host_Key       : Stream_Element_Array;
+      Client_Public_Key     : Stream_Element_Array;
+      Server_Public_Key     : Stream_Element_Array;
+      Shared_Secret         : Stream_Element_Array;
+      Result_Digest         : out Exchange_SHA512_Digest) return Status
+   is
+      Status_Value : Status;
+   begin
+      Result_Digest := [others => 0];
+
+      Status_Value :=
+        SSH_Lib.ECDSA.Validate_Raw_Point_Nistp521 (Client_Public_Key);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.ECDSA.Validate_Raw_Point_Nistp521 (Server_Public_Key);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.ECDSA.Validate_ECDH_Nistp521_Shared_Secret
+          (Shared_Secret);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      return
+        Compute_Common_SHA512
+          (Client_Identification,
+           Server_Identification,
+           Client_Kexinit,
+           Server_Kexinit,
+           Server_Host_Key,
+           Client_Public_Key,
+           Server_Public_Key,
+           Shared_Secret,
+           False,
+           Result_Digest);
+   end Compute_ECDH_Nistp521_SHA512;
 
    function Compute_Group14_SHA1
      (Client_Identification : String;

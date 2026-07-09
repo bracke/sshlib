@@ -1,10 +1,9 @@
 with Ada.Command_Line;
-with Ada.Directories;
-with Ada.Strings.Fixed;
 with Ada.Text_IO;
 
+with Project_Tools.Files;
+
 procedure Check_Public_API is
-   use Ada.Strings.Fixed;
 
    Failure_Count : Natural := 0;
 
@@ -14,37 +13,17 @@ procedure Check_Public_API is
       Failure_Count := Failure_Count + 1;
    end Fail;
 
+   --  Delegates to the shared project_tools helpers; File_Exists preserves the
+   --  previous "missing file => not present" behaviour (rather than raising).
    function File_Contains (Path : String; Needle : String) return Boolean is
-      File_Item : Ada.Text_IO.File_Type;
    begin
-      if not Ada.Directories.Exists (Path) then
-         return False;
-      end if;
-
-      Ada.Text_IO.Open (File_Item, Ada.Text_IO.In_File, Path);
-      while not Ada.Text_IO.End_Of_File (File_Item) loop
-         declare
-            Line_Text : constant String := Ada.Text_IO.Get_Line (File_Item);
-         begin
-            if Index (Line_Text, Needle) /= 0 then
-               Ada.Text_IO.Close (File_Item);
-               return True;
-            end if;
-         end;
-      end loop;
-      Ada.Text_IO.Close (File_Item);
-      return False;
-   exception
-      when others =>
-         if Ada.Text_IO.Is_Open (File_Item) then
-            Ada.Text_IO.Close (File_Item);
-         end if;
-         return False;
+      return Project_Tools.Files.File_Exists (Path)
+        and then Project_Tools.Files.File_Contains (Path, Needle);
    end File_Contains;
 
    procedure Require_File (Path : String) is
    begin
-      if not Ada.Directories.Exists (Path) then
+      if not Project_Tools.Files.File_Exists (Path) then
          Fail ("missing public API file: " & Path);
       end if;
    end Require_File;
@@ -101,6 +80,7 @@ begin
    Require_Text ("src/ssh_lib-sessions.ads", "Read_Timeout_MS");
    Require_Text ("src/ssh_lib-sessions.ads", "Write_Timeout_MS");
    Require_Text ("src/ssh_lib-sessions.ads", "Verify_Known_Host");
+   Require_Text ("src/ssh_lib-sessions.ads", "Trust_On_First_Use");
    Require_Text ("src/ssh_lib-sessions.ads", "Use_Agent");
    Require_Text ("src/ssh_lib-sessions.ads", "Strict_Host_Key");
    Require_Text ("src/ssh_lib-sessions.ads", "Use_Password");
@@ -108,6 +88,22 @@ begin
    Require_Text ("src/ssh_lib-sessions.ads", "Control_Master");
    Require_Text ("src/ssh_lib-sessions.ads", "Control_Path");
    Require_Text ("src/ssh_lib-sessions.ads", "Control_Persist");
+   Require_Text ("src/ssh_lib-sessions.ads", "Batch_Mode");
+   Require_Text ("src/ssh_lib-sessions.ads", "Forward_Agent");
+   Require_Text ("src/ssh_lib-sessions.ads", "Forward_X11");
+   Require_Text ("src/ssh_lib-sessions.ads", "Request_TTY");
+   Require_Text ("src/ssh_lib-sessions.ads", "Remote_Command");
+   Require_Text ("src/ssh_lib-sessions.ads", "Server_Alive_Interval");
+   Require_Text ("src/ssh_lib-sessions.ads", "Server_Alive_Count_Max");
+   Require_Text ("src/ssh_lib-sessions.ads", "TCP_Keep_Alive");
+   Require_Text ("src/ssh_lib-sessions.ads", "Log_Level");
+   Require_Text ("src/ssh_lib-sessions.ads", "Visual_Host_Key");
+   Require_Text ("src/ssh_lib-sessions.ads", "Update_Host_Keys");
+   Require_Text ("src/ssh_lib-sessions.ads", "Permit_Local_Command");
+   Require_Text ("src/ssh_lib-sessions.ads", "Local_Command");
+   Require_Text ("src/ssh_lib-sessions.ads", "Add_Keys_To_Agent");
+   Require_Text ("src/ssh_lib-sessions.ads", "Clear_All_Forwardings");
+   Require_Text ("src/ssh_lib-sessions.ads", "Exit_On_Forward_Failure");
    Require_Text ("src/ssh_lib-sessions.ads", "Local_Forwards");
    Require_Text ("src/ssh_lib-sessions.ads", "Remote_Forwards");
    Require_Text ("src/ssh_lib-sessions.ads", "Dynamic_Forwards");
@@ -145,6 +141,7 @@ begin
    Require_Text ("src/ssh_lib-forwarding.ads", "function Start_Dynamic_Forward_Service");
    Require_Text ("src/ssh_lib-forwarding.ads", "function Start_Managed_Local_Forward_Service");
    Require_Text ("src/ssh_lib-forwarding.ads", "function Start_Managed_Dynamic_Forward_Service");
+   Require_Text ("src/ssh_lib-forwarding.ads", "function Start_Managed_Remote_Forward_Service");
    Require_Text ("src/ssh_lib-forwarding.ads", "function Forward_Service_Running");
    Require_Text ("src/ssh_lib-forwarding.ads", "function Forward_Service_Status");
    Require_Text ("src/ssh_lib-forwarding.ads", "function Forward_Service_Accepted_Count");
@@ -180,7 +177,41 @@ begin
    Require_Text ("src/ssh_lib-config_apply.ads", "function Start_Configured_Local_Forwards");
    Require_Text ("src/ssh_lib-config_apply.ads", "function Start_Configured_Dynamic_Forwards");
    Require_Text ("src/ssh_lib-config_apply.ads", "function Request_Configured_Remote_Forwards");
+   Require_Text ("src/ssh_lib-config_apply.ads", "function Start_Configured_Remote_Forwards");
    Require_Text ("src/ssh_lib-config_apply.ads", "function Apply_Configured_Environment");
+
+   Require_Text ("src/ssh_lib-sessions.ads", "Password_Authentication");
+   Require_Text ("src/ssh_lib-sessions.ads", "Pubkey_Authentication");
+   Require_Text ("src/ssh_lib-sessions.ads", "Kbd_Interactive_Authentication");
+   Require_Text ("src/ssh_lib-sessions.ads", "Number_Of_Password_Prompts");
+   Require_Text ("src/ssh_lib-sessions.ads", "Strict_Host_Key_Checking");
+   Require_Text ("src/ssh_lib-sessions.ads", "Check_Host_IP");
+   Require_Text ("src/ssh_lib-sessions.ads", "Hash_Known_Hosts");
+   Require_Text ("src/ssh_lib-sessions.ads", "Canonical_Domains");
+   Require_Text ("src/ssh_lib-sessions.ads", "Canonicalize_Max_Dots");
+   Require_Text ("src/ssh_lib-sessions.ads", "Canonicalize_Fallback_Local");
+   Require_Text ("src/ssh_lib-sessions.ads", "Canonicalize_Permitted_CNAMEs");
+   Require_Text ("src/ssh_lib-sessions.ads", "Hostbased_Authentication");
+   Require_Text ("src/ssh_lib-sessions.ads", "No_Host_Authentication_For_Localhost");
+   Require_Text ("src/ssh_lib-sessions.ads", "Address_Family");
+   Require_Text ("src/ssh_lib-sessions.ads", "Bind_Address");
+   Require_Text ("src/ssh_lib-sessions.ads", "Bind_Interface");
+   Require_Text ("src/ssh_lib-sessions.ads", "IP_QoS");
+   Require_Text ("src/ssh_lib-sessions.ads", "Escape_Char");
+   Require_Text ("src/ssh_lib-sessions.ads", "Session_Type");
+   Require_Text ("src/ssh_lib-sessions.ads", "Stdin_Null");
+   Require_Text ("src/ssh_lib-sessions.ads", "Fork_After_Authentication");
+   Require_Text ("src/ssh_lib-sessions.ads", "Proxy_Use_Fdpass");
+   Require_Text ("src/ssh_lib-sessions.ads", "Enable_SSH_Keysign");
+   Require_Text ("src/ssh_lib-sessions.ads", "GSSAPI_Authentication");
+   Require_Text ("src/ssh_lib-sessions.ads", "GSSAPI_Delegate_Credentials");
+   Require_Text ("src/ssh_lib-sessions.ads", "Log_Verbose");
+   Require_Text ("src/ssh_lib-sessions.ads", "Verify_Host_Key_DNS");
+   Require_Text ("src/ssh_lib-sessions.ads", "Fingerprint_Hash");
+   Require_Text ("src/ssh_lib-sessions.ads", "Connection_Attempts");
+   Require_Text ("src/ssh_lib-sessions.ads", "Rekey_Limit");
+   Require_Text ("src/ssh_lib-sessions.ads", "CA_Signature_Algorithms");
+   Require_Text ("src/ssh_lib-sessions.ads", "Known_Hosts_Command");
 
    Require_Text ("src/ssh_lib-security_keys.ads", "package SSH_Lib.Security_Keys");
    Require_Text ("src/ssh_lib-security_keys.ads", "type Security_Key_Signer");
@@ -188,6 +219,10 @@ begin
 
    Require_Text ("src/ssh_lib-git.ads", "function Upload_Pack_Command");
    Require_Text ("src/ssh_lib-git.ads", "function Receive_Pack_Command");
+   Require_Text ("src/ssh_lib-git.ads", "function Build_Sequencer_Pick_Todo");
+   Require_Text ("src/ssh_lib-git.ads", "function Stage_And_Commit_Worktree_File");
+   Require_Text ("src/ssh_lib-git_transport.ads", "function Run_Service_With_Local_Git");
+   Require_Text ("src/ssh_lib-git_transport.ads", "function Run_Service_With_Local_SSH");
    Require_Text ("src/ssh_lib-remote_names.ads", "function Parse");
    Require_Text ("src/ssh_lib-remote_names.ads", "Has_Explicit_Port");
    Require_Text ("src/ssh_lib-config.ads", "function Load_Default");

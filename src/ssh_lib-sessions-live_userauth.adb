@@ -290,6 +290,8 @@ package body SSH_Lib.Sessions.Live_Userauth is
             if SSH_Lib.Protocol.Certificates.Is_Certificate_Algorithm (Result)
               or else Result = "ssh-ed25519"
               or else Result = "ecdsa-sha2-nistp256"
+              or else Result = "ecdsa-sha2-nistp384"
+              or else Result = "ecdsa-sha2-nistp521"
               or else Result = "sk-ssh-ed25519@openssh.com"
               or else Result = "sk-ecdsa-sha2-nistp256@openssh.com"
               or else Result = "ssh-rsa"
@@ -439,6 +441,19 @@ package body SSH_Lib.Sessions.Live_Userauth is
       List_Text : constant String :=
         To_String (Options.Preferred_Authentications);
    begin
+      if Method_Name = "publickey" and then not Options.Pubkey_Authentication
+      then
+         return False;
+      elsif Method_Name = "keyboard-interactive"
+        and then not Options.Kbd_Interactive_Authentication
+      then
+         return False;
+      elsif Method_Name = "password"
+        and then not Options.Password_Authentication
+      then
+         return False;
+      end if;
+
       return
         List_Text'Length = 0
         or else Name_In_Comma_List (List_Text, Method_Name);
@@ -1574,6 +1589,7 @@ package body SSH_Lib.Sessions.Live_Userauth is
       end Finish;
    begin
       if not Authentication_Method_Enabled (Options, "keyboard-interactive")
+        or else Options.Number_Of_Password_Prompts = 0
         or else
           (Options.Keyboard_Interactive_Callback = null
            and then
@@ -1604,7 +1620,9 @@ package body SSH_Lib.Sessions.Live_Userauth is
       end if;
 
       loop
-         if Round_Count >= Max_Keyboard_Interactive_Prompts then
+         if Round_Count >= Options.Number_Of_Password_Prompts
+           or else Round_Count >= Max_Keyboard_Interactive_Prompts
+         then
             return Finish (Unsupported_Feature);
          end if;
          Round_Count := Round_Count + 1;
@@ -1725,6 +1743,7 @@ package body SSH_Lib.Sessions.Live_Userauth is
    begin
       if not Options.Use_Password
         or else not Authentication_Method_Enabled (Options, "password")
+        or else Options.Number_Of_Password_Prompts = 0
         or else To_String (Password_Value)'Length = 0
       then
          return Finish (Authentication_Failed);

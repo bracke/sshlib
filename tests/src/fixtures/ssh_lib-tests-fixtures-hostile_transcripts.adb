@@ -86,8 +86,9 @@ package body SSH_Lib.Tests.Fixtures.Hostile_Transcripts is
       --  These scenarios are scripted hostile SSH peer transcripts through the
       --  real Session private lifecycle flags.  They prove whole-session gates:
       --  malformed identification, algorithm/KEX failures, NEWKEYS/service
-      --  ordering, userauth failures, and channel-open failures never leave an
-      --  open or reusable authenticated session behind.
+      --  ordering including service-accept-before-encryption, userauth
+      --  failures, and channel-open failures never leave an open or reusable
+      --  authenticated session behind.
       for Scenario in SSH_Lib.Sessions.Test_Support.Hostile_Open_Transcript loop
          Status_Value :=
            SSH_Lib.Sessions.Test_Support.Run_Hostile_Open_Transcript_For_Test

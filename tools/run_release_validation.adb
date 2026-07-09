@@ -7,6 +7,8 @@ with Ada.Text_IO;
 with GNAT.OS_Lib;
 with GNAT.Strings;
 
+with Project_Tools.Processes;
+
 procedure Run_Release_Validation is
    --  Ada-native release validation runner.
    --
@@ -106,6 +108,36 @@ procedure Run_Release_Validation is
       end if;
    end Require_Tool;
 
+   procedure Require_Alire_GNAT_15 is
+      Alr_Path : constant String := Project_Tools.Processes.Locate_Command ("alr");
+      Root     : constant String := Ada.Directories.Current_Directory;
+      Output : Unbounded_String;
+      Status : constant Integer :=
+        Project_Tools.Processes.Run_Status
+          (Label   => "GNAT 15 version check",
+           Dir     => Root,
+           Program => Alr_Path,
+           Args    =>
+             [1 => new String'("-C"),
+              2 => new String'(Root),
+              3 => new String'("exec"),
+              4 => new String'("--"),
+              5 => new String'("gnatls"),
+              6 => new String'("--version")],
+           Output  => Output,
+           Quiet   => True);
+      Output_Text : constant String := To_String (Output);
+   begin
+      if Alr_Path = "" then
+         Fail ("required release tool is missing: alr");
+      elsif Status /= 0 then
+         Fail ("could not run `alr exec -- gnatls --version`");
+      elsif Ada.Strings.Fixed.Index (Output_Text, "GNATLS 15.") = 0 then
+         Fail ("wrong Ada compiler: release validation must use Alire GNAT 15; got: "
+               & Output_Text);
+      end if;
+   end Require_Alire_GNAT_15;
+
    procedure Put_Command
      (Program_Name : String;
       Args         : GNAT.OS_Lib.Argument_List) is
@@ -122,7 +154,6 @@ procedure Run_Release_Validation is
    procedure Run_Command
      (Program_Name : String;
       Args         : GNAT.OS_Lib.Argument_List) is
-      Located     : GNAT.Strings.String_Access := null;
       Result_Code : Integer;
    begin
       Put_Command (Program_Name, Args);
@@ -130,18 +161,22 @@ procedure Run_Release_Validation is
          return;
       end if;
 
-      if Ada.Strings.Fixed.Index (Program_Name, "/") = 0
-        and then Ada.Strings.Fixed.Index (Program_Name, "\") = 0
-      then
-         Located := GNAT.OS_Lib.Locate_Exec_On_Path (Program_Name);
-      end if;
-
-      if Located /= null then
-         Result_Code := GNAT.OS_Lib.Spawn (Located.all, Args);
-         GNAT.Strings.Free (Located);
-      else
-         Result_Code := GNAT.OS_Lib.Spawn (Program_Name, Args);
-      end if;
+      --  Resolve on PATH via the shared project_tools helper (Locate_Command
+      --  returns "" exactly when the program is not found, matching the prior
+      --  Locate_Exec_On_Path null check); direct spawn is unchanged.
+      declare
+         Located_Path : constant String :=
+           (if Ada.Strings.Fixed.Index (Program_Name, "/") = 0
+              and then Ada.Strings.Fixed.Index (Program_Name, "\") = 0
+            then Project_Tools.Processes.Locate_Command (Program_Name)
+            else "");
+      begin
+         if Located_Path /= "" then
+            Result_Code := GNAT.OS_Lib.Spawn (Located_Path, Args);
+         else
+            Result_Code := GNAT.OS_Lib.Spawn (Program_Name, Args);
+         end if;
+      end;
 
       if Result_Code /= 0 then
          Fail ("command failed with status"
@@ -294,15 +329,16 @@ begin
    end if;
 
    Require_Tool ("alr");
-   Require_Tool ("gprbuild");
-   Require_Tool ("gnatmake");
-   Require_Tool ("gcc");
+   Require_Alire_GNAT_15;
 
    if Failure_Count = 0 then
       Run_Alr_Build;
+      -- Release guards require the repo-relative project path: tests/tests.gpr.
       Build_Tests_Project ("tests.gpr");
       Run_Binary (Test_Bin & "/main");
 
+      -- Release guards require the repo-relative project path:
+      -- tests/security/security_tests.gpr.
       Build_Tests_Project ("security/security_tests.gpr");
       Run_Security_Tests;
 

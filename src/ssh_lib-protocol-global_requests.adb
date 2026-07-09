@@ -125,6 +125,46 @@ package body SSH_Lib.Protocol.Global_Requests is
         ("cancel-tcpip-forward", Bind_Address, Bind_Port);
    end Encode_Cancel_TCPIP_Forward_Request;
 
+   function Encode_Keepalive_Request return Packet_Buffer is
+      Result       : Packet_Buffer;
+      Status_Value : Status;
+   begin
+      Clear (Result);
+      Status_Value := Append_Byte (Result, SSH_MSG_GLOBAL_REQUEST);
+      if Status_Value /= Ok then
+         Clear (Result);
+         return Result;
+      end if;
+
+      Status_Value := Append_String (Result, "keepalive@openssh.com");
+      if Status_Value /= Ok then
+         Clear (Result);
+         return Result;
+      end if;
+
+      Status_Value :=
+        Append_Byte (Result, SSH_Lib.Protocol.Numbers.Encode_Boolean (True));
+      if Status_Value /= Ok then
+         Clear (Result);
+      end if;
+      return Result;
+   exception
+      when others =>
+         Clear (Result);
+         return Result;
+   end Encode_Keepalive_Request;
+
+   function Is_Keepalive_Success
+     (Payload : Stream_Element_Array)
+      return Boolean is
+   begin
+      return Payload'Length = 1
+        and then Payload (Payload'First) = SSH_MSG_REQUEST_SUCCESS;
+   exception
+      when others =>
+         return False;
+   end Is_Keepalive_Success;
+
    function Parse_TCPIP_Forward_Reply
      (Payload        : Stream_Element_Array;
       Requested_Port : Natural;

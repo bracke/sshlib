@@ -10,6 +10,10 @@ package body SSH_Lib.Protocol.Protected_Packets is
    use CryptoLib.Errors;
    use SSH_Lib.Protocol.Buffers;
 
+   --  AES block size: aes-gcm@openssh.com pads the encrypted portion to a
+   --  multiple of 16 octets (RFC 5647), unlike the 8-octet default.
+   AES_GCM_Block_Size : constant Natural := 16;
+
    function SHA1_Digest_To_Array
      (Digest_Item : CryptoLib.Hashes.SHA1_Digest)
       return Stream_Element_Array is
@@ -36,6 +40,81 @@ package body SSH_Lib.Protocol.Protected_Packets is
          end loop;
       end return;
    end SHA1_96_Digest_To_Array;
+
+   function MD5_Digest_To_Array
+     (Digest_Item : CryptoLib.Hashes.MD5_Digest)
+      return Stream_Element_Array is
+   begin
+      return Result : Stream_Element_Array (1 .. 16) do
+         for Index_Value in Digest_Item'Range loop
+            Result (Stream_Element_Offset (Index_Value)) :=
+              Digest_Item (Index_Value);
+         end loop;
+      end return;
+   end MD5_Digest_To_Array;
+
+   function MD5_96_Digest_To_Array
+     (Digest_Item : CryptoLib.Hashes.MD5_Digest)
+      return Stream_Element_Array is
+   begin
+      return Result : Stream_Element_Array (1 .. 12) do
+         for Index_Value in 1 .. 12 loop
+            Result (Stream_Element_Offset (Index_Value)) :=
+              Digest_Item (Index_Value);
+         end loop;
+      end return;
+   end MD5_96_Digest_To_Array;
+
+   function HMAC_MD5_Digest
+     (Key_Data     : Stream_Element_Array;
+      Message_Data : Stream_Element_Array)
+      return CryptoLib.Hashes.MD5_Digest
+   is
+      Block_Length : constant Stream_Element_Offset := 64;
+      Key_Block    : Stream_Element_Array (1 .. Block_Length) := [others => 0];
+      Inner_Data   : Stream_Element_Array
+        (1 .. Block_Length + Message_Data'Length);
+      Outer_Data   : Stream_Element_Array (1 .. Block_Length + 16);
+      Inner_Digest : CryptoLib.Hashes.MD5_Digest;
+   begin
+      if Key_Data'Length > Block_Length then
+         declare
+            Key_Digest : constant CryptoLib.Hashes.MD5_Digest :=
+              CryptoLib.Hashes.MD5 (Key_Data);
+         begin
+            for Index_Value in Key_Digest'Range loop
+               Key_Block (Stream_Element_Offset (Index_Value)) :=
+                 Key_Digest (Index_Value);
+            end loop;
+         end;
+      else
+         if Key_Data'Length > 0 then
+            for Index_Value in 0 .. Key_Data'Length - 1 loop
+               Key_Block
+                 (Key_Block'First + Stream_Element_Offset (Index_Value)) :=
+                   Key_Data (Key_Data'First + Stream_Element_Offset (Index_Value));
+            end loop;
+         end if;
+      end if;
+
+      for Index_Value in Key_Block'Range loop
+         Inner_Data (Index_Value) := Key_Block (Index_Value) xor 16#36#;
+         Outer_Data (Index_Value) := Key_Block (Index_Value) xor 16#5C#;
+      end loop;
+
+      if Message_Data'Length > 0 then
+         Inner_Data (Block_Length + 1 .. Inner_Data'Last) := Message_Data;
+      end if;
+
+      Inner_Digest := CryptoLib.Hashes.MD5 (Inner_Data);
+      for Index_Value in Inner_Digest'Range loop
+         Outer_Data
+           (Block_Length + Stream_Element_Offset (Index_Value)) :=
+             Inner_Digest (Index_Value);
+      end loop;
+
+      return CryptoLib.Hashes.MD5 (Outer_Data);
+   end HMAC_MD5_Digest;
 
    function SHA256_Digest_To_Array
      (Digest_Item : CryptoLib.Hashes.SHA256_Digest)
@@ -95,6 +174,18 @@ package body SSH_Lib.Protocol.Protected_Packets is
       elsif Name_Text = "hmac-sha1-96-etm@openssh.com" then
          Result := HMAC_SHA1_96_ETM;
          return Ok;
+      elsif Name_Text = "hmac-md5" then
+         Result := HMAC_MD5;
+         return Ok;
+      elsif Name_Text = "hmac-md5-etm@openssh.com" then
+         Result := HMAC_MD5_ETM;
+         return Ok;
+      elsif Name_Text = "hmac-md5-96" then
+         Result := HMAC_MD5_96;
+         return Ok;
+      elsif Name_Text = "hmac-md5-96-etm@openssh.com" then
+         Result := HMAC_MD5_96_ETM;
+         return Ok;
       elsif Name_Text = "hmac-sha2-256" then
          Result := HMAC_SHA2_256;
          return Ok;
@@ -122,6 +213,12 @@ package body SSH_Lib.Protocol.Protected_Packets is
          when HMAC_SHA1_96 | HMAC_SHA1_96_ETM   =>
             return 12;
 
+         when HMAC_MD5 | HMAC_MD5_ETM           =>
+            return 16;
+
+         when HMAC_MD5_96 | HMAC_MD5_96_ETM     =>
+            return 12;
+
          when HMAC_SHA2_256 | HMAC_SHA2_256_ETM =>
             return Mac_Length;
 
@@ -142,6 +239,9 @@ package body SSH_Lib.Protocol.Protected_Packets is
          when HMAC_SHA1 | HMAC_SHA1_ETM | HMAC_SHA1_96 | HMAC_SHA1_96_ETM =>
             return SHA1_Mac_Length;
 
+         when HMAC_MD5 | HMAC_MD5_ETM | HMAC_MD5_96 | HMAC_MD5_96_ETM     =>
+            return 16;
+
          when HMAC_SHA2_256 | HMAC_SHA2_256_ETM                           =>
             return Mac_Length;
 
@@ -158,6 +258,8 @@ package body SSH_Lib.Protocol.Protected_Packets is
       case Kind_Item is
          when HMAC_SHA1_ETM
             | HMAC_SHA1_96_ETM
+            | HMAC_MD5_ETM
+            | HMAC_MD5_96_ETM
             | HMAC_SHA2_256_ETM
             | HMAC_SHA2_512_ETM
             | UMAC_64_ETM
@@ -166,6 +268,8 @@ package body SSH_Lib.Protocol.Protected_Packets is
 
          when HMAC_SHA1
             | HMAC_SHA1_96
+            | HMAC_MD5
+            | HMAC_MD5_96
             | HMAC_SHA2_256
             | HMAC_SHA2_512
             | UMAC_64
@@ -173,6 +277,14 @@ package body SSH_Lib.Protocol.Protected_Packets is
             return False;
       end case;
    end Is_EtM;
+
+   function Is_CBC_Cipher (Name_Text : String) return Boolean is
+   begin
+      return Name_Text = "aes128-cbc"
+        or else Name_Text = "aes192-cbc"
+        or else Name_Text = "aes256-cbc"
+        or else Name_Text = "3des-cbc";
+   end Is_CBC_Cipher;
 
    function Mac_Input
      (Sequence_Value : Unsigned_32; Packet : Stream_Element_Array)
@@ -221,6 +333,20 @@ package body SSH_Lib.Protocol.Protected_Packets is
               SHA1_96_Digest_To_Array
                 (CryptoLib.Macs.HMAC_SHA1
                    (Key_Data (1 .. Stream_Element_Offset (SHA1_Mac_Length)),
+                    Input_Data));
+
+         when HMAC_MD5 | HMAC_MD5_ETM           =>
+            return
+              MD5_Digest_To_Array
+                (HMAC_MD5_Digest
+                   (Key_Data (1 .. 16),
+                    Input_Data));
+
+         when HMAC_MD5_96 | HMAC_MD5_96_ETM     =>
+            return
+              MD5_96_Digest_To_Array
+                (HMAC_MD5_Digest
+                   (Key_Data (1 .. 16),
                     Input_Data));
 
          when HMAC_SHA2_256 | HMAC_SHA2_256_ETM =>
@@ -347,7 +473,10 @@ package body SSH_Lib.Protocol.Protected_Packets is
            ..
              Stream_Element_Offset
                (SSH_Lib.Protocol.Buffers.Max_Packet_Length));
-      In_Last      : Stream_Element_Offset := Payload'First - 1;
+      --  In_Last is an out-parameter of the zlib call below (set before it is
+      --  read); seed it with Payload'First rather than Payload'First - 1 so an
+      --  array whose 'First is the index type's minimum does not underflow.
+      In_Last      : Stream_Element_Offset := Payload'First;
       Out_Last     : Stream_Element_Offset := Out_Data'First - 1;
       First_Input  : Stream_Element_Offset := Payload'First;
       Status_Value : Status := Ok;
@@ -362,35 +491,22 @@ package body SSH_Lib.Protocol.Protected_Packets is
          return Internal_Error;
       end if;
 
-      if Payload'Length > 0 then
-         while First_Input <= Payload'Last loop
-            Zlib.Compress
-              (Item.Outbound_Compressor.all,
-               Payload (First_Input .. Payload'Last),
-               In_Last,
-               Out_Data,
-               Out_Last,
-               Zlib.No_Flush);
-
-            if Produced (Out_Data, Out_Last) then
-               Status_Value :=
-                 Append (Result, Out_Data (Out_Data'First .. Out_Last));
-               if Status_Value /= Ok then
-                  return Status_Value;
-               end if;
-            end if;
-
-            if In_Last >= First_Input then
-               First_Input := In_Last + 1;
-            elsif not Produced (Out_Data, Out_Last) then
-               return Write_Failed;
-            end if;
-         end loop;
-      end if;
-
+      --  OpenSSH-style per-packet compression: run the whole payload through a
+      --  single Sync_Flush deflate that both consumes the input and flushes the
+      --  packet's compressed block, looping only while the output buffer fills
+      --  up completely (i.e. more compressed output is still pending). Because a
+      --  Sync_Flush always emits at least a 4-byte flush marker, termination
+      --  MUST key off "the output buffer was not completely filled", never off
+      --  "no output was produced" (which never becomes true and would spin
+      --  forever emitting markers).
       loop
-         Zlib.Compress_Flush
-           (Item.Outbound_Compressor.all, Out_Data, Out_Last, Zlib.Sync_Flush);
+         Zlib.Compress
+           (Item.Outbound_Compressor.all,
+            Payload (First_Input .. Payload'Last),
+            In_Last,
+            Out_Data,
+            Out_Last,
+            Zlib.Sync_Flush);
 
          if Produced (Out_Data, Out_Last) then
             Status_Value :=
@@ -398,9 +514,13 @@ package body SSH_Lib.Protocol.Protected_Packets is
             if Status_Value /= Ok then
                return Status_Value;
             end if;
-         else
-            exit;
          end if;
+
+         if In_Last >= First_Input then
+            First_Input := In_Last + 1;
+         end if;
+
+         exit when Out_Last < Out_Data'Last;
       end loop;
 
       return Ok;
@@ -422,7 +542,10 @@ package body SSH_Lib.Protocol.Protected_Packets is
            ..
              Stream_Element_Offset
                (SSH_Lib.Protocol.Buffers.Max_Packet_Length));
-      In_Last      : Stream_Element_Offset := Payload'First - 1;
+      --  In_Last is an out-parameter of the zlib call below (set before it is
+      --  read); seed it with Payload'First rather than Payload'First - 1 so an
+      --  array whose 'First is the index type's minimum does not underflow.
+      In_Last      : Stream_Element_Offset := Payload'First;
       Out_Last     : Stream_Element_Offset := Out_Data'First - 1;
       First_Input  : Stream_Element_Offset := Payload'First;
       Status_Value : Status := Ok;
@@ -626,6 +749,8 @@ package body SSH_Lib.Protocol.Protected_Packets is
       Item.Inbound_AES_GCM_Key := [others => 0];
       Item.Outbound_AES_GCM_IV := [others => 0];
       Item.Inbound_AES_GCM_IV := [others => 0];
+      Item.Outbound_CBC_Header_Encrypted := False;
+      Item.Inbound_CBC_Header_Encrypted := False;
       Item.Outbound_Compression_Active := False;
       Item.Inbound_Compression_Active := False;
       Item.Outbound_Compression_Delayed := False;
@@ -795,6 +920,20 @@ package body SSH_Lib.Protocol.Protected_Packets is
          Target := [others => 0];
    end Copy_AES_GCM_Key;
 
+   procedure Increment_AES_GCM_IV (IV : in out AES_GCM_IV_Buffer) is
+      --  RFC 5647: the 12-octet aes-gcm@openssh.com nonce is a 4-octet fixed
+      --  field followed by an 8-octet invocation counter (IV bytes 5..12). The
+      --  counter is incremented as a big-endian 64-bit integer after every
+      --  packet so each packet gets a unique GCM nonce.
+      Index : Stream_Element_Offset := IV'Last;
+   begin
+      while Index >= 5 loop
+         IV (Index) := IV (Index) + 1;
+         exit when IV (Index) /= 0;
+         Index := Index - 1;
+      end loop;
+   end Increment_AES_GCM_IV;
+
    procedure Copy_AES_GCM_IV
      (Source : Stream_Element_Array; Target : out AES_GCM_IV_Buffer) is
    begin
@@ -858,6 +997,8 @@ package body SSH_Lib.Protocol.Protected_Packets is
          Item.Inbound_AES_GCM_Key := [others => 0];
          Item.Outbound_AES_GCM_IV := [others => 0];
          Item.Inbound_AES_GCM_IV := [others => 0];
+         Item.Outbound_CBC_Header_Encrypted := False;
+         Item.Inbound_CBC_Header_Encrypted := False;
          Item.Outbound_Compression_Active := False;
          Item.Inbound_Compression_Active := False;
          Item.Outbound_Compression_Delayed := False;
@@ -896,6 +1037,8 @@ package body SSH_Lib.Protocol.Protected_Packets is
       Item.Inbound_AES_GCM_Key := [others => 0];
       Item.Outbound_AES_GCM_IV := [others => 0];
       Item.Inbound_AES_GCM_IV := [others => 0];
+      Item.Outbound_CBC_Header_Encrypted := False;
+      Item.Inbound_CBC_Header_Encrypted := False;
       Item.Outbound_Compression_Active := False;
       Item.Inbound_Compression_Active := False;
       Item.Outbound_Compression_Delayed := False;
@@ -970,8 +1113,9 @@ package body SSH_Lib.Protocol.Protected_Packets is
             Copy_AES_GCM_Key
               (Outbound_Key_Data, GCM_Key_Length, Item.Outbound_AES_GCM_Key);
             Copy_AES_GCM_IV (Outbound_IV_Data, Item.Outbound_AES_GCM_IV);
-            Item.Outbound_Block_Value :=
-              SSH_Lib.Protocol.Packets.Cleartext_Block_Size;
+            --  RFC 5647: the encrypted portion (padlen || payload || padding)
+            --  must be a multiple of the 16-octet AES block, so pad to 16.
+            Item.Outbound_Block_Value := AES_GCM_Block_Size;
             Item.Outbound_Mac_Length :=
               CryptoLib.Ciphers.AES_GCM_Tag_Length;
          end;
@@ -993,6 +1137,8 @@ package body SSH_Lib.Protocol.Protected_Packets is
 
          Item.Outbound_Block_Value :=
            CryptoLib.Ciphers.Block_Size (Item.Outbound_Cipher);
+         Item.Outbound_CBC_Header_Encrypted :=
+           Is_CBC_Cipher (Outbound_Cipher_Name);
       end if;
 
       if Inbound_Cipher_Name = "chacha20-poly1305@openssh.com" then
@@ -1031,8 +1177,9 @@ package body SSH_Lib.Protocol.Protected_Packets is
             Copy_AES_GCM_Key
               (Inbound_Key_Data, GCM_Key_Length, Item.Inbound_AES_GCM_Key);
             Copy_AES_GCM_IV (Inbound_IV_Data, Item.Inbound_AES_GCM_IV);
-            Item.Inbound_Block_Value :=
-              SSH_Lib.Protocol.Packets.Cleartext_Block_Size;
+            --  RFC 5647: the encrypted portion (padlen || payload || padding)
+            --  must be a multiple of the 16-octet AES block, so pad to 16.
+            Item.Inbound_Block_Value := AES_GCM_Block_Size;
             Item.Inbound_Mac_Length :=
               CryptoLib.Ciphers.AES_GCM_Tag_Length;
          end;
@@ -1054,6 +1201,8 @@ package body SSH_Lib.Protocol.Protected_Packets is
 
          Item.Inbound_Block_Value :=
            CryptoLib.Ciphers.Block_Size (Item.Inbound_Cipher);
+         Item.Inbound_CBC_Header_Encrypted :=
+           Is_CBC_Cipher (Inbound_Cipher_Name);
       end if;
 
       Status_Value :=
@@ -1128,6 +1277,20 @@ package body SSH_Lib.Protocol.Protected_Packets is
       when others =>
          return Mac_Length;
    end Inbound_Mac_Size;
+
+   function Inbound_Length_In_Alignment (Item : Protected_State) return Boolean
+   is
+   begin
+      --  The 4-byte length is part of the block-padding alignment only for
+      --  block ciphers with a plain (Mac-then-Encrypt) MAC. AEAD ciphers and
+      --  Encrypt-then-MAC MACs send it in the clear, outside the aligned body.
+      return not (Item.Inbound_Chacha20_Poly1305
+                  or else Item.Inbound_AES_GCM /= No_AES_GCM
+                  or else Is_EtM (Item.Inbound_Mac_Kind));
+   exception
+      when others =>
+         return True;
+   end Inbound_Length_In_Alignment;
 
    function Outbound_Mac_Size (Item : Protected_State) return Natural is
    begin
@@ -1220,7 +1383,15 @@ package body SSH_Lib.Protocol.Protected_Packets is
            Plain_Packet,
            Use_Test_Padding,
            Test_Padding_Byte,
-           Outbound_Block_Size (Item));
+           Outbound_Block_Size (Item),
+           --  AEAD ciphers (chacha20-poly1305, AES-GCM) and Encrypt-then-MAC
+           --  MACs send the 4-byte length field in the clear (it is
+           --  authenticated separately), so it is excluded from the block-size
+           --  padding alignment; only the encrypted body is aligned.
+           Count_Length_Field =>
+             not Item.Outbound_Chacha20_Poly1305
+             and then Item.Outbound_AES_GCM = No_AES_GCM
+             and then not Is_EtM (Item.Outbound_Mac_Kind));
       if Status_Value /= Ok then
          Mark_Dirty (Item, Status_Value);
          return Status_Value;
@@ -1274,6 +1445,7 @@ package body SSH_Lib.Protocol.Protected_Packets is
                     Plain_Array,
                     Wire_Array);
                if Status_Value = Ok then
+                  Increment_AES_GCM_IV (Item.Outbound_AES_GCM_IV);
                   Status_Value := Append (Packet, Wire_Array);
                end if;
                if Status_Value /= Ok then
@@ -1421,6 +1593,185 @@ package body SSH_Lib.Protocol.Protected_Packets is
          return Internal_Error;
    end Decode_Protected_Header;
 
+   function Inbound_Header_Requires_Block
+     (Item : Protected_State) return Boolean is
+   begin
+      return Item.Cipher_Active
+        and then Item.Inbound_CBC_Header_Encrypted
+        and then not Is_EtM (Item.Inbound_Mac_Kind);
+   end Inbound_Header_Requires_Block;
+
+   function Decode_Protected_First_Block_Header
+     (Item                  : in out Protected_State;
+      Encrypted_First_Block : Stream_Element_Array;
+      Plain_First_Block     : out Stream_Element_Array) return Status is
+   begin
+      if Plain_First_Block'Length /= Encrypted_First_Block'Length
+        or else Encrypted_First_Block'Length /= Inbound_Block_Size (Item)
+        or else not Inbound_Header_Requires_Block (Item)
+      then
+         Plain_First_Block := [others => 0];
+         return Internal_Error;
+      end if;
+
+      if Item.Dirty_Value then
+         Plain_First_Block := [others => 0];
+         return Read_Failed;
+      end if;
+
+      return
+        CryptoLib.Ciphers.Decrypt
+          (Item.Inbound_Cipher, Encrypted_First_Block, Plain_First_Block);
+   exception
+      when others =>
+         Plain_First_Block := [others => 0];
+         Mark_Dirty (Item, Internal_Error);
+         return Internal_Error;
+   end Decode_Protected_First_Block_Header;
+
+   function Decode_Protected_Packet_After_First_Block
+     (Item                   : in out Protected_State;
+      Plain_First_Block      : Stream_Element_Array;
+      Encrypted_Rest_And_Mac : Stream_Element_Array;
+      Payload                : out Packet_Buffer;
+      Failure_When_Malformed : Status := Handshake_Failed) return Status
+   is
+      Sequence_Value : constant Unsigned_32 :=
+        SSH_Lib.Protocol.Packets.Inbound_Sequence (Item.Packet_State);
+      Status_Value   : Status;
+   begin
+      Clear (Payload);
+      if Item.Dirty_Value then
+         return Read_Failed;
+      end if;
+
+      if not Inbound_Header_Requires_Block (Item)
+        or else Plain_First_Block'Length /= Inbound_Block_Size (Item)
+        or else Encrypted_Rest_And_Mac'Length < Item.Inbound_Mac_Length
+      then
+         Mark_Dirty (Item, Failure_When_Malformed);
+         return Failure_When_Malformed;
+      end if;
+
+      declare
+         Rest_Length : constant Natural :=
+           Encrypted_Rest_And_Mac'Length - Item.Inbound_Mac_Length;
+         Actual_Mac : constant Stream_Element_Array :=
+           Encrypted_Rest_And_Mac
+             (Encrypted_Rest_And_Mac'Last
+              - Stream_Element_Offset (Item.Inbound_Mac_Length)
+              + 1
+              .. Encrypted_Rest_And_Mac'Last);
+      begin
+         if Rest_Length = 0 then
+            declare
+               Plain_Packet : constant Stream_Element_Array := Plain_First_Block;
+               Wanted_Mac   : constant Stream_Element_Array :=
+                 Expected_Mac
+                   (Item.Inbound_Mac_Kind,
+                    Item.Inbound_Mac_Key_Data,
+                    Sequence_Value,
+                    Plain_Packet);
+               Encoded_Payload : Packet_Buffer;
+            begin
+               if not CryptoLib.Constant_Time.Equal (Actual_Mac, Wanted_Mac) then
+                  Mark_Dirty (Item, Failure_When_Malformed);
+                  return Failure_When_Malformed;
+               end if;
+               Status_Value :=
+                 SSH_Lib.Protocol.Packets.Decode_Cleartext_Packet
+                   (Item.Packet_State,
+                    Plain_Packet,
+                    Encoded_Payload,
+                    Inbound_Block_Size (Item));
+               if Status_Value = Ok then
+                  Status_Value :=
+                    Decompress_Payload
+                      (Item, To_Array (Encoded_Payload), Payload);
+               end if;
+            end;
+         else
+            if Rest_Length mod Inbound_Block_Size (Item) /= 0 then
+               Mark_Dirty (Item, Failure_When_Malformed);
+               return Failure_When_Malformed;
+            end if;
+
+            declare
+               Encrypted_Rest : constant Stream_Element_Array :=
+                 Encrypted_Rest_And_Mac
+                   (Encrypted_Rest_And_Mac'First
+                    ..
+                      Encrypted_Rest_And_Mac'First
+                      + Stream_Element_Offset (Rest_Length - 1));
+               Plain_Rest : Stream_Element_Array (Encrypted_Rest'Range);
+            begin
+               Status_Value :=
+                 CryptoLib.Ciphers.Decrypt
+                   (Item.Inbound_Cipher, Encrypted_Rest, Plain_Rest);
+               if Status_Value /= Ok then
+                  Mark_Dirty (Item, Status_Value);
+                  return Status_Value;
+               end if;
+
+               declare
+                  Plain_Packet :
+                    Stream_Element_Array
+                      (1
+                       ..
+                         Stream_Element_Offset
+                           (Plain_First_Block'Length + Plain_Rest'Length));
+                  Wanted_Mac      : Stream_Element_Array
+                    (1 .. Stream_Element_Offset (Item.Inbound_Mac_Length));
+                  Encoded_Payload : Packet_Buffer;
+               begin
+                  Plain_Packet
+                    (1 .. Stream_Element_Offset (Plain_First_Block'Length)) :=
+                    Plain_First_Block;
+                  Plain_Packet
+                    (Stream_Element_Offset (Plain_First_Block'Length)
+                     + 1
+                     .. Plain_Packet'Last) :=
+                    Plain_Rest;
+                  Wanted_Mac :=
+                    Expected_Mac
+                      (Item.Inbound_Mac_Kind,
+                       Item.Inbound_Mac_Key_Data,
+                       Sequence_Value,
+                       Plain_Packet);
+                  if not CryptoLib.Constant_Time.Equal (Actual_Mac, Wanted_Mac)
+                  then
+                     Mark_Dirty (Item, Failure_When_Malformed);
+                     return Failure_When_Malformed;
+                  end if;
+                  Status_Value :=
+                    SSH_Lib.Protocol.Packets.Decode_Cleartext_Packet
+                      (Item.Packet_State,
+                       Plain_Packet,
+                       Encoded_Payload,
+                       Inbound_Block_Size (Item));
+                  if Status_Value = Ok then
+                     Status_Value :=
+                       Decompress_Payload
+                         (Item, To_Array (Encoded_Payload), Payload);
+                  end if;
+               end;
+            end;
+         end if;
+      end;
+
+      if Status_Value /= Ok then
+         Mark_Dirty (Item, Failure_When_Malformed);
+         Clear (Payload);
+         return Failure_When_Malformed;
+      end if;
+      return Ok;
+   exception
+      when others =>
+         Clear (Payload);
+         Mark_Dirty (Item, Internal_Error);
+         return Internal_Error;
+   end Decode_Protected_Packet_After_First_Block;
+
    function Decode_Protected_Packet_After_Header
      (Item                   : in out Protected_State;
       Plain_Header           : Stream_Element_Array;
@@ -1492,7 +1843,8 @@ package body SSH_Lib.Protocol.Protected_Packets is
                    (Item.Packet_State,
                     Plain_Packet,
                     Encoded_Payload,
-                    Inbound_Block_Size (Item));
+                    Inbound_Block_Size (Item),
+                    Count_Length_Field => False);
                if Status_Value = Ok then
                   Status_Value :=
                     Decompress_Payload
@@ -1551,6 +1903,9 @@ package body SSH_Lib.Protocol.Protected_Packets is
                Mark_Dirty (Item, Failure_When_Malformed);
                return Failure_When_Malformed;
             end if;
+            --  Packet authenticated: advance the inbound invocation counter in
+            --  lockstep with the peer's outbound counter.
+            Increment_AES_GCM_IV (Item.Inbound_AES_GCM_IV);
             declare
                Encoded_Payload : Packet_Buffer;
             begin
@@ -1559,7 +1914,8 @@ package body SSH_Lib.Protocol.Protected_Packets is
                    (Item.Packet_State,
                     Plain_Packet,
                     Encoded_Payload,
-                    Inbound_Block_Size (Item));
+                    Inbound_Block_Size (Item),
+                    Count_Length_Field => False);
                if Status_Value = Ok then
                   Status_Value :=
                     Decompress_Payload
@@ -1687,7 +2043,11 @@ package body SSH_Lib.Protocol.Protected_Packets is
                    (Item.Packet_State,
                     Plain_Packet,
                     Encoded_Payload,
-                    Inbound_Block_Size (Item));
+                    Inbound_Block_Size (Item),
+                    --  Encrypt-then-MAC keeps the length cleartext and out of
+                    --  the block-padding alignment; a plain block-cipher MAC
+                    --  includes it.
+                    Count_Length_Field => Inbound_Length_In_Alignment (Item));
                if Status_Value = Ok then
                   Status_Value :=
                     Decompress_Payload
@@ -1725,6 +2085,70 @@ package body SSH_Lib.Protocol.Protected_Packets is
       if Packet'Length <= 4 + Item.Inbound_Mac_Length then
          Mark_Dirty (Item, Failure_When_Malformed);
          return Failure_When_Malformed;
+      end if;
+
+      if Item.Cipher_Active
+        and then Item.Inbound_CBC_Header_Encrypted
+        and then not Is_EtM (Item.Inbound_Mac_Kind)
+      then
+         declare
+            Encrypted_Last : constant Stream_Element_Offset :=
+              Packet'Last - Stream_Element_Offset (Item.Inbound_Mac_Length);
+            Encrypted_Packet : constant Stream_Element_Array :=
+              Packet (Packet'First .. Encrypted_Last);
+            Actual_Mac : constant Stream_Element_Array :=
+              Packet (Encrypted_Last + 1 .. Packet'Last);
+            Plain_Packet : Stream_Element_Array (Encrypted_Packet'Range);
+            Encoded_Payload : Packet_Buffer;
+         begin
+            if Encrypted_Packet'Length = 0
+              or else Encrypted_Packet'Length mod Inbound_Block_Size (Item) /= 0
+            then
+               Mark_Dirty (Item, Failure_When_Malformed);
+               return Failure_When_Malformed;
+            end if;
+
+            Status_Value :=
+              CryptoLib.Ciphers.Decrypt
+                (Item.Inbound_Cipher, Encrypted_Packet, Plain_Packet);
+            if Status_Value /= Ok then
+               Mark_Dirty (Item, Status_Value);
+               return Status_Value;
+            end if;
+
+            declare
+               Wanted_Mac : constant Stream_Element_Array :=
+                 Expected_Mac
+                   (Item.Inbound_Mac_Kind,
+                    Item.Inbound_Mac_Key_Data,
+                    SSH_Lib.Protocol.Packets.Inbound_Sequence
+                      (Item.Packet_State),
+                    Plain_Packet);
+            begin
+               if not CryptoLib.Constant_Time.Equal (Actual_Mac, Wanted_Mac) then
+                  Mark_Dirty (Item, Failure_When_Malformed);
+                  return Failure_When_Malformed;
+               end if;
+            end;
+
+            Status_Value :=
+              SSH_Lib.Protocol.Packets.Decode_Cleartext_Packet
+                (Item.Packet_State,
+                 Plain_Packet,
+                 Encoded_Payload,
+                 Inbound_Block_Size (Item));
+            if Status_Value = Ok then
+               Status_Value :=
+                 Decompress_Payload (Item, To_Array (Encoded_Payload), Payload);
+            end if;
+
+            if Status_Value /= Ok then
+               Mark_Dirty (Item, Failure_When_Malformed);
+               Clear (Payload);
+               return Failure_When_Malformed;
+            end if;
+            return Ok;
+         end;
       end if;
 
       Header_In := Packet (Packet'First .. Packet'First + 3);

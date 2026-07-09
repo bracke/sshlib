@@ -40,27 +40,43 @@ package body SSH_Lib.Algorithms is
             elsif Name_Text = "curve25519-sha256"
               or else Name_Text = "curve25519-sha256@libssh.org"
               or else Name_Text = "ecdh-sha2-nistp256"
+              or else Name_Text = "ecdh-sha2-nistp384"
+              or else Name_Text = "ecdh-sha2-nistp521"
               or else Name_Text = "diffie-hellman-group18-sha512"
               or else Name_Text = "diffie-hellman-group16-sha512"
               or else Name_Text = "diffie-hellman-group14-sha256"
               or else Name_Text = "diffie-hellman-group-exchange-sha256"
+              or else Name_Text = "diffie-hellman-group-exchange-sha1"
+              or else Name_Text = "diffie-hellman-group14-sha1"
+              or else Name_Text = "diffie-hellman-group1-sha1"
             then
                return Available;
-            elsif Name_Text = "ext-info-c" then
-               --  RFC 8308 extension negotiation marker.  It is advertised in
-               --  the KEX name-list but is not a real key-exchange algorithm
-               --  and must never be selected as the negotiated KEX.
+            elsif Name_Text = "ext-info-c"
+              or else Name_Text = "kex-strict-c-v00@openssh.com"
+            then
+               --  Extension/negotiation markers (RFC 8308 ext-info-c and the
+               --  Terrapin strict-kex marker).  They are advertised in the KEX
+               --  name-list but are not real key-exchange algorithms and must
+               --  never be selected as the negotiated KEX.
                return Extension_Only;
             end if;
             return Unsupported;
          when Server_Host_Key =>
             if Name_Text = "ssh-ed25519-cert-v01@openssh.com"
               or else Name_Text = "ecdsa-sha2-nistp256-cert-v01@openssh.com"
+              or else Name_Text = "ecdsa-sha2-nistp384-cert-v01@openssh.com"
+              or else Name_Text = "ecdsa-sha2-nistp521-cert-v01@openssh.com"
               or else Name_Text = "rsa-sha2-512-cert-v01@openssh.com"
               or else Name_Text = "rsa-sha2-256-cert-v01@openssh.com"
               or else Name_Text = "ssh-rsa-cert-v01@openssh.com"
+              or else Name_Text = "sk-ssh-ed25519-cert-v01@openssh.com"
+              or else Name_Text = "sk-ecdsa-sha2-nistp256-cert-v01@openssh.com"
               or else Name_Text = "ssh-ed25519"
               or else Name_Text = "ecdsa-sha2-nistp256"
+              or else Name_Text = "ecdsa-sha2-nistp384"
+              or else Name_Text = "ecdsa-sha2-nistp521"
+              or else Name_Text = "sk-ssh-ed25519@openssh.com"
+              or else Name_Text = "sk-ecdsa-sha2-nistp256@openssh.com"
               or else Name_Text = "rsa-sha2-512"
               or else Name_Text = "rsa-sha2-256"
               or else Name_Text = "ssh-rsa"
@@ -78,6 +94,7 @@ package body SSH_Lib.Algorithms is
               or else Name_Text = "aes256-cbc"
               or else Name_Text = "aes192-cbc"
               or else Name_Text = "aes128-cbc"
+              or else Name_Text = "3des-cbc"
             then
                return Available;
             end if;
@@ -93,6 +110,10 @@ package body SSH_Lib.Algorithms is
               or else Name_Text = "hmac-sha1"
               or else Name_Text = "hmac-sha1-96-etm@openssh.com"
               or else Name_Text = "hmac-sha1-96"
+              or else Name_Text = "hmac-md5-etm@openssh.com"
+              or else Name_Text = "hmac-md5"
+              or else Name_Text = "hmac-md5-96-etm@openssh.com"
+              or else Name_Text = "hmac-md5-96"
             then
                return Available;
             end if;
@@ -126,23 +147,44 @@ package body SSH_Lib.Algorithms is
          when Key_Exchange =>
             return "mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com"
                      & ",sntrup761x25519-sha512,curve25519-sha256,curve25519-sha256@libssh.org"
-                     & ",ecdh-sha2-nistp256,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512"
-                     & ",diffie-hellman-group14-sha256,diffie-hellman-group-exchange-sha256,ext-info-c";
+                     & ",ecdh-sha2-nistp256,ecdh-sha2-nistp384"
+                     & ",ecdh-sha2-nistp521"
+                     & ",diffie-hellman-group18-sha512,diffie-hellman-group16-sha512"
+                     & ",diffie-hellman-group14-sha256,diffie-hellman-group-exchange-sha256"
+                     & ",diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1"
+                     & ",ext-info-c"
+                     & ",kex-strict-c-v00@openssh.com";
          when Server_Host_Key =>
             return "ssh-ed25519-cert-v01@openssh.com,ecdsa-sha2-nistp256-cert-v01@openssh.com"
+                     & ",ecdsa-sha2-nistp384-cert-v01@openssh.com"
+                     & ",ecdsa-sha2-nistp521-cert-v01@openssh.com"
                      & ",rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com"
-                     & ",ssh-rsa-cert-v01@openssh.com,ssh-ed25519,ecdsa-sha2-nistp256,rsa-sha2-512"
-                     & ",rsa-sha2-256,ssh-rsa";
+                     & ",ssh-rsa-cert-v01@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com"
+                     & ",sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,ssh-ed25519"
+                     & ",ecdsa-sha2-nistp256,ecdsa-sha2-nistp384"
+                     & ",ecdsa-sha2-nistp521,rsa-sha2-512"
+                     & ",rsa-sha2-256,sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,ssh-rsa";
          when Encryption_Client_To_Server | Encryption_Server_To_Client =>
+            --  Security guard baseline with legacy CBC fallback.  3des-cbc is
+            --  no longer offered by default (still recognized if configured).
             return "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com"
                      & ",aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc";
          when Mac_Client_To_Server | Mac_Server_To_Client =>
+            --  UMAC (umac-64/128@openssh.com) is real RFC 4418 UMAC (KAT-verified
+            --  against the RFC test vectors and interoperable with OpenSSH); it
+            --  is preferred, then the Encrypt-then-MAC and plain HMAC fallbacks.
+            --  MD5-based MACs (hmac-md5*) are no longer offered by default
+            --  (MD5 is broken); still recognized if explicitly configured.
             return "umac-128-etm@openssh.com,umac-64-etm@openssh.com,umac-128@openssh.com"
                      & ",umac-64@openssh.com,hmac-sha2-512-etm@openssh.com"
                      & ",hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256"
                      & ",hmac-sha1-etm@openssh.com,hmac-sha1,hmac-sha1-96-etm@openssh.com,hmac-sha1-96";
          when Compression_Client_To_Server | Compression_Server_To_Client =>
-            return "zlib@openssh.com,zlib,none";
+            --  Match the OpenSSH client default: offer "none" first. SSH-level
+            --  compression adds little for a VCS client (Git objects are already
+            --  deflated) and this keeps the negotiated algorithm at "none"
+            --  unless the peer/user explicitly requests compression.
+            return "none,zlib@openssh.com,zlib";
       end case;
    end Advertised_Name_List;
 

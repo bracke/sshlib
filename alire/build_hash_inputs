@@ -1,5 +1,5 @@
 dependency:cryptolib=0.1.0-dev=92712048d98494887d63c75abf305d659caac8db0ef0df451e5a11c9828ed12e
-dependency:zlib=0.1.0-dev=f4d1507a77ec9d68fb6d8132553fad7c7aa7374c315ad5b8a67b780c87eb7e45
+dependency:zlib=0.1.0=f4d1507a77ec9d68fb6d8132553fad7c7aa7374c315ad5b8a67b780c87eb7e45
 external:LIBRARY_TYPE=default
 external:SSH_LIB_LIBRARY_TYPE=default
 profile:ssh_lib=RELEASE

@@ -690,10 +690,9 @@ package body SSH_Lib.Tests.Fixtures.Auth_Security is
          "wrong-passphrase",
          Identity_Item);
       SSH_Lib.Tests.Assertions.Check_Status
-        (Status_Value, CryptoLib.Errors.Unsupported_Feature,
+        (Status_Value, CryptoLib.Errors.Authentication_Failed,
          "auth encrypted identity fixture",
-         "encrypted legacy PEM rejects wrong passphrase before "
-           & "unsupported legacy decrypt");
+         "encrypted legacy PEM rejects wrong passphrase");
       Check (SSH_Lib.Identity_Files.Kind (Identity_Item) = SSH_Lib.Identity_Files.No_Key,
              "wrong encrypted legacy PEM passphrase clears key state");
       Status_Value := SSH_Lib.Identity_Files.Parse
@@ -701,10 +700,10 @@ package body SSH_Lib.Tests.Fixtures.Auth_Security is
          "fixture-passphrase",
          Identity_Item);
       SSH_Lib.Tests.Assertions.Check_Status
-        (Status_Value, CryptoLib.Errors.Unsupported_Feature,
-         "auth encrypted identity fixture", "encrypted legacy PEM AES-256-CBC fixture fails closed while unsupported");
-      Check (SSH_Lib.Identity_Files.Kind (Identity_Item) = SSH_Lib.Identity_Files.No_Key,
-             "unsupported encrypted legacy PEM fixture leaves no identity");
+        (Status_Value, CryptoLib.Errors.Ok,
+         "auth encrypted identity fixture", "encrypted legacy PEM AES-256-CBC fixture parses");
+      Check (SSH_Lib.Identity_Files.Kind (Identity_Item) = SSH_Lib.Identity_Files.RSA_Key,
+             "encrypted legacy PEM fixture becomes RSA identity");
 
       Status_Value := SSH_Lib.Identity_Files.Parse
         (SSH_Lib.Tests.Fixtures.Identity_Files.Encrypted_PKCS8_RSA_AES256_CBC_Private_Key,
@@ -725,6 +724,16 @@ package body SSH_Lib.Tests.Fixtures.Auth_Security is
          "auth encrypted identity fixture", "encrypted PKCS#8 AES-256-CBC fixture parses");
       Check (SSH_Lib.Identity_Files.Kind (Identity_Item) = SSH_Lib.Identity_Files.RSA_Key,
              "encrypted PKCS#8 fixture becomes RSA identity");
+
+      Status_Value := SSH_Lib.Identity_Files.Parse
+        (SSH_Lib.Tests.Fixtures.Identity_Files.Encrypted_PKCS8_RSA_AES256_CBC_SHA384_Private_Key,
+         "fixture-passphrase",
+         Identity_Item);
+      SSH_Lib.Tests.Assertions.Check_Status
+        (Status_Value, CryptoLib.Errors.Ok,
+         "auth encrypted identity fixture", "encrypted PKCS#8 PBKDF2-HMAC-SHA384 fixture parses");
+      Check (SSH_Lib.Identity_Files.Kind (Identity_Item) = SSH_Lib.Identity_Files.RSA_Key,
+             "encrypted PKCS#8 SHA384 fixture becomes RSA identity");
 
       Status_Value := SSH_Lib.Identity_Files.Parse
         (SSH_Lib.Tests.Fixtures.Identity_Files.RSA_1024_PKCS8_Private_Key,

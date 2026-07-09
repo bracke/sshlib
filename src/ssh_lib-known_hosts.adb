@@ -7,6 +7,7 @@ with SSH_Lib.Internal;
 with CryptoLib.Constant_Time;
 with CryptoLib.Hashes;
 with CryptoLib.Macs;
+with CryptoLib.Random;
 with SSH_Lib.Keys.Internal;
 with SSH_Lib.Protocol.Buffers;
 with SSH_Lib.Protocol.Host_Keys;
@@ -103,6 +104,8 @@ package body SSH_Lib.Known_Hosts is
       return
         Value = "ssh-ed25519"
         or else Value = "ecdsa-sha2-nistp256"
+        or else Value = "ecdsa-sha2-nistp384"
+        or else Value = "ecdsa-sha2-nistp521"
         or else Value = "ssh-rsa"
         or else SSH_Lib.Protocol.Certificates.Is_Certificate_Algorithm (Value);
    end Is_Supported_Key_Format;
@@ -535,6 +538,16 @@ package body SSH_Lib.Known_Hosts is
      (Item : Host_Key; Value : out SSH_Lib.Keys.Fingerprint)
       return CryptoLib.Errors.Status
    is
+   begin
+      return Fingerprint_With_Hash (Item, "sha256", Value);
+   end SHA256_Fingerprint;
+
+   function Fingerprint_With_Hash
+     (Item      : Host_Key;
+      Hash_Name : String;
+      Value     : out SSH_Lib.Keys.Fingerprint)
+      return CryptoLib.Errors.Status
+   is
       Decoded_Key          : SSH_Lib.Protocol.Buffers.Packet_Buffer;
       Parsed_Key           : SSH_Lib.Keys.Public_Key;
       Status_Value         : CryptoLib.Errors.Status;
@@ -572,7 +585,8 @@ package body SSH_Lib.Known_Hosts is
          end if;
       end if;
 
-      return SSH_Lib.Keys.SHA256_Fingerprint (Parsed_Key, Value);
+      return SSH_Lib.Keys.Fingerprint_With_Hash
+        (Parsed_Key, Hash_Name, Value);
    exception
       when others =>
          declare
@@ -583,7 +597,7 @@ package body SSH_Lib.Known_Hosts is
             pragma Unreferenced (Ignored);
          end;
          return CryptoLib.Errors.Internal_Error;
-   end SHA256_Fingerprint;
+   end Fingerprint_With_Hash;
 
    function Trim_Field (Value : String) return String is
       First_Index : Integer := Value'First;
@@ -1806,20 +1820,51 @@ package body SSH_Lib.Known_Hosts is
       return "[" & Host & "]:" & Decimal_Image (Port);
    end Host_Field;
 
+   function Build_Hashed_Host_Field
+     (Plain_Text : String;
+      Result     : out Unbounded_String) return CryptoLib.Errors.Status
+   is
+      Source_Item : CryptoLib.Random.Random_Source;
+      Salt_Data   : Stream_Element_Array (1 .. 20);
+      Hash_Value  : CryptoLib.Macs.HMAC_SHA1_Digest;
+      Status_Value : CryptoLib.Errors.Status;
+   begin
+      Result := Null_Unbounded_String;
+      CryptoLib.Random.Initialize_Production (Source_Item);
+      Status_Value := CryptoLib.Random.Fill (Source_Item, Salt_Data);
+      if Status_Value /= CryptoLib.Errors.Ok then
+         return Status_Value;
+      end if;
+
+      Hash_Value :=
+        CryptoLib.Macs.HMAC_SHA1
+          (Salt_Data,
+           To_Bytes (Ada.Characters.Handling.To_Lower (Plain_Text)));
+      Result :=
+        To_Unbounded_String
+          ("|1|"
+           & Base64_With_Padding (Salt_Data)
+           & "|"
+           & Base64_With_Padding (Digest_To_Array (Hash_Value)));
+      return CryptoLib.Errors.Ok;
+   exception
+      when others =>
+         Result := Null_Unbounded_String;
+         return CryptoLib.Errors.Internal_Error;
+   end Build_Hashed_Host_Field;
+
    function Append_Trusted_Host
      (Known_Hosts_File : String;
       Host             : String;
       Port             : Natural;
-      Presented_Key    : Host_Key) return CryptoLib.Errors.Status
+      Presented_Key    : Host_Key;
+      Hash_Host        : Boolean := False) return CryptoLib.Errors.Status
    is
       Existing_Status : Verification_Result;
       Output_File     : Ada.Text_IO.File_Type;
-      Line_Text       : constant String :=
-        Host_Field (Host, Port)
-        & " "
-        & Algorithm (Presented_Key)
-        & " "
-        & Encoded (Presented_Key);
+      Host_Field_Text : constant String := Host_Field (Host, Port);
+      Stored_Host     : Unbounded_String;
+      Status_Value    : CryptoLib.Errors.Status;
    begin
       --  This helper is deliberately explicit.  It never performs silent TOFU
       --  from Sessions.Open; callers must present a key they have decided to
@@ -1828,37 +1873,58 @@ package body SSH_Lib.Known_Hosts is
         or else not Valid_Host_Field_Text (Host)
         or else Port = 0
         or else not Is_Valid (Presented_Key)
-        or else Line_Text'Length > Max_Known_Hosts_Line_Length
       then
          return CryptoLib.Errors.Authentication_Failed;
       end if;
 
-      if Ada.Directories.Exists (Known_Hosts_File) then
-         Existing_Status :=
-           Verify (Known_Hosts_File, Host, Port, Presented_Key);
-         case Existing_Status is
-            when Trusted                            =>
-               return CryptoLib.Errors.Ok;
-
-            when Mismatch                           =>
-               return CryptoLib.Errors.Host_Key_Mismatch;
-
-            when Invalid_Record | Unsupported_Entry =>
-               return CryptoLib.Errors.Unsupported_Feature;
-
-            when Unknown | Unavailable              =>
-               null;
-         end case;
-         Ada.Text_IO.Open
-           (Output_File, Ada.Text_IO.Append_File, Known_Hosts_File);
+      if Hash_Host then
+         Status_Value := Build_Hashed_Host_Field (Host_Field_Text, Stored_Host);
+         if Status_Value /= CryptoLib.Errors.Ok then
+            return Status_Value;
+         end if;
       else
-         Ada.Text_IO.Create
-           (Output_File, Ada.Text_IO.Out_File, Known_Hosts_File);
+         Stored_Host := To_Unbounded_String (Host_Field_Text);
       end if;
 
-      Ada.Text_IO.Put_Line (Output_File, Line_Text);
-      Ada.Text_IO.Close (Output_File);
-      return CryptoLib.Errors.Ok;
+      declare
+         Line_Text : constant String :=
+           To_String (Stored_Host)
+           & " "
+           & Algorithm (Presented_Key)
+           & " "
+           & Encoded (Presented_Key);
+      begin
+         if Line_Text'Length > Max_Known_Hosts_Line_Length then
+            return CryptoLib.Errors.Authentication_Failed;
+         end if;
+
+         if Ada.Directories.Exists (Known_Hosts_File) then
+            Existing_Status :=
+              Verify (Known_Hosts_File, Host, Port, Presented_Key);
+            case Existing_Status is
+               when Trusted                            =>
+                  return CryptoLib.Errors.Ok;
+
+               when Mismatch                           =>
+                  return CryptoLib.Errors.Host_Key_Mismatch;
+
+               when Invalid_Record | Unsupported_Entry =>
+                  return CryptoLib.Errors.Unsupported_Feature;
+
+               when Unknown | Unavailable              =>
+                  null;
+            end case;
+            Ada.Text_IO.Open
+              (Output_File, Ada.Text_IO.Append_File, Known_Hosts_File);
+         else
+            Ada.Text_IO.Create
+              (Output_File, Ada.Text_IO.Out_File, Known_Hosts_File);
+         end if;
+
+         Ada.Text_IO.Put_Line (Output_File, Line_Text);
+         Ada.Text_IO.Close (Output_File);
+         return CryptoLib.Errors.Ok;
+      end;
    exception
       when others =>
          if Ada.Text_IO.Is_Open (Output_File) then

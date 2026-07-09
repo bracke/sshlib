@@ -1,6 +1,5 @@
 with System;                              use System;
 with System.Address_To_Access_Conversions;
-with Ada.Strings.Unbounded;
 with SSH_Lib.Protocol.Channels;
 with SSH_Lib.Protocol.Failure_State;
 with SSH_Lib.Protocol.Global_Requests;
@@ -1197,9 +1196,10 @@ package body SSH_Lib.Channels is
       return Open_Exec_Internal (Session, Command, Item, Environment);
    end Open_Exec_With_Environment;
 
-   function Open_Subsystem
+   function Open_Subsystem_Internal
      (Session        : in out SSH_Lib.Sessions.Session;
       Subsystem_Name : String;
+      Environment    : Environment_Variable_Array;
       Item           : in out Channel) return CryptoLib.Errors.Status
    is
       Local_Id           : Interfaces.Unsigned_32 := 0;
@@ -1344,6 +1344,21 @@ package body SSH_Lib.Channels is
       Item.Remote_Remaining_Window := Confirmation.Initial_Window_Size;
       Item.Remote_Maximum_Packet_Size := Confirmation.Maximum_Packet_Size;
 
+      for Variable of Environment loop
+         Status_Value :=
+           Set_Environment
+             (Session,
+              Item,
+              To_String (Variable.Name),
+              To_String (Variable.Value));
+         if Status_Value /= Ok then
+            SSH_Lib.Sessions.Channel_Table.Release (Session, Local_Id);
+            Allocation_Done := False;
+            Reset_Channel (Item);
+            return Status_Value;
+         end if;
+      end loop;
+
       Exec_Payload :=
         SSH_Lib.Protocol.Channels.Encode_Subsystem_Request
           (Item.Remote_Channel_Id, Subsystem_Name);
@@ -1465,7 +1480,29 @@ package body SSH_Lib.Channels is
          end if;
          Reset_Channel (Item);
          return Internal_Error;
+   end Open_Subsystem_Internal;
+
+   function Open_Subsystem
+     (Session        : in out SSH_Lib.Sessions.Session;
+      Subsystem_Name : String;
+      Item           : in out Channel) return CryptoLib.Errors.Status
+   is
+   begin
+      return Open_Subsystem_Internal
+        (Session, Subsystem_Name, Empty_Environment, Item);
    end Open_Subsystem;
+
+   function Open_Subsystem_With_Environment
+     (Session        : in out SSH_Lib.Sessions.Session;
+      Subsystem_Name : String;
+      Environment    : Environment_Variable_Array;
+      Item           : in out Channel)
+      return CryptoLib.Errors.Status
+   is
+   begin
+      return Open_Subsystem_Internal
+        (Session, Subsystem_Name, Environment, Item);
+   end Open_Subsystem_With_Environment;
 
    function Open_Direct_TCPIP
      (Session            : in out SSH_Lib.Sessions.Session;
@@ -1849,8 +1886,9 @@ package body SSH_Lib.Channels is
          return Internal_Error;
    end Accept_X11;
 
-   function Open_Shell
+   function Open_Shell_Internal
      (Session : in out SSH_Lib.Sessions.Session;
+      Environment : Environment_Variable_Array;
       Item    : in out Channel)
       return CryptoLib.Errors.Status
    is
@@ -1988,6 +2026,21 @@ package body SSH_Lib.Channels is
       Item.Remote_Remaining_Window := Confirmation.Initial_Window_Size;
       Item.Remote_Maximum_Packet_Size := Confirmation.Maximum_Packet_Size;
 
+      for Variable of Environment loop
+         Status_Value :=
+           Set_Environment
+             (Session,
+              Item,
+              To_String (Variable.Name),
+              To_String (Variable.Value));
+         if Status_Value /= Ok then
+            SSH_Lib.Sessions.Channel_Table.Release (Session, Local_Id);
+            Allocation_Done := False;
+            Reset_Channel (Item);
+            return Status_Value;
+         end if;
+      end loop;
+
       Shell_Payload :=
         SSH_Lib.Protocol.Channels.Encode_Shell_Request
           (Item.Remote_Channel_Id);
@@ -2076,10 +2129,32 @@ package body SSH_Lib.Channels is
          end if;
          Reset_Channel (Item);
          return Internal_Error;
+   end Open_Shell_Internal;
+
+   function Open_Shell
+     (Session : in out SSH_Lib.Sessions.Session;
+      Item    : in out Channel)
+      return CryptoLib.Errors.Status
+   is
+   begin
+      return Open_Shell_Internal (Session, Empty_Environment, Item);
    end Open_Shell;
 
-   function Open_PTY_Shell
+   function Open_Shell_With_Environment
+     (Session     : in out SSH_Lib.Sessions.Session;
+      Environment : Environment_Variable_Array;
+      Item        : in out Channel)
+      return CryptoLib.Errors.Status
+   is
+   begin
+      return Open_Shell_Internal (Session, Environment, Item);
+   end Open_Shell_With_Environment;
+
+   function Open_PTY_Shell_Internal
      (Session        : in out SSH_Lib.Sessions.Session;
+      Environment    : Environment_Variable_Array;
+      Exec_Command   : String;
+      Use_Exec       : Boolean;
       Item           : in out Channel;
       Terminal_Type  : String := "xterm";
       Columns        : Natural := 80;
@@ -2139,6 +2214,10 @@ package body SSH_Lib.Channels is
       if not SSH_Lib.Protocol.Channels.Valid_Command (Terminal_Type)
         or else Columns = 0
         or else Rows = 0
+      then
+         return Invalid_Command;
+      elsif Use_Exec
+        and then not SSH_Lib.Protocol.Channels.Valid_Command (Exec_Command)
       then
          return Invalid_Command;
       end if;
@@ -2265,6 +2344,21 @@ package body SSH_Lib.Channels is
       Item.Remote_Remaining_Window := Confirmation.Initial_Window_Size;
       Item.Remote_Maximum_Packet_Size := Confirmation.Maximum_Packet_Size;
 
+      for Variable of Environment loop
+         Status_Value :=
+           Set_Environment
+             (Session,
+              Item,
+              To_String (Variable.Name),
+              To_String (Variable.Value));
+         if Status_Value /= Ok then
+            SSH_Lib.Sessions.Channel_Table.Release (Session, Local_Id);
+            Allocation_Done := False;
+            Reset_Channel (Item);
+            return Status_Value;
+         end if;
+      end loop;
+
       declare
          Protocol_Modes :
            SSH_Lib.Protocol.Channels.Terminal_Mode_Array
@@ -2316,9 +2410,15 @@ package body SSH_Lib.Channels is
          return Channel_Request_Failed;
       end if;
 
-      Shell_Payload :=
-        SSH_Lib.Protocol.Channels.Encode_Shell_Request
-          (Item.Remote_Channel_Id);
+      if Use_Exec then
+         Shell_Payload :=
+           SSH_Lib.Protocol.Channels.Encode_Exec_Request
+             (Item.Remote_Channel_Id, Exec_Command);
+      else
+         Shell_Payload :=
+           SSH_Lib.Protocol.Channels.Encode_Shell_Request
+             (Item.Remote_Channel_Id);
+      end if;
       if Is_Empty (Shell_Payload) then
          SSH_Lib.Sessions.Channel_Table.Release (Session, Local_Id);
          Allocation_Done := False;
@@ -2372,7 +2472,88 @@ package body SSH_Lib.Channels is
          end if;
          Reset_Channel (Item);
          return Internal_Error;
+   end Open_PTY_Shell_Internal;
+
+   function Open_PTY_Shell
+     (Session        : in out SSH_Lib.Sessions.Session;
+      Item           : in out Channel;
+      Terminal_Type  : String := "xterm";
+      Columns        : Natural := 80;
+      Rows           : Natural := 24;
+      Width_Pixels   : Natural := 0;
+      Height_Pixels  : Natural := 0;
+      Terminal_Modes : Terminal_Mode_Array := Empty_Terminal_Modes)
+      return CryptoLib.Errors.Status
+   is
+   begin
+      return Open_PTY_Shell_Internal
+        (Session,
+         Empty_Environment,
+         "",
+         False,
+         Item,
+         Terminal_Type,
+         Columns,
+         Rows,
+         Width_Pixels,
+         Height_Pixels,
+         Terminal_Modes);
    end Open_PTY_Shell;
+
+   function Open_PTY_Shell_With_Environment
+     (Session        : in out SSH_Lib.Sessions.Session;
+      Environment    : Environment_Variable_Array;
+      Item           : in out Channel;
+      Terminal_Type  : String := "xterm";
+      Columns        : Natural := 80;
+      Rows           : Natural := 24;
+      Width_Pixels   : Natural := 0;
+      Height_Pixels  : Natural := 0;
+      Terminal_Modes : Terminal_Mode_Array := Empty_Terminal_Modes)
+      return CryptoLib.Errors.Status
+   is
+   begin
+      return Open_PTY_Shell_Internal
+        (Session,
+         Environment,
+         "",
+         False,
+         Item,
+         Terminal_Type,
+         Columns,
+         Rows,
+         Width_Pixels,
+         Height_Pixels,
+         Terminal_Modes);
+   end Open_PTY_Shell_With_Environment;
+
+   function Open_PTY_Exec_With_Environment
+     (Session        : in out SSH_Lib.Sessions.Session;
+      Command        : String;
+      Environment    : Environment_Variable_Array;
+      Item           : in out Channel;
+      Terminal_Type  : String := "xterm";
+      Columns        : Natural := 80;
+      Rows           : Natural := 24;
+      Width_Pixels   : Natural := 0;
+      Height_Pixels  : Natural := 0;
+      Terminal_Modes : Terminal_Mode_Array := Empty_Terminal_Modes)
+      return CryptoLib.Errors.Status
+   is
+   begin
+      return Open_PTY_Shell_Internal
+        (Session,
+         Environment,
+         Command,
+         True,
+         Item,
+         Terminal_Type,
+         Columns,
+         Rows,
+         Width_Pixels,
+         Height_Pixels,
+         Terminal_Modes);
+   end Open_PTY_Exec_With_Environment;
 
    function Resize_PTY
      (Session       : in out SSH_Lib.Sessions.Session;

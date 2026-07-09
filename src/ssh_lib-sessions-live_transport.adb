@@ -1,4 +1,5 @@
 with Ada.Calendar;
+with Ada.Characters.Handling;
 with Ada.Streams;
 with Ada.Streams.Stream_IO;
 with Ada.Strings.Unbounded;
@@ -20,6 +21,7 @@ with SSH_Lib.Protocol.Kex;
 with SSH_Lib.Protocol.Kexdh;
 with SSH_Lib.Protocol.Kexinit;
 with SSH_Lib.Protocol.Channels;
+with SSH_Lib.Algorithms;
 with SSH_Lib.Protocol.Session_Keys;
 with SSH_Lib.Protocol.Transport_Messages;
 with SSH_Lib.Sessions.Live_Transcript;
@@ -57,6 +59,19 @@ package body SSH_Lib.Sessions.Live_Transport is
       return Stream_Element_Array
    is
       Result : Stream_Element_Array (1 .. 32);
+   begin
+      for Index_Value in Digest_Item'Range loop
+         Result (Stream_Element_Offset (Index_Value)) :=
+           Digest_Item (Index_Value);
+      end loop;
+      return Result;
+   end Digest_To_Array;
+
+   function Digest_To_Array
+     (Digest_Item : CryptoLib.Hashes.SHA384_Digest)
+      return Stream_Element_Array
+   is
+      Result : Stream_Element_Array (1 .. 48);
    begin
       for Index_Value in Digest_Item'Range loop
          Result (Stream_Element_Offset (Index_Value)) :=
@@ -121,6 +136,8 @@ package body SSH_Lib.Sessions.Live_Transport is
          return 24;
       elsif Algorithm_Name = "aes256-cbc" then
          return 32;
+      elsif Algorithm_Name = "3des-cbc" then
+         return 24;
       end if;
       return 0;
    end Cipher_Key_Length;
@@ -139,6 +156,12 @@ package body SSH_Lib.Sessions.Live_Transport is
         or else Algorithm_Name = "hmac-sha1-96-etm@openssh.com"
       then
          return 20;
+      elsif Algorithm_Name = "hmac-md5"
+        or else Algorithm_Name = "hmac-md5-etm@openssh.com"
+        or else Algorithm_Name = "hmac-md5-96"
+        or else Algorithm_Name = "hmac-md5-96-etm@openssh.com"
+      then
+         return 16;
       elsif Algorithm_Name = "hmac-sha2-256"
         or else Algorithm_Name = "hmac-sha2-256-etm@openssh.com"
       then
@@ -286,6 +309,29 @@ package body SSH_Lib.Sessions.Live_Transport is
          return Internal_Error;
    end Buffer_To_SHA512_Digest;
 
+   function Buffer_To_SHA384_Digest
+     (Buffer_Item : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Result_Item : out CryptoLib.Hashes.SHA384_Digest) return Status
+   is
+      Data : constant Stream_Element_Array :=
+        SSH_Lib.Protocol.Buffers.To_Array (Buffer_Item);
+   begin
+      if Data'Length /= 48 then
+         Result_Item := [others => 0];
+         return Handshake_Failed;
+      end if;
+
+      for Index_Value in Result_Item'Range loop
+         Result_Item (Index_Value) :=
+           Data (Stream_Element_Offset (Index_Value));
+      end loop;
+      return Ok;
+   exception
+      when others =>
+         Result_Item := [others => 0];
+         return Internal_Error;
+   end Buffer_To_SHA384_Digest;
+
    function Maximum_Of
      (Left_Value : Natural; Right_Value : Natural) return Natural is
    begin
@@ -357,6 +403,12 @@ package body SSH_Lib.Sessions.Live_Transport is
                   | SSH_Lib.Protocol.Transport_Messages.Transport_Debug
                   | SSH_Lib.Protocol.Transport_Messages.Transport_Ext_Info   =>
                   SSH_Lib.Protocol.Buffers.Clear (Payload);
+                  --  Terrapin strict kex forbids extraneous transport messages
+                  --  during key exchange; terminate rather than skip them.
+                  if SSH_Lib.Sessions.Live_Transcript.Is_Strict_Kex (Transcript)
+                  then
+                     return Handshake_Failed;
+                  end if;
                   if Attempt = Max_Ignorable_Packets then
                      return Timeout;
                   end if;
@@ -527,6 +579,21 @@ package body SSH_Lib.Sessions.Live_Transport is
 
       Item.Kexinit_Exchanged := True;
 
+      --  Terrapin (CVE-2023-48795): enable strict kex only if BOTH peers
+      --  advertised their markers in this (initial) KEXINIT -- otherwise the
+      --  peer will not reset its sequence numbers and the two sides desync.
+      --  Set-once; the exchange hash signature protects the markers from being
+      --  stripped by a MITM.
+      if SSH_Lib.Algorithms.Contains_Name
+           (Ada.Strings.Unbounded.To_String (Client_Item.Kex_Algorithms),
+            "kex-strict-c-v00@openssh.com")
+        and then SSH_Lib.Algorithms.Contains_Name
+           (Ada.Strings.Unbounded.To_String (Server_Item.Kex_Algorithms),
+            "kex-strict-s-v00@openssh.com")
+      then
+         SSH_Lib.Sessions.Live_Transcript.Set_Strict_Kex (Transcript);
+      end if;
+
       Status_Value :=
         SSH_Lib.Protocol.Kex.Negotiate
           (Client_Item, Server_Item, Negotiated_Item);
@@ -671,12 +738,32 @@ package body SSH_Lib.Sessions.Live_Transport is
       Host_Key_Blob        : Ada.Streams.Stream_Element_Array;
       Item                 : in out Session) return Status
    is
+      function Is_Localhost_Name (Host_Text : String) return Boolean is
+         Lower_Host : constant String :=
+           Ada.Characters.Handling.To_Lower (Host_Text);
+      begin
+         return Lower_Host = "localhost"
+           or else Lower_Host = "localhost.localdomain"
+           or else Lower_Host = "::1"
+           or else Lower_Host = "0:0:0:0:0:0:0:1"
+           or else Lower_Host = "0000:0000:0000:0000:0000:0000:0000:0001"
+           or else
+             (Lower_Host'Length >= 4
+              and then Lower_Host (Lower_Host'First .. Lower_Host'First + 3)
+                       = "127.");
+      exception
+         when others =>
+            return False;
+      end Is_Localhost_Name;
+
       Parsed_Key                 : SSH_Lib.Keys.Public_Key;
       Presented_Key              : SSH_Lib.Known_Hosts.Host_Key;
       Verification               : SSH_Lib.Known_Hosts.Verification_Result;
       Known_Hosts_Path           : constant String :=
         (if To_String (Options.User_Known_Hosts_File)'Length > 0
          then To_String (Options.User_Known_Hosts_File)
+         elsif To_String (Options.Known_Hosts_File)'Length = 0
+         then To_String (SSH_Lib.Known_Hosts.Default_File)
          else To_String (Options.Known_Hosts_File));
       Global_Known_Hosts_Path    : constant String :=
         To_String (Options.Global_Known_Hosts_File);
@@ -691,6 +778,15 @@ package body SSH_Lib.Sessions.Live_Transport is
       Status_Value               : Status;
    begin
       if not Options.Verify_Known_Host then
+         Item.Known_Host_Trusted := False;
+         Item.Known_Host_Bypassed_Explicitly := True;
+         return Ok;
+      end if;
+
+      if Options.No_Host_Authentication_For_Localhost
+        and then To_String (Options.Host_Key_Alias)'Length = 0
+        and then Is_Localhost_Name (To_String (Options.Host))
+      then
          Item.Known_Host_Trusted := False;
          Item.Known_Host_Bypassed_Explicitly := True;
          return Ok;
@@ -718,6 +814,18 @@ package body SSH_Lib.Sessions.Live_Transport is
          Item.Known_Host_Bypassed_Explicitly := False;
          return Status_Value;
       end if;
+
+      declare
+         DNS_Mode : constant String :=
+           Ada.Characters.Handling.To_Lower
+             (To_String (Options.Verify_Host_Key_DNS));
+      begin
+         if DNS_Mode = "yes" or else DNS_Mode = "ask" then
+            Item.Known_Host_Trusted := False;
+            Item.Known_Host_Bypassed_Explicitly := False;
+            return Unsupported_Feature;
+         end if;
+      end;
 
       if Revoked_Path'Length > 0 then
          if Path_List_Has_OpenSSH_KRL_Magic (Revoked_Path) then
@@ -774,6 +882,25 @@ package body SSH_Lib.Sessions.Live_Transport is
               Verification_Host,
               Options.Port,
               Presented_Key);
+      end if;
+
+      if Verification = SSH_Lib.Known_Hosts.Unknown
+        and then Options.Trust_On_First_Use
+      then
+         Status_Value :=
+           SSH_Lib.Known_Hosts.Append_Trusted_Host
+             (Known_Hosts_Path,
+              Verification_Host,
+              Options.Port,
+              Presented_Key,
+              Options.Hash_Known_Hosts);
+         if Status_Value = Ok then
+            Verification := SSH_Lib.Known_Hosts.Trusted;
+         else
+            Item.Known_Host_Trusted := False;
+            Item.Known_Host_Bypassed_Explicitly := False;
+            return Status_Value;
+         end if;
       end if;
 
       Status_Value := SSH_Lib.Known_Hosts.To_Status (Verification);
@@ -869,6 +996,9 @@ package body SSH_Lib.Sessions.Live_Transport is
           /= "diffie-hellman-group14-sha1"
         and then
           To_String (Negotiated_Item.Key_Exchange)
+          /= "diffie-hellman-group1-sha1"
+        and then
+          To_String (Negotiated_Item.Key_Exchange)
           /= "diffie-hellman-group-exchange-sha256"
         and then
           To_String (Negotiated_Item.Key_Exchange)
@@ -962,6 +1092,12 @@ package body SSH_Lib.Sessions.Live_Transport is
       then
          Status_Value :=
            CryptoLib.Diffie_Hellman.Generate_Group16_Keypair
+             (Source_Item, Client_Private, Client_Public);
+      elsif To_String (Negotiated_Item.Key_Exchange)
+        = "diffie-hellman-group1-sha1"
+      then
+         Status_Value :=
+           CryptoLib.Diffie_Hellman.Generate_Group1_Keypair
              (Source_Item, Client_Private, Client_Public);
       else
          Status_Value :=
@@ -1065,6 +1201,15 @@ package body SSH_Lib.Sessions.Live_Transport is
               SSH_Lib.Protocol.Buffers.To_Array
                 (Reply_Item.Server_Public_Value),
               Shared_Secret);
+      elsif To_String (Negotiated_Item.Key_Exchange)
+        = "diffie-hellman-group1-sha1"
+      then
+         Status_Value :=
+           CryptoLib.Diffie_Hellman.Compute_Group1_Shared_Secret
+             (SSH_Lib.Protocol.Buffers.To_Array (Client_Private),
+              SSH_Lib.Protocol.Buffers.To_Array
+                (Reply_Item.Server_Public_Value),
+              Shared_Secret);
       else
          Status_Value :=
            CryptoLib.Diffie_Hellman.Compute_Group14_Shared_Secret
@@ -1158,6 +1303,9 @@ package body SSH_Lib.Sessions.Live_Transport is
               Exchange_SHA512_Digest);
       elsif To_String (Negotiated_Item.Key_Exchange)
         = "diffie-hellman-group14-sha1"
+        or else
+          To_String (Negotiated_Item.Key_Exchange)
+          = "diffie-hellman-group1-sha1"
       then
          Status_Value :=
            SSH_Lib.Protocol.Exchange_Hash.Compute_Group14_SHA1
@@ -1212,6 +1360,9 @@ package body SSH_Lib.Sessions.Live_Transport is
         = "diffie-hellman-group14-sha1"
         or else
           To_String (Negotiated_Item.Key_Exchange)
+          = "diffie-hellman-group1-sha1"
+        or else
+          To_String (Negotiated_Item.Key_Exchange)
           = "diffie-hellman-group-exchange-sha1"
       then
          Status_Value :=
@@ -1252,6 +1403,9 @@ package body SSH_Lib.Sessions.Live_Transport is
            = "diffie-hellman-group14-sha1"
            or else
              To_String (Negotiated_Item.Key_Exchange)
+             = "diffie-hellman-group1-sha1"
+           or else
+             To_String (Negotiated_Item.Key_Exchange)
              = "diffie-hellman-group-exchange-sha1"
          then
             Status_Value :=
@@ -1282,6 +1436,9 @@ package body SSH_Lib.Sessions.Live_Transport is
             end if;
          elsif To_String (Negotiated_Item.Key_Exchange)
            = "diffie-hellman-group14-sha1"
+           or else
+             To_String (Negotiated_Item.Key_Exchange)
+             = "diffie-hellman-group1-sha1"
            or else
              To_String (Negotiated_Item.Key_Exchange)
              = "diffie-hellman-group-exchange-sha1"
@@ -1345,6 +1502,9 @@ package body SSH_Lib.Sessions.Live_Transport is
         = "diffie-hellman-group14-sha1"
         or else
           To_String (Negotiated_Item.Key_Exchange)
+          = "diffie-hellman-group1-sha1"
+        or else
+          To_String (Negotiated_Item.Key_Exchange)
           = "diffie-hellman-group-exchange-sha1"
       then
          Status_Value :=
@@ -1397,6 +1557,9 @@ package body SSH_Lib.Sessions.Live_Transport is
               = "diffie-hellman-group14-sha1"
               or else
                 To_String (Negotiated_Item.Key_Exchange)
+                = "diffie-hellman-group1-sha1"
+              or else
+                To_String (Negotiated_Item.Key_Exchange)
                 = "diffie-hellman-group-exchange-sha1"
               or else
                 To_String (Negotiated_Item.Key_Exchange)
@@ -1404,12 +1567,15 @@ package body SSH_Lib.Sessions.Live_Transport is
               or else
                 To_String (Negotiated_Item.Key_Exchange)
                 = "diffie-hellman-group18-sha512"
-            then Null_SHA256_Digest
+           then Null_SHA256_Digest
             else Exchange_Digest),
            (if To_String (Negotiated_Item.Key_Exchange)
               = "diffie-hellman-group14-sha1"
               or else
                 To_String (Negotiated_Item.Key_Exchange)
+                = "diffie-hellman-group1-sha1"
+              or else
+                To_String (Negotiated_Item.Key_Exchange)
                 = "diffie-hellman-group-exchange-sha1"
               or else
                 To_String (Negotiated_Item.Key_Exchange)
@@ -1417,7 +1583,7 @@ package body SSH_Lib.Sessions.Live_Transport is
               or else
                 To_String (Negotiated_Item.Key_Exchange)
                 = "diffie-hellman-group18-sha512"
-            then Null_SHA256_Digest
+           then Null_SHA256_Digest
             else Derivation_Digest),
            Derived_Item);
       if Status_Value /= Ok then
@@ -1518,7 +1684,7 @@ package body SSH_Lib.Sessions.Live_Transport is
       Server_Public            : CryptoLib.Curve25519.Public_Key;
       X25519_Secret_LE         : CryptoLib.Curve25519.Public_Key;
       Client_X25519_Array      : Stream_Element_Array (1 .. 32);
-      X25519_Secret_BE         : Stream_Element_Array (1 .. 32);
+      X25519_Secret_Raw         : Stream_Element_Array (1 .. 32);
       Client_Init              : SSH_Lib.Protocol.Buffers.Packet_Buffer;
       Kex_Init_Payload         : SSH_Lib.Protocol.Buffers.Packet_Buffer;
       Kex_Reply_Payload        : SSH_Lib.Protocol.Buffers.Packet_Buffer;
@@ -1548,7 +1714,7 @@ package body SSH_Lib.Sessions.Live_Transport is
          CryptoLib.Curve25519.Clear (Server_Public);
          CryptoLib.Curve25519.Clear (X25519_Secret_LE);
          Client_X25519_Array := [others => 0];
-         X25519_Secret_BE := [others => 0];
+         X25519_Secret_Raw := [others => 0];
          Combined_SHA256 := [others => 0];
          Combined_SHA512 := [others => 0];
          SSH_Lib.Protocol.Buffers.Clear (Client_Init);
@@ -1761,21 +1927,21 @@ package body SSH_Lib.Sessions.Live_Transport is
                end if;
 
                for Offset_Value in 0 .. 31 loop
-                  X25519_Secret_BE
-                    (X25519_Secret_BE'First
+                  X25519_Secret_Raw
+                    (X25519_Secret_Raw'First
                      + Stream_Element_Offset (Offset_Value)) :=
                     X25519_Secret_LE
                       (CryptoLib.Curve25519.Public_Key_Index
-                         (32 - Offset_Value));
+                         (Offset_Value + 1));
                end loop;
 
                if CryptoLib.Hybrid_PQ_Kex.Uses_SHA512_Combiner (Kex_Name)
                then
                   Combined_SHA512 :=
-                    Combine_SHA512 (PQ_Shared, X25519_Secret_BE);
+                    Combine_SHA512 (PQ_Shared, X25519_Secret_Raw);
                else
                   Combined_SHA256 :=
-                    Combine_SHA256 (PQ_Shared, X25519_Secret_BE);
+                    Combine_SHA256 (PQ_Shared, X25519_Secret_Raw);
                end if;
                PQ_Shared := [others => 0];
             end;
@@ -1902,15 +2068,15 @@ package body SSH_Lib.Sessions.Live_Transport is
                end if;
 
                for Offset_Value in 0 .. 31 loop
-                  X25519_Secret_BE
-                    (X25519_Secret_BE'First
+                  X25519_Secret_Raw
+                    (X25519_Secret_Raw'First
                      + Stream_Element_Offset (Offset_Value)) :=
                     X25519_Secret_LE
                       (CryptoLib.Curve25519.Public_Key_Index
-                         (32 - Offset_Value));
+                         (Offset_Value + 1));
                end loop;
 
-               Combined_SHA512 := Combine_SHA512 (PQ_Shared, X25519_Secret_BE);
+               Combined_SHA512 := Combine_SHA512 (PQ_Shared, X25519_Secret_Raw);
                PQ_Shared := [others => 0];
             end;
          end;
@@ -2045,7 +2211,8 @@ package body SSH_Lib.Sessions.Live_Transport is
                    (To_String (Negotiated_Item.Mac_Client_To_Server)),
                  Mac_Key_Length
                    (To_String (Negotiated_Item.Mac_Server_To_Client))),
-              Derived_Item);
+              Derived_Item,
+              As_String => True);
       else
          Status_Value :=
            SSH_Lib.Protocol.Session_Keys.Derive_SHA256_Keys
@@ -2063,7 +2230,8 @@ package body SSH_Lib.Sessions.Live_Transport is
                    (To_String (Negotiated_Item.Mac_Client_To_Server)),
                  Mac_Key_Length
                    (To_String (Negotiated_Item.Mac_Server_To_Client))),
-              Derived_Item);
+              Derived_Item,
+              As_String => True);
       end if;
       if Status_Value /= Ok then
          Clear_Hybrid_Material;
@@ -2732,6 +2900,550 @@ package body SSH_Lib.Sessions.Live_Transport is
          return Internal_Error;
    end Run_ECDH_Nistp256_Kex;
 
+   function Run_ECDH_Nistp384_Kex
+     (Transcript                     :
+        in out SSH_Lib.Sessions.Live_Transcript.Driver;
+      Item                           : in out Session;
+      Client_Kexinit                 : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Server_Kexinit                 : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Negotiated_Item                :
+        SSH_Lib.Protocol.Kex.Negotiated_Algorithms;
+      Established_Session_Identifier : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Session_Identifier             :
+        out SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Host_Key_Blob                  :
+        out SSH_Lib.Protocol.Buffers.Packet_Buffer) return Status
+   is
+      Source_Item              : CryptoLib.Random.Random_Source;
+      Client_Private_Array     : Stream_Element_Array (1 .. 48) := [others => 0];
+      Client_Public_Array      : Stream_Element_Array (1 .. 97) := [others => 0];
+      Shared_Secret_Array      : Stream_Element_Array (1 .. 48) := [others => 0];
+      Kex_Init_Payload         : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Kex_Reply_Payload        : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Reply_Item               : SSH_Lib.Protocol.Kexdh.Reply;
+      Exchange_SHA384_Digest   :
+        SSH_Lib.Protocol.Exchange_Hash.Exchange_SHA384_Digest;
+      Derivation_SHA384_Digest : CryptoLib.Hashes.SHA384_Digest;
+      Null_SHA256_Digest       :
+        constant CryptoLib.Hashes.SHA256_Digest := [others => 0];
+      Derived_Item             : SSH_Lib.Protocol.Session_Keys.Derived_Keys;
+      Kex_State                : SSH_Lib.Protocol.Encrypted_State.Kex_State;
+      Status_Value             : Status;
+
+      procedure Clear_ECDH_Material is
+      begin
+         Client_Private_Array := [others => 0];
+         Client_Public_Array := [others => 0];
+         Shared_Secret_Array := [others => 0];
+         SSH_Lib.Protocol.Buffers.Clear (Kex_Init_Payload);
+         SSH_Lib.Protocol.Buffers.Clear (Kex_Reply_Payload);
+         SSH_Lib.Protocol.Kexdh.Clear (Reply_Item);
+         SSH_Lib.Protocol.Session_Keys.Clear (Derived_Item);
+      exception
+         when others =>
+            null;
+      end Clear_ECDH_Material;
+   begin
+      SSH_Lib.Protocol.Buffers.Clear (Session_Identifier);
+      SSH_Lib.Protocol.Buffers.Clear (Host_Key_Blob);
+      if To_String (Negotiated_Item.Key_Exchange) /= "ecdh-sha2-nistp384" then
+         Clear_ECDH_Material;
+         return Unsupported_Feature;
+      end if;
+
+      CryptoLib.Random.Initialize_Production (Source_Item);
+      Status_Value :=
+        SSH_Lib.ECDSA.Generate_ECDH_Nistp384_Keypair
+          (Source_Item, Client_Private_Array, Client_Public_Array);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Kexdh.Encode_ECDH_Nistp384_Init
+          (Client_Public_Array, Kex_Init_Payload);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Sessions.Live_Transcript.Send_Key_Exchange_Packet
+          (Transcript, SSH_Lib.Protocol.Buffers.To_Array (Kex_Init_Payload));
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        Read_Non_Ignorable_Key_Exchange_Packet (Transcript, Kex_Reply_Payload);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Kexdh.Parse_ECDH_Nistp384_Reply
+          (SSH_Lib.Protocol.Buffers.To_Array (Kex_Reply_Payload), Reply_Item);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      declare
+         Server_Public_Array : constant Stream_Element_Array :=
+           SSH_Lib.Protocol.Buffers.To_Array (Reply_Item.Server_Public_Value);
+      begin
+         Status_Value :=
+           SSH_Lib.ECDSA.Compute_ECDH_Nistp384_Shared_Secret
+             (Client_Private_Array, Server_Public_Array, Shared_Secret_Array);
+      end;
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Exchange_Hash.Compute_ECDH_Nistp384_SHA384
+          (SSH_Lib.Sessions.Live_Transcript.Local_Identification (Transcript),
+           SSH_Lib.Sessions.Live_Transcript.Remote_Identification (Transcript),
+           Client_Kexinit,
+           Server_Kexinit,
+           SSH_Lib.Protocol.Buffers.To_Array (Reply_Item.Host_Key_Blob),
+           Client_Public_Array,
+           SSH_Lib.Protocol.Buffers.To_Array (Reply_Item.Server_Public_Value),
+           Shared_Secret_Array,
+           Exchange_SHA384_Digest);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      SSH_Lib.Protocol.Encrypted_State.Reset (Kex_State);
+      Status_Value :=
+        SSH_Lib.Protocol.Host_Keys.Verify_And_Store
+          (SSH_Lib.Protocol.Buffers.To_Array (Reply_Item.Host_Key_Blob),
+           SSH_Lib.Protocol.Buffers.To_Array (Reply_Item.Signature_Blob),
+           To_String (Negotiated_Item.Server_Host_Key),
+           Digest_To_Array (Exchange_SHA384_Digest),
+           Kex_State);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+      Item.Host_Key_Signature_Verified := True;
+
+      if SSH_Lib.Protocol.Buffers.Length (Established_Session_Identifier) = 0
+      then
+         Derivation_SHA384_Digest := Exchange_SHA384_Digest;
+         Status_Value :=
+           SSH_Lib.Protocol.Buffers.Set
+             (Session_Identifier, Digest_To_Array (Exchange_SHA384_Digest));
+      else
+         Status_Value :=
+           Buffer_To_SHA384_Digest
+             (Established_Session_Identifier, Derivation_SHA384_Digest);
+         if Status_Value = Ok then
+            Status_Value :=
+              SSH_Lib.Protocol.Buffers.Set
+                (Session_Identifier,
+                 SSH_Lib.Protocol.Buffers.To_Array
+                   (Established_Session_Identifier));
+         end if;
+      end if;
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Buffers.Set
+          (Host_Key_Blob,
+           SSH_Lib.Protocol.Buffers.To_Array (Reply_Item.Host_Key_Blob));
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Session_Keys.Derive_SHA384_Keys
+          (Shared_Secret_Array,
+           Exchange_SHA384_Digest,
+           Derivation_SHA384_Digest,
+           16,
+           Maximum_Of
+             (Cipher_Key_Length
+                (To_String (Negotiated_Item.Cipher_Client_To_Server)),
+              Cipher_Key_Length
+                (To_String (Negotiated_Item.Cipher_Server_To_Client))),
+           Maximum_Of
+             (Mac_Key_Length
+                (To_String (Negotiated_Item.Mac_Client_To_Server)),
+              Mac_Key_Length
+                (To_String (Negotiated_Item.Mac_Server_To_Client))),
+           Derived_Item);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+      Item.Keys_Derived := True;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Encrypted_State.Install_Derived_Keys
+          (Kex_State,
+           Negotiated_Item,
+           Null_SHA256_Digest,
+           Null_SHA256_Digest,
+           Derived_Item);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+      Item.Kex_Complete := True;
+
+      Status_Value :=
+        SSH_Lib.Sessions.Live_Transcript.Send_Key_Exchange_Packet
+          (Transcript, SSH_Lib.Protocol.Encrypted_State.Encode_Newkeys);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Encrypted_State.Send_Newkeys (Kex_State);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+      Item.Newkeys_Sent := True;
+      Item.Encrypted_Outbound_Active := True;
+
+      Status_Value :=
+        Read_Non_Ignorable_Key_Exchange_Packet (Transcript, Kex_Reply_Payload);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Encrypted_State.Receive_Newkeys
+          (Kex_State, SSH_Lib.Protocol.Buffers.To_Array (Kex_Reply_Payload));
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+      Item.Newkeys_Received := True;
+      Item.Encrypted_Inbound_Active := True;
+
+      Status_Value :=
+        SSH_Lib.Sessions.Live_Transcript.Install_Protected_Keys
+          (Transcript,
+           To_String (Negotiated_Item.Cipher_Client_To_Server),
+           To_String (Negotiated_Item.Cipher_Server_To_Client),
+           To_String (Negotiated_Item.Mac_Client_To_Server),
+           To_String (Negotiated_Item.Mac_Server_To_Client),
+           To_String (Negotiated_Item.Compression_Client_To_Server),
+           To_String (Negotiated_Item.Compression_Server_To_Client),
+           SSH_Lib.Protocol.Buffers.To_Array
+             (Derived_Item.Integrity_Key_Client_To_Server),
+           SSH_Lib.Protocol.Buffers.To_Array
+             (Derived_Item.Integrity_Key_Server_To_Client),
+           SSH_Lib.Protocol.Buffers.To_Array
+             (Derived_Item.Encryption_Key_Client_To_Server),
+           SSH_Lib.Protocol.Buffers.To_Array
+             (Derived_Item.Initial_IV_Client_To_Server),
+           SSH_Lib.Protocol.Buffers.To_Array
+             (Derived_Item.Encryption_Key_Server_To_Client),
+           SSH_Lib.Protocol.Buffers.To_Array
+             (Derived_Item.Initial_IV_Server_To_Client));
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Clear_ECDH_Material;
+      return Ok;
+   exception
+      when others =>
+         Clear_ECDH_Material;
+         SSH_Lib.Protocol.Buffers.Clear (Session_Identifier);
+         SSH_Lib.Protocol.Buffers.Clear (Host_Key_Blob);
+         return Internal_Error;
+   end Run_ECDH_Nistp384_Kex;
+
+   function Run_ECDH_Nistp521_Kex
+     (Transcript                     :
+        in out SSH_Lib.Sessions.Live_Transcript.Driver;
+      Item                           : in out Session;
+      Client_Kexinit                 : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Server_Kexinit                 : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Negotiated_Item                :
+        SSH_Lib.Protocol.Kex.Negotiated_Algorithms;
+      Established_Session_Identifier : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Session_Identifier             :
+        out SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Host_Key_Blob                  :
+        out SSH_Lib.Protocol.Buffers.Packet_Buffer) return Status
+   is
+      Source_Item              : CryptoLib.Random.Random_Source;
+      Client_Private_Array     : Stream_Element_Array (1 .. 66) := [others => 0];
+      Client_Public_Array      : Stream_Element_Array (1 .. 133) := [others => 0];
+      Shared_Secret_Array      : Stream_Element_Array (1 .. 66) := [others => 0];
+      Kex_Init_Payload         : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Kex_Reply_Payload        : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Reply_Item               : SSH_Lib.Protocol.Kexdh.Reply;
+      Exchange_SHA512_Digest   :
+        SSH_Lib.Protocol.Exchange_Hash.Exchange_SHA512_Digest;
+      Derivation_SHA512_Digest : CryptoLib.Hashes.SHA512_Digest;
+      Null_SHA256_Digest       :
+        constant CryptoLib.Hashes.SHA256_Digest := [others => 0];
+      Derived_Item             : SSH_Lib.Protocol.Session_Keys.Derived_Keys;
+      Kex_State                : SSH_Lib.Protocol.Encrypted_State.Kex_State;
+      Status_Value             : Status;
+
+      procedure Clear_ECDH_Material is
+      begin
+         Client_Private_Array := [others => 0];
+         Client_Public_Array := [others => 0];
+         Shared_Secret_Array := [others => 0];
+         SSH_Lib.Protocol.Buffers.Clear (Kex_Init_Payload);
+         SSH_Lib.Protocol.Buffers.Clear (Kex_Reply_Payload);
+         SSH_Lib.Protocol.Kexdh.Clear (Reply_Item);
+         SSH_Lib.Protocol.Session_Keys.Clear (Derived_Item);
+      exception
+         when others =>
+            null;
+      end Clear_ECDH_Material;
+   begin
+      SSH_Lib.Protocol.Buffers.Clear (Session_Identifier);
+      SSH_Lib.Protocol.Buffers.Clear (Host_Key_Blob);
+      if To_String (Negotiated_Item.Key_Exchange) /= "ecdh-sha2-nistp521" then
+         Clear_ECDH_Material;
+         return Unsupported_Feature;
+      end if;
+
+      CryptoLib.Random.Initialize_Production (Source_Item);
+      Status_Value :=
+        SSH_Lib.ECDSA.Generate_ECDH_Nistp521_Keypair
+          (Source_Item, Client_Private_Array, Client_Public_Array);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Kexdh.Encode_ECDH_Nistp521_Init
+          (Client_Public_Array, Kex_Init_Payload);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Sessions.Live_Transcript.Send_Key_Exchange_Packet
+          (Transcript, SSH_Lib.Protocol.Buffers.To_Array (Kex_Init_Payload));
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        Read_Non_Ignorable_Key_Exchange_Packet (Transcript, Kex_Reply_Payload);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Kexdh.Parse_ECDH_Nistp521_Reply
+          (SSH_Lib.Protocol.Buffers.To_Array (Kex_Reply_Payload), Reply_Item);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      declare
+         Server_Public_Array : constant Stream_Element_Array :=
+           SSH_Lib.Protocol.Buffers.To_Array (Reply_Item.Server_Public_Value);
+      begin
+         Status_Value :=
+           SSH_Lib.ECDSA.Compute_ECDH_Nistp521_Shared_Secret
+             (Client_Private_Array, Server_Public_Array, Shared_Secret_Array);
+      end;
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Exchange_Hash.Compute_ECDH_Nistp521_SHA512
+          (SSH_Lib.Sessions.Live_Transcript.Local_Identification (Transcript),
+           SSH_Lib.Sessions.Live_Transcript.Remote_Identification (Transcript),
+           Client_Kexinit,
+           Server_Kexinit,
+           SSH_Lib.Protocol.Buffers.To_Array (Reply_Item.Host_Key_Blob),
+           Client_Public_Array,
+           SSH_Lib.Protocol.Buffers.To_Array (Reply_Item.Server_Public_Value),
+           Shared_Secret_Array,
+           Exchange_SHA512_Digest);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      SSH_Lib.Protocol.Encrypted_State.Reset (Kex_State);
+      Status_Value :=
+        SSH_Lib.Protocol.Host_Keys.Verify_And_Store
+          (SSH_Lib.Protocol.Buffers.To_Array (Reply_Item.Host_Key_Blob),
+           SSH_Lib.Protocol.Buffers.To_Array (Reply_Item.Signature_Blob),
+           To_String (Negotiated_Item.Server_Host_Key),
+           Digest_To_Array (Exchange_SHA512_Digest),
+           Kex_State);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+      Item.Host_Key_Signature_Verified := True;
+
+      if SSH_Lib.Protocol.Buffers.Length (Established_Session_Identifier) = 0
+      then
+         Derivation_SHA512_Digest := Exchange_SHA512_Digest;
+         Status_Value :=
+           SSH_Lib.Protocol.Buffers.Set
+             (Session_Identifier, Digest_To_Array (Exchange_SHA512_Digest));
+      else
+         Status_Value :=
+           Buffer_To_SHA512_Digest
+             (Established_Session_Identifier, Derivation_SHA512_Digest);
+         if Status_Value = Ok then
+            Status_Value :=
+              SSH_Lib.Protocol.Buffers.Set
+                (Session_Identifier,
+                 SSH_Lib.Protocol.Buffers.To_Array
+                   (Established_Session_Identifier));
+         end if;
+      end if;
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Buffers.Set
+          (Host_Key_Blob,
+           SSH_Lib.Protocol.Buffers.To_Array (Reply_Item.Host_Key_Blob));
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Session_Keys.Derive_SHA512_Keys
+          (Shared_Secret_Array,
+           Exchange_SHA512_Digest,
+           Derivation_SHA512_Digest,
+           16,
+           Maximum_Of
+             (Cipher_Key_Length
+                (To_String (Negotiated_Item.Cipher_Client_To_Server)),
+              Cipher_Key_Length
+                (To_String (Negotiated_Item.Cipher_Server_To_Client))),
+           Maximum_Of
+             (Mac_Key_Length
+                (To_String (Negotiated_Item.Mac_Client_To_Server)),
+              Mac_Key_Length
+                (To_String (Negotiated_Item.Mac_Server_To_Client))),
+           Derived_Item);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+      Item.Keys_Derived := True;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Encrypted_State.Install_Derived_Keys
+          (Kex_State,
+           Negotiated_Item,
+           Null_SHA256_Digest,
+           Null_SHA256_Digest,
+           Derived_Item);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+      Item.Kex_Complete := True;
+
+      Status_Value :=
+        SSH_Lib.Sessions.Live_Transcript.Send_Key_Exchange_Packet
+          (Transcript, SSH_Lib.Protocol.Encrypted_State.Encode_Newkeys);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Encrypted_State.Send_Newkeys (Kex_State);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+      Item.Newkeys_Sent := True;
+      Item.Encrypted_Outbound_Active := True;
+
+      Status_Value :=
+        Read_Non_Ignorable_Key_Exchange_Packet (Transcript, Kex_Reply_Payload);
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Status_Value :=
+        SSH_Lib.Protocol.Encrypted_State.Receive_Newkeys
+          (Kex_State, SSH_Lib.Protocol.Buffers.To_Array (Kex_Reply_Payload));
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+      Item.Newkeys_Received := True;
+      Item.Encrypted_Inbound_Active := True;
+
+      Status_Value :=
+        SSH_Lib.Sessions.Live_Transcript.Install_Protected_Keys
+          (Transcript,
+           To_String (Negotiated_Item.Cipher_Client_To_Server),
+           To_String (Negotiated_Item.Cipher_Server_To_Client),
+           To_String (Negotiated_Item.Mac_Client_To_Server),
+           To_String (Negotiated_Item.Mac_Server_To_Client),
+           To_String (Negotiated_Item.Compression_Client_To_Server),
+           To_String (Negotiated_Item.Compression_Server_To_Client),
+           SSH_Lib.Protocol.Buffers.To_Array
+             (Derived_Item.Integrity_Key_Client_To_Server),
+           SSH_Lib.Protocol.Buffers.To_Array
+             (Derived_Item.Integrity_Key_Server_To_Client),
+           SSH_Lib.Protocol.Buffers.To_Array
+             (Derived_Item.Encryption_Key_Client_To_Server),
+           SSH_Lib.Protocol.Buffers.To_Array
+             (Derived_Item.Initial_IV_Client_To_Server),
+           SSH_Lib.Protocol.Buffers.To_Array
+             (Derived_Item.Encryption_Key_Server_To_Client),
+           SSH_Lib.Protocol.Buffers.To_Array
+             (Derived_Item.Initial_IV_Server_To_Client));
+      if Status_Value /= Ok then
+         Clear_ECDH_Material;
+         return Status_Value;
+      end if;
+
+      Clear_ECDH_Material;
+      return Ok;
+   exception
+      when others =>
+         Clear_ECDH_Material;
+         SSH_Lib.Protocol.Buffers.Clear (Session_Identifier);
+         SSH_Lib.Protocol.Buffers.Clear (Host_Key_Blob);
+         return Internal_Error;
+   end Run_ECDH_Nistp521_Kex;
+
    type Proxy_Jump_Target is record
       Host  : Unbounded_String;
       Port  : Natural := 22;
@@ -3065,6 +3777,30 @@ package body SSH_Lib.Sessions.Live_Transport is
               Initial_Session_Identifier,
               Session_Identifier,
               Host_Key_Blob);
+      elsif To_String (Negotiated_Item.Key_Exchange) = "ecdh-sha2-nistp521"
+      then
+         Status_Value :=
+           Run_ECDH_Nistp521_Kex
+             (Transcript_Ptr.all,
+              Item,
+              Client_Kexinit,
+              Server_Kexinit,
+              Negotiated_Item,
+              Initial_Session_Identifier,
+              Session_Identifier,
+              Host_Key_Blob);
+      elsif To_String (Negotiated_Item.Key_Exchange) = "ecdh-sha2-nistp384"
+      then
+         Status_Value :=
+           Run_ECDH_Nistp384_Kex
+             (Transcript_Ptr.all,
+              Item,
+              Client_Kexinit,
+              Server_Kexinit,
+              Negotiated_Item,
+              Initial_Session_Identifier,
+              Session_Identifier,
+              Host_Key_Blob);
       else
          Status_Value :=
            Run_Group14_Kex
@@ -3132,6 +3868,10 @@ package body SSH_Lib.Sessions.Live_Transport is
       Item.Live_Bytes_Since_Rekey := 0;
       Item.Live_Rekey_Started := Ada.Calendar.Clock;
       Item.Live_Rekey_In_Progress := False;
+      SSH_Lib.Sessions.Live_Transcript.Configure_Server_Alive
+        (Transcript_Ptr.all,
+         Options.Server_Alive_Interval,
+         Options.Server_Alive_Count_Max);
       SSH_Lib.Sessions.Live_Attachment.Attach (Item, Transcript_Ptr);
       return Ok;
    exception
@@ -3302,7 +4042,12 @@ package body SSH_Lib.Sessions.Live_Transport is
            Options.Port,
            Options.Connect_Timeout_MS,
            Options.Read_Timeout_MS,
-           Options.Write_Timeout_MS);
+           Options.Write_Timeout_MS,
+           To_String (Options.Address_Family),
+           To_String (Options.Bind_Address),
+           Options.TCP_Keep_Alive,
+           To_String (Options.IP_QoS),
+           To_String (Options.Bind_Interface));
       if Status_Value /= Ok then
          SSH_Lib.Sessions.Live_Attachment.Destroy (Transcript_Ptr);
          return Status_Value;
@@ -3361,6 +4106,44 @@ package body SSH_Lib.Sessions.Live_Transport is
          return Internal_Error;
    end Connect_Through_Proxy_Command;
 
+   function Connect_Through_Control_Master
+     (Options      : Session_Options;
+      Control_Path : String;
+      Item         : in out Session)
+      return Status
+   is
+      Transcript_Ptr : SSH_Lib.Sessions.Live_Attachment.Transcript_Access :=
+        SSH_Lib.Sessions.Live_Attachment.Create;
+      Target_Options : Session_Options := Options;
+      Status_Value   : Status;
+   begin
+      if Transcript_Ptr = null then
+         return Internal_Error;
+      end if;
+
+      Target_Options.Proxy_Command := Null_Unbounded_String;
+      Target_Options.Proxy_Jump := Null_Unbounded_String;
+      Target_Options.Control_Master := Null_Unbounded_String;
+
+      Status_Value :=
+        SSH_Lib.Sessions.Live_Transcript.Connect_Through_Mux_Proxy
+          (Transcript_Ptr.all,
+           Control_Path,
+           Options.Read_Timeout_MS,
+           Options.Write_Timeout_MS);
+      if Status_Value /= Ok then
+         SSH_Lib.Sessions.Live_Attachment.Destroy (Transcript_Ptr);
+         return Status_Value;
+      end if;
+
+      return Complete_Handshake_On_Transcript
+        (Target_Options, Item, Transcript_Ptr);
+   exception
+      when others =>
+         SSH_Lib.Sessions.Live_Attachment.Destroy (Transcript_Ptr);
+         return Internal_Error;
+   end Connect_Through_Control_Master;
+
    function Rekey (Item : in out Session) return Status is
       Transcript_Ptr     :
         constant SSH_Lib.Sessions.Live_Attachment.Transcript_Access :=
@@ -3384,6 +4167,8 @@ package body SSH_Lib.Sessions.Live_Transport is
       if SSH_Lib.Protocol.Buffers.Length (Item.Live_Session_Identifier) /= 20
         and then
           SSH_Lib.Protocol.Buffers.Length (Item.Live_Session_Identifier) /= 32
+        and then
+          SSH_Lib.Protocol.Buffers.Length (Item.Live_Session_Identifier) /= 48
         and then
           SSH_Lib.Protocol.Buffers.Length (Item.Live_Session_Identifier) /= 64
       then
@@ -3437,6 +4222,30 @@ package body SSH_Lib.Sessions.Live_Transport is
       then
          Status_Value :=
            Run_ECDH_Nistp256_Kex
+             (Transcript_Ptr.all,
+              Item,
+              Client_Kexinit,
+              Server_Kexinit,
+              Negotiated_Item,
+              Item.Live_Session_Identifier,
+              Session_Identifier,
+              Host_Key_Blob);
+      elsif To_String (Negotiated_Item.Key_Exchange) = "ecdh-sha2-nistp521"
+      then
+         Status_Value :=
+           Run_ECDH_Nistp521_Kex
+             (Transcript_Ptr.all,
+              Item,
+              Client_Kexinit,
+              Server_Kexinit,
+              Negotiated_Item,
+              Item.Live_Session_Identifier,
+              Session_Identifier,
+              Host_Key_Blob);
+      elsif To_String (Negotiated_Item.Key_Exchange) = "ecdh-sha2-nistp384"
+      then
+         Status_Value :=
+           Run_ECDH_Nistp384_Kex
              (Transcript_Ptr.all,
               Item,
               Client_Kexinit,
@@ -3664,6 +4473,30 @@ package body SSH_Lib.Sessions.Live_Transport is
       then
          Status_Value :=
            Run_ECDH_Nistp256_Kex
+             (Transcript_Ptr.all,
+              Item,
+              Client_Kexinit,
+              Server_Kexinit,
+              Negotiated_Item,
+              Item.Live_Session_Identifier,
+              Session_Identifier,
+              Host_Key_Blob);
+      elsif To_String (Negotiated_Item.Key_Exchange) = "ecdh-sha2-nistp521"
+      then
+         Status_Value :=
+           Run_ECDH_Nistp521_Kex
+             (Transcript_Ptr.all,
+              Item,
+              Client_Kexinit,
+              Server_Kexinit,
+              Negotiated_Item,
+              Item.Live_Session_Identifier,
+              Session_Identifier,
+              Host_Key_Blob);
+      elsif To_String (Negotiated_Item.Key_Exchange) = "ecdh-sha2-nistp384"
+      then
+         Status_Value :=
+           Run_ECDH_Nistp384_Kex
              (Transcript_Ptr.all,
               Item,
               Client_Kexinit,

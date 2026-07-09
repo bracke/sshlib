@@ -37,6 +37,9 @@ procedure API_Stability_Main is
    use type SSH_Lib.Git.Push_Workflow_State;
    use type SSH_Lib.Git.Fetch_Policy_Decision;
    use type SSH_Lib.Git.Push_Policy_Decision;
+   use type SSH_Lib.Config_Apply.Control_Master_Mode;
+   use type SSH_Lib.Config_Apply.Request_TTY_Mode;
+   use type SSH_Lib.Config_Apply.Session_Type_Mode;
 
    Client_Item : SSH_Lib.Clients.Client := SSH_Lib.Clients.Create;
    pragma Unreferenced (Client_Item);
@@ -51,6 +54,8 @@ procedure API_Stability_Main is
    Config_Local_Services :
      SSH_Lib.Config_Apply.Managed_Forward_Service_Array (1 .. 1);
    Config_Dynamic_Services :
+     SSH_Lib.Config_Apply.Managed_Forward_Service_Array (1 .. 1);
+   Config_Remote_Services :
      SSH_Lib.Config_Apply.Managed_Forward_Service_Array (1 .. 1);
    Config_Bound_Ports : SSH_Lib.Config_Apply.Bound_Port_Array (1 .. 1);
    Security_Key_Request : SSH_Lib.Protocol.Buffers.Packet_Buffer;
@@ -271,6 +276,23 @@ begin
      (Session_Item,
       SSH_Lib.Git_Transport.Receive_Pack,
       To_String (Transport_Command),
+      Request_Bytes,
+      Buffer,
+      Last,
+      Git_Workflow_Summary);
+   Touch (Status_Value);
+   Status_Value := SSH_Lib.Git_Transport.Run_Service_With_Local_Git
+     ("",
+      SSH_Lib.Git_Transport.Upload_Pack,
+      Request_Bytes,
+      Buffer,
+      Last,
+      Git_Workflow_Summary);
+   Touch (Status_Value);
+   Status_Value := SSH_Lib.Git_Transport.Run_Service_With_Local_SSH
+     (Options,
+      "",
+      SSH_Lib.Git_Transport.Receive_Pack,
       Request_Bytes,
       Buffer,
       Last,
@@ -1759,6 +1781,23 @@ begin
                  "A <a@example.test> 0 +0000",
                  "A <a@example.test> 0 +0000",
                  "stage" & Character'Val (10),
+                 Stored_Commit_Hex,
+                 Stored_Commit_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Write_Worktree_File
+                (Repo_Root,
+                 "api-porcelain.txt",
+                 Bytes_From_String ("api"));
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Stage_And_Commit_Worktree_File
+                (Repo_Root,
+                 "main",
+                 "api-porcelain.txt",
+                 "A <a@example.test> 1 +0000",
+                 "A <a@example.test> 1 +0000",
+                 "api" & Character'Val (10),
                  Stored_Commit_Hex,
                  Stored_Commit_Last);
             Touch (Status_Value);
@@ -3982,6 +4021,22 @@ begin
    Options.Control_Master := To_Unbounded_String ("auto");
    Options.Control_Path := To_Unbounded_String ("~/.ssh/cm-%r@%h:%p");
    Options.Control_Persist := To_Unbounded_String ("10m");
+   Options.Batch_Mode := True;
+   Options.Forward_Agent := True;
+   Options.Forward_X11 := True;
+   Options.Request_TTY := To_Unbounded_String ("force");
+   Options.Remote_Command := To_Unbounded_String ("git status --porcelain");
+   Options.Server_Alive_Interval := 15;
+   Options.Server_Alive_Count_Max := 4;
+   Options.TCP_Keep_Alive := False;
+   Options.Log_Level := To_Unbounded_String ("VERBOSE");
+   Options.Visual_Host_Key := True;
+   Options.Update_Host_Keys := To_Unbounded_String ("ask");
+   Options.Permit_Local_Command := True;
+   Options.Local_Command := To_Unbounded_String ("printf ready");
+   Options.Add_Keys_To_Agent := To_Unbounded_String ("confirm");
+   Options.Clear_All_Forwardings := True;
+   Options.Exit_On_Forward_Failure := True;
    Forward_Text :=
      Options.Local_Forwards
      & Options.Remote_Forwards
@@ -3990,8 +4045,27 @@ begin
      & Options.Set_Env
      & Options.Control_Master
      & Options.Control_Path
-     & Options.Control_Persist;
+     & Options.Control_Persist
+     & Options.Request_TTY
+     & Options.Remote_Command
+     & Options.Log_Level
+     & Options.Update_Host_Keys
+     & Options.Local_Command
+     & Options.Add_Keys_To_Agent;
    if Length (Forward_Text) = 0 then
+      raise Program_Error;
+   end if;
+   if not Options.Batch_Mode
+     or else not Options.Forward_Agent
+     or else not Options.Forward_X11
+     or else Options.Server_Alive_Interval /= 15
+     or else Options.Server_Alive_Count_Max /= 4
+     or else Options.TCP_Keep_Alive
+     or else not Options.Visual_Host_Key
+     or else not Options.Permit_Local_Command
+     or else not Options.Clear_All_Forwardings
+     or else not Options.Exit_On_Forward_Failure
+   then
       raise Program_Error;
    end if;
    X11_Cookie_OK :=
@@ -4207,7 +4281,8 @@ begin
       Service_Kind := SSH_Lib.Forwarding.Forward_Service_Kind (Service_Item);
       case Service_Kind is
          when SSH_Lib.Forwarding.Local_Forward_Service
-            | SSH_Lib.Forwarding.Dynamic_Forward_Service =>
+            | SSH_Lib.Forwarding.Dynamic_Forward_Service
+            | SSH_Lib.Forwarding.Remote_Forward_Service =>
             null;
       end case;
       if Accepted_Count /= 0
@@ -4232,6 +4307,15 @@ begin
          0,
          Managed_Service_Item,
          Max_Concurrent => 0);
+      Touch (Status_Value);
+      Status_Value := SSH_Lib.Forwarding.Start_Managed_Remote_Forward_Service
+        (Session_Item,
+         "0.0.0.0",
+         0,
+         "target.example",
+         22,
+         Managed_Service_Item,
+         Max_Accepted => 1);
       Touch (Status_Value);
       if SSH_Lib.Forwarding.Managed_Forward_Service_Running
         (Managed_Service_Item)
@@ -4268,7 +4352,8 @@ begin
           (Managed_Service_Item);
       case Service_Kind is
          when SSH_Lib.Forwarding.Local_Forward_Service
-            | SSH_Lib.Forwarding.Dynamic_Forward_Service =>
+            | SSH_Lib.Forwarding.Dynamic_Forward_Service
+            | SSH_Lib.Forwarding.Remote_Forward_Service =>
             null;
       end case;
       if Accepted_Count /= 0
@@ -4299,10 +4384,65 @@ begin
          Config_Bound_Ports,
          Config_Requested);
       Touch (Status_Value);
+      Status_Value := SSH_Lib.Config_Apply.Start_Configured_Remote_Forwards
+        (Session_Item,
+         Options,
+         Config_Remote_Services,
+         Config_Bound_Ports,
+         Config_Started);
+      Touch (Status_Value);
       Status_Value := SSH_Lib.Config_Apply.Apply_Configured_Environment
         (Session_Item,
          Channel_Item,
          Options);
+      Touch (Status_Value);
+      if SSH_Lib.Config_Apply.Control_Master_Mode_Of (Options)
+        = SSH_Lib.Config_Apply.Control_Master_Invalid
+      then
+         raise Program_Error;
+      end if;
+      if SSH_Lib.Config_Apply.Request_TTY_Mode_Of (Options)
+        = SSH_Lib.Config_Apply.Request_TTY_Invalid
+      then
+         raise Program_Error;
+      end if;
+      if SSH_Lib.Config_Apply.Session_Type_Mode_Of (Options)
+        = SSH_Lib.Config_Apply.Session_Type_Invalid
+      then
+         raise Program_Error;
+      end if;
+      declare
+         Expanded_Control_Path : Unbounded_String;
+         Persist_Seconds : Natural := 0;
+      begin
+         Status_Value := SSH_Lib.Config_Apply.Expand_Control_Path
+           (Options,
+            Original_Host   => "alias",
+            Local_Host_Name => "localhost",
+            Result          => Expanded_Control_Path);
+         Touch (Status_Value);
+         if Length (Expanded_Control_Path) > 4096 then
+            raise Program_Error;
+         end if;
+         Status_Value := SSH_Lib.Config_Apply.Control_Persist_Seconds
+           (Options, Persist_Seconds);
+         Touch (Status_Value);
+         Pumped_Bytes := Pumped_Bytes + Persist_Seconds mod 1;
+         Status_Value := SSH_Lib.Config_Apply.Expand_Local_Command
+           (Options,
+            Original_Host   => "alias",
+            Local_Host_Name => "localhost",
+            Result          => Expanded_Control_Path);
+         Touch (Status_Value);
+         if Length (Expanded_Control_Path) > 4096 then
+            raise Program_Error;
+         end if;
+      end;
+      Status_Value := SSH_Lib.Config_Apply.Open_Configured_Exec
+        (Session_Item,
+         Options,
+         "true",
+         Channel_Item);
       Touch (Status_Value);
       Status_Value := SSH_Lib.Security_Keys.Build_Signed_Request
         (null,

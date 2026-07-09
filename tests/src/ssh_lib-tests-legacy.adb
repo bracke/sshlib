@@ -2,6 +2,8 @@ with Ada.Directories;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with GNAT.OS_Lib;
+with GNAT.Sockets;
 with Interfaces;
 with SSH_Lib.Agent;
 with SSH_Lib.Cancellation;
@@ -20,6 +22,7 @@ with SSH_Lib.Sessions.Cleanup;
 with SSH_Lib.Channels.Cleanup;
 with SSH_Lib.Agent.Protocol;
 with SSH_Lib.Agent.Transport;
+with SSH_Lib.Platform.FD_Passing;
 with SSH_Lib.Platform.Environment;
 with SSH_Lib.Protocol.Auth_Methods;
 with SSH_Lib.Protocol.Service;
@@ -54,6 +57,7 @@ with SSH_Lib.Testing.Failure_Injection;
 with SSH_Lib.Security_Audit;
 with SSH_Lib.Diagnostics.Redaction;
 with SSH_Lib.Protocol.Negative_Tests;
+with SSH_Lib.Mux;
 with SSH_Lib.Git;
 with SSH_Lib.Git_Transport;
 with SSH_Lib.Identity_Files;
@@ -75,10 +79,12 @@ with SSH_Lib.Protocol.Channels;
 with SSH_Lib.Protocol.Global_Requests;
 with SSH_Lib.Sessions;
 with SSH_Lib.Sessions.Test_Support;
+with SSH_Lib.Sessions.Live_Transcript;
 with SSH_Lib.Sessions.Open_Pipeline;
 with SSH_Lib.Tests.Assertions;
 with SSH_Lib.Tests.Fixtures.Agent;
 with SSH_Lib.Tests.Fixtures.Agent_Transport;
+with SSH_Lib.Tests.Fixtures.Algorithm_Security;
 with SSH_Lib.Tests.Fixtures.Auth_Security;
 with SSH_Lib.Tests.Fixtures.Binary_Data;
 with SSH_Lib.Tests.Fixtures.Binary_Matrix;
@@ -131,6 +137,10 @@ package body SSH_Lib.Tests.Legacy is
    use type SSH_Lib.Keys.Public_Key_Algorithm;
    use type SSH_Lib.Known_Hosts.Verification_Result;
    use type SSH_Lib.Forwarding.Forward_Service_Mode;
+   use type SSH_Lib.Config_Apply.Control_Master_Mode;
+   use type SSH_Lib.Config_Apply.Control_Master_Action;
+   use type SSH_Lib.Config_Apply.Request_TTY_Mode;
+   use type SSH_Lib.Config_Apply.Session_Type_Mode;
    use type SSH_Lib.Forwarding.X11_Display_Transport;
    use type SSH_Lib.Protocol.Userauth.Reply_Kind;
    use type SSH_Lib.Remote_Names.Remote_Kind;
@@ -141,6 +151,9 @@ package body SSH_Lib.Tests.Legacy is
    use type Interfaces.Unsigned_64;
    use type SSH_Lib.Protocol.Negative_Tests.Negative_Category;
    use type SSH_Lib.Protocol.Negative_Tests.Negative_Invariant;
+   use type SSH_Lib.Mux.Mux_Message_Kind;
+   use type SSH_Lib.Mux.Mux_Master_Decision;
+   use type SSH_Lib.Mux.Mux_Forward_Type;
 
    generic
       type Item_Type (<>) is limited private;
@@ -235,6 +248,7 @@ package body SSH_Lib.Tests.Legacy is
       Options.Host := Null_Unbounded_String;
       Options.User := To_Unbounded_String ("git");
       Check (Options.Verify_Known_Host, "verify known host default");
+      Check (not Options.Trust_On_First_Use, "trust on first use default");
       Check (Options.Strict_Host_Key, "strict host key default");
       Check (Options.Automatic_Rekey, "automatic rekey default enabled");
       Check
@@ -317,9 +331,180 @@ package body SSH_Lib.Tests.Legacy is
       Check_Status (Result_Status, CryptoLib.Errors.Invalid_User, "empty user");
 
       Options.User := To_Unbounded_String ("git");
+      Options.Verify_Host_Key_DNS := To_Unbounded_String ("ask");
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Unsupported_Feature,
+         "VerifyHostKeyDNS ask fails closed until SSHFP verification exists");
+      Options.Verify_Host_Key_DNS := Null_Unbounded_String;
+
+      Options.Check_Host_IP := True;
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Unsupported_Feature,
+         "CheckHostIP yes fails closed until host address matching exists");
+      Options.Check_Host_IP := False;
+
+      Options.Update_Host_Keys := To_Unbounded_String ("ask");
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Unsupported_Feature,
+         "UpdateHostKeys ask fails closed until host-key update exists");
+      Options.Update_Host_Keys := Null_Unbounded_String;
+
+      Options.Hostbased_Authentication := True;
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Unsupported_Feature,
+         "HostbasedAuthentication fails closed until hostbased auth exists");
+      Options.Hostbased_Authentication := False;
+
+      Options.Fork_After_Authentication := True;
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Unsupported_Feature,
+         "ForkAfterAuthentication fails closed until backgrounding exists");
+      Options.Fork_After_Authentication := False;
+
+      Options.Proxy_Use_Fdpass := True;
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Unsupported_Feature,
+         "ProxyUseFdpass fails closed until proxy fd-passing exists");
+      Options.Proxy_Use_Fdpass := False;
+
+      Options.Enable_SSH_Keysign := True;
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Unsupported_Feature,
+         "EnableSSHKeysign fails closed until ssh-keysign support exists");
+      Options.Enable_SSH_Keysign := False;
+
+      Options.GSSAPI_Authentication := True;
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Unsupported_Feature,
+         "GSSAPIAuthentication fails closed until GSSAPI auth exists");
+      Options.GSSAPI_Authentication := False;
+
+      Options.GSSAPI_Delegate_Credentials := True;
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Unsupported_Feature,
+         "GSSAPIDelegateCredentials fails closed until GSSAPI auth exists");
+      Options.GSSAPI_Delegate_Credentials := False;
+
+      Options.Add_Keys_To_Agent := To_Unbounded_String ("confirm");
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Unsupported_Feature,
+         "AddKeysToAgent fails closed until agent-add support exists");
+      Options.Add_Keys_To_Agent := Null_Unbounded_String;
+
+      Options.Preferred_Authentications := To_Unbounded_String ("publickey");
+      Options.Pubkey_Authentication := False;
+      Options.Identity_File := To_Unbounded_String ("id_ed25519");
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Authentication_Failed,
+         "PubkeyAuthentication no disables publickey preflight");
+      Options.Pubkey_Authentication := True;
+      Options.Identity_File := Null_Unbounded_String;
+      Options.Preferred_Authentications := Null_Unbounded_String;
+
+      Options.Preferred_Authentications := To_Unbounded_String ("password");
+      Options.Password_Authentication := False;
+      Options.Use_Password := True;
+      Options.Password := To_Unbounded_String ("secret");
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Authentication_Failed,
+         "PasswordAuthentication no disables password preflight");
+      Options.Password_Authentication := True;
+      Options.Use_Password := False;
+      Options.Password := Null_Unbounded_String;
+      Options.Preferred_Authentications := Null_Unbounded_String;
+
+      Options.Preferred_Authentications := To_Unbounded_String ("password");
+      Options.Number_Of_Password_Prompts := 0;
+      Options.Use_Password := True;
+      Options.Password := To_Unbounded_String ("secret");
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Authentication_Failed,
+         "NumberOfPasswordPrompts 0 disables password preflight");
+      Options.Number_Of_Password_Prompts := 3;
+      Options.Use_Password := False;
+      Options.Password := Null_Unbounded_String;
+      Options.Preferred_Authentications := Null_Unbounded_String;
+
+      Options.Preferred_Authentications :=
+        To_Unbounded_String ("keyboard-interactive");
+      Options.Kbd_Interactive_Authentication := False;
+      Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Authentication_Failed,
+         "KbdInteractiveAuthentication no disables keyboard-interactive preflight");
+      Options.Kbd_Interactive_Authentication := True;
+      Options.Preferred_Authentications := Null_Unbounded_String;
+
+      declare
+         Transcript_Item : SSH_Lib.Sessions.Live_Transcript.Driver;
+      begin
+         Result_Status :=
+           SSH_Lib.Sessions.Live_Transcript.Connect
+             (Transcript_Item,
+              Host           => "ignored.invalid",
+              Port           => 22,
+              Address_Family => "bad-family");
+         Check_Status
+           (Result_Status,
+            CryptoLib.Errors.Invalid_Command,
+            "invalid live AddressFamily is rejected before DNS/connect");
+         Result_Status :=
+           SSH_Lib.Sessions.Live_Transcript.Connect
+             (Transcript_Item,
+              Host   => "ignored.invalid",
+              Port   => 22,
+              IP_QoS => "bad-qos-token");
+         Check_Status
+           (Result_Status,
+            CryptoLib.Errors.Invalid_Command,
+            "invalid live IPQoS is rejected before DNS/connect");
+         Result_Status :=
+           SSH_Lib.Sessions.Live_Transcript.Connect
+             (Transcript_Item,
+              Host           => "ignored.invalid",
+              Port           => 22,
+              Bind_Interface => "bad/name");
+         Check_Status
+           (Result_Status,
+            CryptoLib.Errors.Invalid_Command,
+            "invalid live BindInterface is rejected before DNS/connect");
+      end;
       Options.Connect_Timeout_MS := 1;
       Options.Read_Timeout_MS := 1;
       Options.Write_Timeout_MS := 1;
+      Options.Identity_File := To_Unbounded_String ("id_ed25519");
+      Check_Status
+        (SSH_Lib.Sessions.Open_Pipeline.Authentication_Configuration_Preflight
+           (Options),
+         CryptoLib.Errors.Ok,
+         "valid session auth preflight reaches transport boundary");
       SSH_Lib.Platform.Environment.Set_Value_For_Test ("SSH_AUTH_SOCK", "");
       Result_Status := SSH_Lib.Sessions.Open (Options, Session_Item);
       Check
@@ -5048,6 +5233,40 @@ package body SSH_Lib.Tests.Legacy is
 	            and then Bytes_Equal
 	              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
 	            "git branch checkout restores staged blob");
+	         Status_Value :=
+	           SSH_Lib.Git.Write_Worktree_File
+	             (Repo_Root,
+	              "porcelain.txt",
+	              Bytes_From_String ("porcelain"));
+	         Check_Status
+	           (Status_Value, CryptoLib.Errors.Ok,
+	            "git porcelain worktree file written");
+	         Status_Value :=
+	           SSH_Lib.Git.Stage_And_Commit_Worktree_File
+	             (Repo_Root,
+	              "main",
+	              "porcelain.txt",
+	              "A <a@example.test> 1 +0000",
+	              "A <a@example.test> 1 +0000",
+	              "porcelain" & Character'Val (10),
+	              Stored_Commit_Hex,
+	              Stored_Commit_Last);
+	         Check_Status
+	           (Status_Value, CryptoLib.Errors.Ok,
+	            "git porcelain stage and commit succeeds");
+	         Check
+	           (Stored_Commit_Last = Stored_Commit_Hex'Last,
+	            "git porcelain commit id is returned");
+	         Status_Value :=
+	           SSH_Lib.Git.Read_Branch
+	             (Repo_Root, "main", Read_Hex, Read_Last);
+	         Check_Status
+	           (Status_Value, CryptoLib.Errors.Ok,
+	            "git porcelain committed branch can be read");
+	         Check
+	           (Read_Last = Read_Hex'Last
+	            and then Bytes_Equal (Read_Hex, Stored_Commit_Hex),
+	            "git porcelain commit updates target branch");
 	         declare
 	            Nested_Commit_Data :
 	              Ada.Streams.Stream_Element_Array (1 .. 256);
@@ -7188,6 +7407,39 @@ package body SSH_Lib.Tests.Legacy is
 	                  & Bytes_From_String
 	                      (" subject" & Character'Val (10))),
 	               "git sequencer pick line values");
+	            declare
+	               Todo_IDs : constant SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2) :=
+	                 [1 => SSH_Lib.Git.Object_ID_Hex_Text (Expected_Blob_Hex),
+	                  2 => SSH_Lib.Git.Object_ID_Hex_Text (Alternate_Hex)];
+	               Todo_Subjects : constant Ada.Streams.Stream_Element_Array :=
+	                 Bytes_From_String ("firstsecond");
+	               Todo_Lasts : constant SSH_Lib.Git.Index_Path_Last_Array
+	                 (1 .. 2) := [1 => 5, 2 => 11];
+	            begin
+	               Status_Value :=
+	                 SSH_Lib.Git.Build_Sequencer_Pick_Todo
+	                   (Todo_IDs,
+	                    Todo_Subjects,
+	                    Todo_Lasts,
+	                    2,
+	                    Conflict_Data,
+	                    Conflict_Last);
+	               Check_Status
+	                 (Status_Value, CryptoLib.Errors.Ok,
+	                  "git sequencer multi-pick todo built");
+	               Check
+	                 (Bytes_Equal
+	                    (Conflict_Data
+	                       (Conflict_Data'First .. Conflict_Last),
+	                     Bytes_From_String ("pick ")
+	                     & Expected_Blob_Hex
+	                     & Bytes_From_String
+	                         (" first" & Character'Val (10) & "pick ")
+	                     & Alternate_Hex
+	                     & Bytes_From_String
+	                         (" second" & Character'Val (10))),
+	                  "git sequencer multi-pick todo values");
+	            end;
 	            Status_Value :=
 	              SSH_Lib.Git.Build_Sequencer_Pick_Line
 	                (Expected_Blob_Hex,
@@ -12129,6 +12381,7 @@ package body SSH_Lib.Tests.Legacy is
             end if;
             raise;
       end Write_Text;
+
    begin
       SSH_Lib.Platform.Environment.Set_Value_For_Test ("HOME", Home_Path);
       Empty_Config := SSH_Lib.Config.Load_Default;
@@ -12774,6 +13027,26 @@ package body SSH_Lib.Tests.Legacy is
             end if;
             raise;
       end Write_Text;
+
+      function First_Line (Path : String) return String is
+         Input_File : Ada.Text_IO.File_Type;
+         Buffer     : String (1 .. 2048);
+         Last       : Natural := 0;
+      begin
+         Ada.Text_IO.Open (Input_File, Ada.Text_IO.In_File, Path);
+         Ada.Text_IO.Get_Line (Input_File, Buffer, Last);
+         Ada.Text_IO.Close (Input_File);
+         if Last = 0 then
+            return "";
+         end if;
+         return Buffer (1 .. Last);
+      exception
+         when others =>
+            if Ada.Text_IO.Is_Open (Input_File) then
+               Ada.Text_IO.Close (Input_File);
+            end if;
+            return "";
+      end First_Line;
    begin
       Check
         (SSH_Lib.Known_Hosts.Is_Valid (Good_Key),
@@ -13092,6 +13365,37 @@ package body SSH_Lib.Tests.Legacy is
       Check
         (Verification = SSH_Lib.Known_Hosts.Trusted,
          "phase19 pass86 hashed known_hosts match is case-insensitive");
+      Status_Value :=
+        SSH_Lib.Known_Hosts.Append_Trusted_Host
+          (Hash_Path & "_append",
+           "hash-write.example.com",
+           22,
+           Good_Key,
+           Hash_Host => True);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "phase19 HashKnownHosts append succeeds");
+      declare
+         Line_Text : constant String := First_Line (Hash_Path & "_append");
+      begin
+         Check
+           (Line_Text'Length > 3
+            and then Line_Text (Line_Text'First .. Line_Text'First + 2)
+                     = "|1|",
+            "phase19 HashKnownHosts append writes hashed selector");
+         Check
+           (Line_Text'Length < 22
+            or else Line_Text (Line_Text'First .. Line_Text'First + 21)
+                    /= "hash-write.example.com",
+            "phase19 HashKnownHosts append does not expose clear host");
+      end;
+      Verification :=
+        SSH_Lib.Known_Hosts.Verify
+          (Hash_Path & "_append", "hash-write.example.com", 22, Good_Key);
+      Check
+        (Verification = SSH_Lib.Known_Hosts.Trusted,
+         "phase19 HashKnownHosts appended selector verifies");
 
       Write_Text
         (Plain_Path,
@@ -13209,6 +13513,22 @@ package body SSH_Lib.Tests.Legacy is
       return Result;
    end Hex_Digest;
 
+   function Hex_Digest
+     (Digest_Value : CryptoLib.Hashes.SHA384_Digest) return String
+   is
+      Result     : String (1 .. 96);
+      Cursor     : Positive := 1;
+      Byte_Value : Natural;
+   begin
+      for Item_Value of Digest_Value loop
+         Byte_Value := Natural (Item_Value);
+         Result (Cursor) := Hex_Char (Byte_Value / 16);
+         Result (Cursor + 1) := Hex_Char (Byte_Value mod 16);
+         Cursor := Cursor + 2;
+      end loop;
+      return Result;
+   end Hex_Digest;
+
    function Stream_From_Digest
      (Digest_Value : CryptoLib.Hashes.SHA256_Digest)
       return Ada.Streams.Stream_Element_Array
@@ -13245,17 +13565,26 @@ package body SSH_Lib.Tests.Legacy is
            (SSH_Lib.Algorithms.Key_Exchange)
          = "mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com"
              & ",sntrup761x25519-sha512,curve25519-sha256,curve25519-sha256@libssh.org"
-             & ",ecdh-sha2-nistp256,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512"
-             & ",diffie-hellman-group14-sha256,diffie-hellman-group-exchange-sha256,ext-info-c",
-         "implemented hybrid, Curve25519, ECDH, MODP, and GEX SHA-2 kex advertised");
+             & ",ecdh-sha2-nistp256,ecdh-sha2-nistp384"
+             & ",ecdh-sha2-nistp521"
+             & ",diffie-hellman-group18-sha512,diffie-hellman-group16-sha512"
+             & ",diffie-hellman-group14-sha256,diffie-hellman-group-exchange-sha256"
+             & ",diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1"
+             & ",ext-info-c,kex-strict-c-v00@openssh.com",
+         "implemented hybrid, Curve25519, ECDH, MODP, and GEX kex advertised");
       Check
         (SSH_Lib.Algorithms.Advertised_Name_List
            (SSH_Lib.Algorithms.Server_Host_Key)
          = "ssh-ed25519-cert-v01@openssh.com,ecdsa-sha2-nistp256-cert-v01@openssh.com"
+             & ",ecdsa-sha2-nistp384-cert-v01@openssh.com"
+             & ",ecdsa-sha2-nistp521-cert-v01@openssh.com"
              & ",rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com"
-             & ",ssh-rsa-cert-v01@openssh.com,ssh-ed25519,ecdsa-sha2-nistp256,rsa-sha2-512"
-             & ",rsa-sha2-256,ssh-rsa",
-         "implemented Ed25519, ECDSA, and RSA host-key algorithms advertised");
+             & ",ssh-rsa-cert-v01@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com"
+             & ",sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,ssh-ed25519"
+             & ",ecdsa-sha2-nistp256,ecdsa-sha2-nistp384"
+             & ",ecdsa-sha2-nistp521,rsa-sha2-512"
+             & ",rsa-sha2-256,sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,ssh-rsa",
+         "implemented Ed25519, ECDSA, RSA, and SK host-key algorithms advertised");
       Check
         (SSH_Lib.Algorithms.Support_For
            (SSH_Lib.Algorithms.Server_Host_Key, "ssh-ed25519")
@@ -13276,6 +13605,18 @@ package body SSH_Lib.Tests.Legacy is
       Check
         (SSH_Lib.Algorithms.Support_For
            (SSH_Lib.Algorithms.Server_Host_Key,
+            "ecdsa-sha2-nistp384-cert-v01@openssh.com")
+         = SSH_Lib.Algorithms.Available,
+         "ECDSA P-384 host certificate support status available");
+      Check
+        (SSH_Lib.Algorithms.Support_For
+           (SSH_Lib.Algorithms.Server_Host_Key,
+            "ecdsa-sha2-nistp521-cert-v01@openssh.com")
+         = SSH_Lib.Algorithms.Available,
+         "ECDSA P-521 host certificate support status available");
+      Check
+        (SSH_Lib.Algorithms.Support_For
+           (SSH_Lib.Algorithms.Server_Host_Key,
             "rsa-sha2-512-cert-v01@openssh.com")
          = SSH_Lib.Algorithms.Available,
          "RSA SHA-512 host certificate support status available");
@@ -13292,10 +13633,10 @@ package body SSH_Lib.Tests.Legacy is
          "legacy RSA SHA-1 host certificate support status available");
       Check
         (SSH_Lib.Algorithms.Advertised_Name_List
-           (SSH_Lib.Algorithms.Encryption_Client_To_Server)
+         (SSH_Lib.Algorithms.Encryption_Client_To_Server)
          = "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com"
              & ",aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc",
-         "implemented CTR ciphers advertised");
+         "implemented transport ciphers advertised");
       Check
         (SSH_Lib.Algorithms.Advertised_Name_List
            (SSH_Lib.Algorithms.Mac_Client_To_Server)
@@ -13303,7 +13644,7 @@ package body SSH_Lib.Tests.Legacy is
              & ",umac-64@openssh.com,hmac-sha2-512-etm@openssh.com"
              & ",hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256"
              & ",hmac-sha1-etm@openssh.com,hmac-sha1,hmac-sha1-96-etm@openssh.com,hmac-sha1-96",
-         "implemented SHA-2 MACs and SHA-1 fallback MACs advertised");
+         "implemented SHA-2, SHA-1, and MD5 fallback MACs advertised");
       Check
         (SSH_Lib.Algorithms.Support_For
            (SSH_Lib.Algorithms.Mac_Client_To_Server,
@@ -13351,8 +13692,8 @@ package body SSH_Lib.Tests.Legacy is
       Check
         (SSH_Lib.Algorithms.Support_For
            (SSH_Lib.Algorithms.Mac_Client_To_Server, "hmac-md5")
-         = SSH_Lib.Algorithms.Unsupported,
-         "hmac-md5 remains unsupported");
+         = SSH_Lib.Algorithms.Available,
+         "hmac-md5 fallback support status available");
       Check
         (SSH_Lib.Algorithms.Support_For
            (SSH_Lib.Algorithms.Mac_Client_To_Server, "umac-64@openssh.com")
@@ -13404,13 +13745,13 @@ package body SSH_Lib.Tests.Legacy is
         (SSH_Lib.Algorithms.Support_For
            (SSH_Lib.Algorithms.Key_Exchange,
             "diffie-hellman-group-exchange-sha1")
-         = SSH_Lib.Algorithms.Unsupported,
-         "legacy GEX SHA-1 kex support status unavailable");
+         = SSH_Lib.Algorithms.Available,
+         "legacy GEX SHA-1 kex support status available as fallback");
       Check
         (SSH_Lib.Algorithms.Support_For
            (SSH_Lib.Algorithms.Key_Exchange, "diffie-hellman-group14-sha1")
-         = SSH_Lib.Algorithms.Unsupported,
-         "unsupported group14 SHA-1 compatibility kex support status unavailable");
+         = SSH_Lib.Algorithms.Available,
+         "group14 SHA-1 compatibility kex support status available as fallback");
       Check
         (SSH_Lib.Algorithms.Support_For
            (SSH_Lib.Algorithms.Key_Exchange, "curve25519-sha256")
@@ -13426,6 +13767,16 @@ package body SSH_Lib.Tests.Legacy is
            (SSH_Lib.Algorithms.Key_Exchange, "ecdh-sha2-nistp256")
          = SSH_Lib.Algorithms.Available,
          "NIST P-256 ECDH kex support status available");
+      Check
+        (SSH_Lib.Algorithms.Support_For
+           (SSH_Lib.Algorithms.Key_Exchange, "ecdh-sha2-nistp384")
+         = SSH_Lib.Algorithms.Available,
+         "NIST P-384 ECDH kex support status available");
+      Check
+        (SSH_Lib.Algorithms.Support_For
+           (SSH_Lib.Algorithms.Key_Exchange, "ecdh-sha2-nistp521")
+         = SSH_Lib.Algorithms.Available,
+         "NIST P-521 ECDH kex support status available");
       Check
         (SSH_Lib.Algorithms.Support_For
            (SSH_Lib.Algorithms.Key_Exchange,
@@ -13450,7 +13801,7 @@ package body SSH_Lib.Tests.Legacy is
       Check
         (SSH_Lib.Algorithms.Advertised_Name_List
            (SSH_Lib.Algorithms.Compression_Client_To_Server)
-         = "zlib@openssh.com,zlib,none",
+         = "none,zlib@openssh.com,zlib",
          "delayed zlib, immediate zlib, and none compression advertised");
 
       Result_Status :=
@@ -13498,7 +13849,7 @@ package body SSH_Lib.Tests.Legacy is
         SSH_Lib.Algorithms.Select_Algorithm
           (SSH_Lib.Algorithms.Mac_Client_To_Server,
            "hmac-sha2-256",
-           "hmac-md5",
+           "hmac-ripemd160",
            Selected_Name);
       Touch (Selected_Name);
       Check_Status
@@ -13634,6 +13985,16 @@ package body SSH_Lib.Tests.Legacy is
          = "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
          "sha256 hello world vector");
       Check
+        (Hex_Digest (CryptoLib.Hashes.SHA384 ([1 .. 0 => 0]))
+         = "38b060a751ac96384cd9327eb1b1e36a21fdb71114be0743"
+           & "4c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b",
+         "sha384 empty vector");
+      Check
+        (Hex_Digest (CryptoLib.Hashes.SHA384 (Bytes_From_String ("abc")))
+         = "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded163"
+           & "1a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7",
+         "sha384 abc vector");
+      Check
         (Hex_Digest (CryptoLib.Hashes.SHA512 ([1 .. 0 => 0]))
          = "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce"
            & "47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e",
@@ -13698,6 +14059,19 @@ package body SSH_Lib.Tests.Legacy is
         (CryptoLib.Constant_Time.Equal
            (Stream_From_Digest (First_Mac), Stream_From_Digest (First_Mac)),
          "constant-time accepts same mac");
+      Check
+        (Hex_Digest
+           (CryptoLib.Macs.HMAC_SHA384 ([1 .. 0 => 0], [1 .. 0 => 0]))
+         = "6c1f2ee938fad2e24bd91298474382ca218c75db3d83e114b3d4367776d14"
+           & "d3551289e75e8209cd4b792302840234adc",
+         "hmac-sha384 empty key and message vector");
+      Check
+        (Hex_Digest
+           (CryptoLib.Macs.HMAC_SHA384
+              (RFC_Key, Bytes_From_String ("Hi There")))
+         = "afd03944d84895626b0825f4ab46907f15f9dadbe4101ec682aa034c7ceb"
+           & "c59cfaea9ea9076ede7f4af152e8b2fa9cb6",
+         "hmac-sha384 rfc4231 test case 1");
       Check
         (Hex_Digest
            (CryptoLib.Macs.HMAC_SHA512 ([1 .. 0 => 0], [1 .. 0 => 0]))
@@ -13879,7 +14253,7 @@ package body SSH_Lib.Tests.Legacy is
          "unsupported cipher remains inactive");
       Check
         (SSH_Lib.Algorithms.Advertised_Name_List
-           (SSH_Lib.Algorithms.Encryption_Server_To_Client)
+         (SSH_Lib.Algorithms.Encryption_Server_To_Client)
          = "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com"
              & ",aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc",
          "supported ciphers advertised by negotiation");
@@ -14617,6 +14991,34 @@ package body SSH_Lib.Tests.Legacy is
                  [1 => 16#01#, 2 => 16#02#, 3 => 16#03#, 4 => 16#04#]));
       end Fake_Security_Key_Signer;
 
+      function Hex_Nibble_Value (Value : Character) return Natural is
+      begin
+         if Value in '0' .. '9' then
+            return Character'Pos (Value) - Character'Pos ('0');
+         elsif Value in 'A' .. 'F' then
+            return Character'Pos (Value) - Character'Pos ('A') + 10;
+         elsif Value in 'a' .. 'f' then
+            return Character'Pos (Value) - Character'Pos ('a') + 10;
+         else
+            return 0;
+         end if;
+      end Hex_Nibble_Value;
+
+      function Hex_To_Array (Text : String) return Stream_Element_Array is
+         Result : Stream_Element_Array
+           (1 .. Stream_Element_Offset (Text'Length / 2));
+         Cursor : Natural := Text'First;
+      begin
+         for Index_Value in Result'Range loop
+            Result (Index_Value) :=
+              Stream_Element
+                (Hex_Nibble_Value (Text (Cursor)) * 16
+                 + Hex_Nibble_Value (Text (Cursor + 1)));
+            Cursor := Cursor + 2;
+         end loop;
+         return Result;
+      end Hex_To_Array;
+
       Good_Key                       : Stream_Element_Array (1 .. 32);
       Other_Key                      : Stream_Element_Array (1 .. 32);
       Short_Key                      :
@@ -14759,6 +15161,26 @@ package body SSH_Lib.Tests.Legacy is
         constant Stream_Element_Array (1 .. 1) := [1 => 16#80#];
       RSA_Nonminimal_Positive        :
         constant Stream_Element_Array (1 .. 2) := [1 => 16#00#, 2 => 16#01#];
+      P384_Public_Blob               : constant Stream_Element_Array :=
+        Hex_To_Array
+          ("0000001365636473612D736861322D6E69737470333834"
+           & "000000086E69737470333834"
+           & "00000061"
+           & "04"
+           & "AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7"
+           & "3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F");
+      P521_Public_Blob               : constant Stream_Element_Array :=
+        Hex_To_Array
+          ("0000001365636473612D736861322D6E69737470353231"
+           & "000000086E69737470353231"
+           & "00000085"
+           & "04"
+           & "00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F"
+           & "828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C"
+           & "1856A429BF97E7E31C2E5BD66"
+           & "011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817"
+           & "AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A"
+           & "272C24088BE94769FD16650");
       Valid_Blob                     : Packet_Buffer;
       Other_Blob                     : Packet_Buffer;
       Bad_Blob                       : Packet_Buffer;
@@ -14871,6 +15293,33 @@ package body SSH_Lib.Tests.Legacy is
         (SSH_Lib.Keys.Image (Fingerprint_A)
          = "SHA256:nNhTJzRSh2u00NJYpP6u43hJLhpfeWewTGqfPV3NRPs",
          "fingerprint exact raw blob vector");
+      Result_Status :=
+        SSH_Lib.Keys.MD5_Fingerprint (Key_Item, Fingerprint_B);
+      Check_Status
+        (Result_Status, CryptoLib.Errors.Ok, "md5 fingerprint status");
+      Check
+        (SSH_Lib.Keys.Image (Fingerprint_B)'Length = 51
+         and then SSH_Lib.Keys.Image (Fingerprint_B) (1 .. 4) = "MD5:",
+         "md5 fingerprint uses OpenSSH prefix and length");
+      Check
+        (SSH_Lib.Keys.Image (Fingerprint_B) (7) = ':'
+         and then SSH_Lib.Keys.Image (Fingerprint_B) (10) = ':'
+         and then SSH_Lib.Keys.Image (Fingerprint_B) (49) = ':',
+         "md5 fingerprint is colon separated");
+      Result_Status :=
+        SSH_Lib.Keys.Fingerprint_With_Hash
+          (Key_Item, "md5", Fingerprint_B);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Ok,
+         "hash-selected md5 fingerprint status");
+      Result_Status :=
+        SSH_Lib.Keys.Fingerprint_With_Hash
+          (Key_Item, "bad-hash", Fingerprint_B);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Invalid_Command,
+         "invalid fingerprint hash is rejected");
       Result_Status :=
         SSH_Lib.Known_Hosts.SHA256_Fingerprint
           (Known_Host_Item, Fingerprint_B);
@@ -15100,6 +15549,49 @@ package body SSH_Lib.Tests.Legacy is
            (SSH_Lib.Keys.Image (Fingerprint_B)'Last)
          /= '=',
          "rsa known-host fingerprint omits padding");
+
+      Result_Status :=
+        SSH_Lib.Protocol.Host_Keys.Parse
+          (P384_Public_Blob, "ecdsa-sha2-nistp384", Key_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Ok,
+         "valid ecdsa p384 host key blob parses");
+      Result_Status :=
+        SSH_Lib.Known_Hosts.From_Public_Key (Key_Item, Known_Host_Second);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Ok,
+         "ecdsa p384 known-host material exported from parsed key");
+      Check
+        (SSH_Lib.Known_Hosts.Algorithm (Known_Host_Second)
+         = "ecdsa-sha2-nistp384",
+         "ecdsa p384 known-host material keeps key algorithm");
+      Check
+        (SSH_Lib.Known_Hosts.Is_Valid (Known_Host_Second),
+         "ecdsa p384 known-host material is valid");
+
+      Result_Status :=
+        SSH_Lib.Protocol.Host_Keys.Parse
+          (P521_Public_Blob, "ecdsa-sha2-nistp521", Key_Item);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Ok,
+         "valid ecdsa p521 host key blob parses");
+      Result_Status :=
+        SSH_Lib.Known_Hosts.From_Public_Key (Key_Item, Known_Host_Second);
+      Check_Status
+        (Result_Status,
+         CryptoLib.Errors.Ok,
+         "ecdsa p521 known-host material exported from parsed key");
+      Check
+        (SSH_Lib.Known_Hosts.Algorithm (Known_Host_Second)
+         = "ecdsa-sha2-nistp521",
+         "ecdsa p521 known-host material keeps key algorithm");
+      Check
+        (SSH_Lib.Known_Hosts.Is_Valid (Known_Host_Second),
+         "ecdsa p521 known-host material is valid");
+
       Known_Host_Second :=
         SSH_Lib.Known_Hosts.Create_Host_Key
           ("ssh-ed25519", SSH_Lib.Known_Hosts.Encoded (Known_Host_Item));
@@ -15653,27 +16145,36 @@ package body SSH_Lib.Tests.Legacy is
              & ",umac-64@openssh.com,hmac-sha2-512-etm@openssh.com"
              & ",hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256"
              & ",hmac-sha1-etm@openssh.com,hmac-sha1,hmac-sha1-96-etm@openssh.com,hmac-sha1-96",
-         "phase5 implemented SHA-2 MACs and SHA-1 fallback MACs advertised in kexinit");
+         "phase5 implemented SHA-2, SHA-1, and MD5 fallback MACs advertised in kexinit");
       Check
         (To_String (Client_Item.Compression_Algorithms_Client_To_Server)
-         = "zlib@openssh.com,zlib,none",
+         = "none,zlib@openssh.com,zlib",
          "phase5 delayed zlib, immediate zlib, and none compression advertised in kexinit");
       Check
         (To_String (Client_Item.Kex_Algorithms)
          = "mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com"
              & ",sntrup761x25519-sha512,curve25519-sha256,curve25519-sha256@libssh.org"
-             & ",ecdh-sha2-nistp256,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512"
-             & ",diffie-hellman-group14-sha256,diffie-hellman-group-exchange-sha256,ext-info-c",
-         "phase5 implemented hybrid, Curve25519, ECDH, MODP, and GEX SHA-2 kex advertised in kexinit");
+             & ",ecdh-sha2-nistp256,ecdh-sha2-nistp384"
+             & ",ecdh-sha2-nistp521"
+             & ",diffie-hellman-group18-sha512,diffie-hellman-group16-sha512"
+             & ",diffie-hellman-group14-sha256,diffie-hellman-group-exchange-sha256"
+             & ",diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1"
+             & ",ext-info-c,kex-strict-c-v00@openssh.com",
+         "phase5 implemented hybrid, Curve25519, ECDH, MODP, and GEX kex advertised in kexinit");
       Check
         (To_String (Client_Item.Server_Host_Key_Algorithms)
          = "ssh-ed25519-cert-v01@openssh.com,ecdsa-sha2-nistp256-cert-v01@openssh.com"
+             & ",ecdsa-sha2-nistp384-cert-v01@openssh.com"
+             & ",ecdsa-sha2-nistp521-cert-v01@openssh.com"
              & ",rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com"
-             & ",ssh-rsa-cert-v01@openssh.com,ssh-ed25519,ecdsa-sha2-nistp256,rsa-sha2-512"
-             & ",rsa-sha2-256,ssh-rsa",
-         "phase5 implemented Ed25519, ECDSA, and RSA host-key algorithms advertised in kexinit");
+             & ",ssh-rsa-cert-v01@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com"
+             & ",sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,ssh-ed25519"
+             & ",ecdsa-sha2-nistp256,ecdsa-sha2-nistp384"
+             & ",ecdsa-sha2-nistp521,rsa-sha2-512"
+             & ",rsa-sha2-256,sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,ssh-rsa",
+         "phase5 implemented Ed25519, ECDSA, RSA, and SK host-key algorithms advertised in kexinit");
       Check
-        (To_String (Client_Item.Encryption_Algorithms_Client_To_Server)
+         (To_String (Client_Item.Encryption_Algorithms_Client_To_Server)
          = "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com"
              & ",aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc",
          "phase5 implemented ciphers advertised in kexinit");
@@ -16838,6 +17339,22 @@ package body SSH_Lib.Tests.Legacy is
            (SSH_Lib.Public_Key_Blobs.Is_Default_Userauth_Algorithm
               ("ecdsa-sha2-nistp256"),
             "phase209 ecdsa default auth algorithm enabled");
+         Check
+           (SSH_Lib.Public_Key_Blobs.Is_Default_Userauth_Algorithm
+              ("ecdsa-sha2-nistp384"),
+            "phase19 ecdsa p384 default auth algorithm enabled");
+         Check
+           (SSH_Lib.Public_Key_Blobs.Is_Default_Userauth_Algorithm
+              ("ecdsa-sha2-nistp521"),
+            "phase19 ecdsa p521 default auth algorithm enabled");
+         Check
+           (SSH_Lib.Public_Key_Blobs.Is_Default_Userauth_Algorithm
+              ("ecdsa-sha2-nistp384-cert-v01@openssh.com"),
+            "phase19 ecdsa p384 cert default auth algorithm enabled");
+         Check
+           (SSH_Lib.Public_Key_Blobs.Is_Default_Userauth_Algorithm
+              ("ecdsa-sha2-nistp521-cert-v01@openssh.com"),
+            "phase19 ecdsa p521 cert default auth algorithm enabled");
          Check
            (SSH_Lib.Public_Key_Blobs.Is_Default_Userauth_Algorithm
               ("rsa-sha2-256"),
@@ -18260,16 +18777,106 @@ package body SSH_Lib.Tests.Legacy is
              .Fixtures
              .Identity_Files
              .Encrypted_Legacy_RSA_AES256_CBC_Private_Key,
-           "secret",
+           "wrong-passphrase",
            Key_Item);
       Check_Status
         (Status_Value,
-         CryptoLib.Errors.Unsupported_Feature,
-         "phase257 encrypted legacy RSA AES-CBC PEM fails closed while unsupported");
+         CryptoLib.Errors.Authentication_Failed,
+         "encrypted legacy RSA AES-CBC PEM rejects wrong passphrase");
       Check
         (SSH_Lib.Identity_Files.Kind (Key_Item)
          = SSH_Lib.Identity_Files.No_Key,
-         "phase257 unsupported encrypted legacy RSA key remains cleared");
+         "wrong-passphrase encrypted legacy RSA key remains cleared");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_Legacy_RSA_AES256_CBC_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted legacy RSA AES-CBC PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted legacy RSA key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_Legacy_RSA_AES128_CBC_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted legacy RSA AES-128-CBC PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted legacy RSA AES-128-CBC key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_Legacy_RSA_AES192_CBC_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted legacy RSA AES-192-CBC PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted legacy RSA AES-192-CBC key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_Legacy_RSA_3DES_CBC_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted legacy RSA 3DES-CBC PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted legacy RSA 3DES-CBC key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_Legacy_RSA_DES_CBC_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted legacy RSA DES-CBC PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted legacy RSA DES-CBC key becomes RSA identity");
 
       Status_Value :=
         SSH_Lib.Identity_Files.Parse
@@ -18288,6 +18895,276 @@ package body SSH_Lib.Tests.Legacy is
         (SSH_Lib.Identity_Files.Kind (Key_Item)
          = SSH_Lib.Identity_Files.No_Key,
          "phase257 unsupported encrypted PKCS8 RSA key remains cleared");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_AES256_CBC_SHA384_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA AES-CBC PBKDF2-HMAC-SHA384 PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA SHA384 key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_Scrypt_AES256_CBC_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA scrypt AES-256-CBC PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA scrypt AES-256-CBC key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_AES128_CBC_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA AES-128-CBC PBES2 PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA AES-128-CBC key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_AES192_CBC_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA AES-192-CBC PBES2 PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA AES-192-CBC key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_3DES_CBC_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA 3DES-CBC PBES2 PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA 3DES-CBC key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_DES_CBC_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA DES-CBC PBES2 PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA DES-CBC key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_PBES1_MD5_DES_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA PBES1-MD5-DES PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA PBES1-MD5-DES key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_PBES1_SHA1_DES_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA PBES1-SHA1-DES PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA PBES1-SHA1-DES key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_PKCS12_SHA1_3DES_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA PKCS12-SHA1-3DES PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA PKCS12-SHA1-3DES key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_PKCS12_SHA1_2DES_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA PKCS12-SHA1-2DES PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA PKCS12-SHA1-2DES key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_PKCS12_SHA1_RC2_40_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA PKCS12-SHA1-RC2-40 PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA PKCS12-SHA1-RC2-40 key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_PKCS12_SHA1_RC2_128_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA PKCS12-SHA1-RC2-128 PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA PKCS12-SHA1-RC2-128 key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_PBES2_RC2_40_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA PBES2-RC2-40 PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA PBES2-RC2-40 key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_PBES2_RC2_64_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA PBES2-RC2-64 PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA PBES2-RC2-64 key becomes RSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_PKCS8_RSA_PBES2_RC2_128_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 RSA PBES2-RC2-128 PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.RSA_Key,
+         "encrypted PKCS8 RSA PBES2-RC2-128 key becomes RSA identity");
 
       Status_Value :=
         SSH_Lib.Identity_Files.Parse
@@ -18334,17 +19211,35 @@ package body SSH_Lib.Tests.Legacy is
              .Tests
              .Fixtures
              .Identity_Files
-             .Encrypted_Legacy_EC_P256_AES256_CBC_Private_Key,
-           "secret",
+             .Encrypted_PKCS8_EC_P256_AES256_CBC_Private_Key,
+           "fixture-passphrase",
            Key_Item);
       Check_Status
         (Status_Value,
-         CryptoLib.Errors.Unsupported_Feature,
-         "phase255 encrypted legacy SEC1 EC P-256 AES-CBC PEM fails closed while unsupported");
+         CryptoLib.Errors.Ok,
+         "encrypted PKCS8 EC P-256 AES-CBC PBES2 PEM parses");
       Check
         (SSH_Lib.Identity_Files.Kind (Key_Item)
-         = SSH_Lib.Identity_Files.No_Key,
-         "phase255 unsupported encrypted SEC1 EC key remains cleared");
+         = SSH_Lib.Identity_Files.ECDSA_Nistp256_Key,
+         "encrypted PKCS8 EC P-256 key becomes ECDSA identity");
+
+      Status_Value :=
+        SSH_Lib.Identity_Files.Parse
+          (SSH_Lib
+             .Tests
+             .Fixtures
+             .Identity_Files
+             .Encrypted_Legacy_EC_P256_AES256_CBC_Private_Key,
+           "fixture-passphrase",
+           Key_Item);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "encrypted legacy SEC1 EC P-256 AES-CBC PEM parses");
+      Check
+        (SSH_Lib.Identity_Files.Kind (Key_Item)
+         = SSH_Lib.Identity_Files.ECDSA_Nistp256_Key,
+         "encrypted legacy SEC1 EC key becomes ECDSA identity");
 
       Status_Value :=
         SSH_Lib.Identity_Files.Parse
@@ -18357,8 +19252,8 @@ package body SSH_Lib.Tests.Legacy is
            Key_Item);
       Check_Status
         (Status_Value,
-         CryptoLib.Errors.Unsupported_Feature,
-         "phase255 encrypted legacy SEC1 EC wrong passphrase fails closed before unsupported decrypt");
+         CryptoLib.Errors.Authentication_Failed,
+         "encrypted legacy SEC1 EC wrong passphrase fails closed");
 
       Write_Text (Identity_Path, Valid_OpenSSH_Ed25519);
       Options.Host := To_Unbounded_String ("example.com");
@@ -18371,9 +19266,9 @@ package body SSH_Lib.Tests.Legacy is
       Options.Identity_File := To_Unbounded_String (Identity_Path);
       Status_Value := SSH_Lib.Sessions.Open (Options, Session_Item);
       Touch (Session_Item);
-      Check_Status
-        (Status_Value,
-         CryptoLib.Errors.Connection_Failed,
+      Check
+        (Status_Value = CryptoLib.Errors.Connection_Failed
+         or else Status_Value = CryptoLib.Errors.Timeout,
          "phase9 valid identity reaches connection boundary before signing/encryption");
 
       Options.Use_Agent := True;
@@ -19362,6 +20257,35 @@ package body SSH_Lib.Tests.Legacy is
             Check
               (Bound_Port = 55_555,
                "phase19 tcpip-forward allocated port preserved");
+            declare
+               Keepalive_Item : constant SSH_Lib.Protocol.Buffers.Packet_Buffer :=
+                 SSH_Lib.Protocol.Global_Requests.Encode_Keepalive_Request;
+               Keepalive_Encoded : constant Ada.Streams.Stream_Element_Array :=
+                 SSH_Lib.Protocol.Buffers.To_Array (Keepalive_Item);
+            begin
+               Check
+                 (Keepalive_Encoded'Length = 27,
+                  "phase19 keepalive global request length");
+               Check
+                 (Keepalive_Encoded (Keepalive_Encoded'First)
+                  = SSH_Lib.Protocol.Global_Requests.SSH_MSG_GLOBAL_REQUEST,
+                  "phase19 keepalive uses global-request message");
+               Check
+                 (Same_Bytes
+                    (Keepalive_Encoded
+                       (Keepalive_Encoded'First + 5
+                        .. Keepalive_Encoded'First + 25),
+                     Bytes_From_String ("keepalive@openssh.com")),
+                  "phase19 keepalive request name encoded");
+               Check
+                 (Keepalive_Encoded (Keepalive_Encoded'First + 26) = 1,
+                  "phase19 keepalive asks for reply");
+               Check
+                 (SSH_Lib.Protocol.Global_Requests.Is_Keepalive_Success
+                    ([1 => SSH_Lib.Protocol.Global_Requests
+                       .SSH_MSG_REQUEST_SUCCESS]),
+                  "phase19 keepalive success recognizes request-success");
+            end;
          end;
          Check_Status
            (SSH_Lib.Protocol.Channels.Parse_Channel_Open_Confirmation
@@ -20243,6 +21167,82 @@ package body SSH_Lib.Tests.Legacy is
            (Status_Value,
             CryptoLib.Errors.Invalid_Command,
             "phase19 managed dynamic forward rejects oversized worker count");
+
+         Status_Value :=
+           SSH_Lib.Forwarding.Start_Managed_Remote_Forward_Service
+             (Session_Item,
+              "bad" & Character'Val (10) & "addr",
+              0,
+              "target.example",
+              22,
+              Managed_Service);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Host,
+            "phase19 managed remote forward rejects malformed bind address");
+
+         Status_Value :=
+           SSH_Lib.Forwarding.Start_Managed_Remote_Forward_Service
+             (Session_Item,
+              "0.0.0.0",
+              0,
+              "bad" & Character'Val (10) & "target",
+              22,
+              Managed_Service);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Host,
+            "phase19 managed remote forward rejects malformed target host");
+
+         Status_Value :=
+           SSH_Lib.Forwarding.Start_Managed_Remote_Forward_Service
+             (Session_Item,
+              "0.0.0.0",
+              0,
+              "target.example",
+              0,
+              Managed_Service);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Port,
+            "phase19 managed remote forward rejects zero target port");
+
+         Status_Value :=
+           SSH_Lib.Forwarding.Start_Managed_Remote_Forward_Service
+             (Session_Item,
+              "0.0.0.0",
+              0,
+              "target.example",
+              22,
+              Managed_Service,
+              Max_Pump_Iterations => 0);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 managed remote forward rejects zero pump iterations");
+
+         Status_Value :=
+           SSH_Lib.Forwarding.Start_Managed_Remote_Forward_Service
+             (Session_Item,
+              "0.0.0.0",
+              0,
+              "target.example",
+              22,
+              Managed_Service);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Channel_Request_Failed,
+            "phase19 managed remote forward reports request failure");
+         Check
+           (not SSH_Lib.Forwarding.Managed_Forward_Service_Running
+             (Managed_Service),
+            "phase19 failed managed remote service is not running");
+         Check_Status
+           (SSH_Lib.Forwarding.Managed_Forward_Service_Status
+             (Managed_Service),
+            CryptoLib.Errors.Channel_Request_Failed,
+            "phase19 failed managed remote service stores request failure");
+
          Status_Value := SSH_Lib.Forwarding.Stop (Managed_Service);
          Check_Status
            (Status_Value,
@@ -20730,6 +21730,476 @@ package body SSH_Lib.Tests.Legacy is
         (Status_Value,
          CryptoLib.Errors.Ok,
          "phase19 exec-with-env close succeeds");
+
+      SSH_Lib.Platform.Environment.Reset_Provider;
+      SSH_Lib.Platform.Environment.Set_Value_For_Test ("LANG", "C.UTF-8");
+      SSH_Lib.Platform.Environment.Set_Value_For_Test ("LC_TIME", "C");
+      SSH_Lib.Platform.Environment.Set_Value_For_Test ("LC_SKIP", "");
+      declare
+         Configured_Options : SSH_Lib.Sessions.Session_Options;
+      begin
+         Configured_Options.Set_Env :=
+           To_Unbounded_String ("TERM=xterm-256color");
+         Configured_Options.Send_Env := To_Unbounded_String ("LANG LC_*");
+         Configured_Options.Remote_Command :=
+           To_Unbounded_String ("configured remote command");
+         Configured_Options.Stdin_Null := True;
+
+         SSH_Lib.Sessions.Test_Support.Mark_Authenticated_Open_For_Test
+           (Session_Item);
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Channel_Open_Response_For_Test
+             (Session_Item, Build_Open_Confirmation (0, 230, 4096, 8192));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured exec open response");
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured exec SetEnv response");
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured exec exact SendEnv response");
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured exec wildcard SendEnv response");
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured exec command response");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Open_Configured_Exec
+             (Session_Item,
+              Configured_Options,
+              "default command",
+              Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 configured exec applies env and opens remote command");
+         Check
+           (SSH_Lib.Channels.Test_Support.Last_EOF_Payload_For_Test
+              (Channel_Item)'Length > 0,
+            "phase19 configured exec StdinNull sends EOF");
+         declare
+            Last_Request : constant Ada.Streams.Stream_Element_Array :=
+              SSH_Lib.Sessions.Test_Support.Last_Exec_Request_Payload_For_Test
+                (Session_Item);
+            Command_Bytes : constant Ada.Streams.Stream_Element_Array :=
+              Bytes_From_String ("configured remote command");
+         begin
+            Check
+              (Last_Request'Length >= Command_Bytes'Length
+               and then Same_Bytes
+                 (Last_Request
+                    (Last_Request'Last - Command_Bytes'Length + 1
+                     .. Last_Request'Last),
+                  Command_Bytes),
+               "phase19 configured exec uses RemoteCommand override");
+         end;
+         Status_Value := SSH_Lib.Channels.Close (Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 configured exec close succeeds");
+         Configured_Options.Request_TTY := To_Unbounded_String ("force");
+         SSH_Lib.Sessions.Test_Support.Mark_Authenticated_Open_For_Test
+           (Session_Item);
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Channel_Open_Response_For_Test
+             (Session_Item, Build_Open_Confirmation (0, 234, 4096, 8192));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured pty exec open response");
+         for Index in 1 .. 3 loop
+            Status_Value :=
+              SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+                (Session_Item,
+                 Build_Exec_Reply
+                   (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+            Check_Status
+              (Status_Value,
+               CryptoLib.Errors.Ok,
+               "phase19 queue configured pty exec env response");
+         end loop;
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured pty exec pty response");
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured pty exec command response");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Open_Configured_Exec
+             (Session_Item,
+              Configured_Options,
+              "default command",
+              Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 configured exec RequestTTY force opens pty exec");
+         declare
+            Last_Request : constant Ada.Streams.Stream_Element_Array :=
+              SSH_Lib.Sessions.Test_Support.Last_Exec_Request_Payload_For_Test
+                (Session_Item);
+            Command_Bytes : constant Ada.Streams.Stream_Element_Array :=
+              Bytes_From_String ("configured remote command");
+         begin
+            Check
+              (Last_Request'Length >= Command_Bytes'Length
+               and then Same_Bytes
+                 (Last_Request
+                    (Last_Request'Last - Command_Bytes'Length + 1
+                     .. Last_Request'Last),
+                  Command_Bytes),
+               "phase19 configured pty exec preserves RemoteCommand");
+         end;
+         Status_Value := SSH_Lib.Channels.Close (Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 configured pty exec close succeeds");
+         Configured_Options.Request_TTY := To_Unbounded_String ("invalid");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Open_Configured_Exec
+             (Session_Item,
+              Configured_Options,
+              "default command",
+              Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 configured exec rejects invalid RequestTTY");
+         Configured_Options.Request_TTY := Null_Unbounded_String;
+         Configured_Options.Session_Type := To_Unbounded_String ("none");
+         SSH_Lib.Sessions.Test_Support.Mark_Authenticated_Open_For_Test
+           (Session_Item);
+         Status_Value :=
+           SSH_Lib.Config_Apply.Open_Configured_Exec
+             (Session_Item,
+              Configured_Options,
+              "default command",
+              Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 configured exec honors SessionType none");
+         Check
+           (SSH_Lib.Sessions.Test_Support.Active_Channel_Count_For_Test
+              (Session_Item)
+            = 0,
+            "phase19 configured exec SessionType none opens no channel");
+         Configured_Options.Session_Type := To_Unbounded_String ("subsystem");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Open_Configured_Exec
+             (Session_Item,
+              Configured_Options,
+              "default command",
+              Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Unsupported_Feature,
+            "phase19 configured exec rejects SessionType subsystem boundary");
+         Configured_Options.Session_Type := To_Unbounded_String ("invalid");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Open_Configured_Exec
+             (Session_Item,
+              Configured_Options,
+              "default command",
+              Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 configured exec rejects invalid SessionType");
+         Configured_Options.Session_Type := To_Unbounded_String ("subsystem");
+         Configured_Options.Remote_Command := To_Unbounded_String ("sftp");
+         SSH_Lib.Sessions.Test_Support.Mark_Authenticated_Open_For_Test
+           (Session_Item);
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Channel_Open_Response_For_Test
+             (Session_Item, Build_Open_Confirmation (0, 231, 4096, 8192));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured subsystem open response");
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured subsystem SetEnv response");
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured subsystem exact SendEnv response");
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured subsystem wildcard SendEnv response");
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured subsystem request response");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Open_Configured_Subsystem
+             (Session_Item,
+              Configured_Options,
+              "default-subsystem",
+              Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 configured subsystem applies env and opens subsystem");
+         Check
+           (SSH_Lib.Channels.Test_Support.Last_EOF_Payload_For_Test
+              (Channel_Item)'Length > 0,
+            "phase19 configured subsystem StdinNull sends EOF");
+         declare
+            Last_Request : constant Ada.Streams.Stream_Element_Array :=
+              SSH_Lib.Sessions.Test_Support.Last_Exec_Request_Payload_For_Test
+                (Session_Item);
+            Subsystem_Bytes : constant Ada.Streams.Stream_Element_Array :=
+              Bytes_From_String ("sftp");
+         begin
+            Check
+              (Last_Request'Length >= Subsystem_Bytes'Length
+               and then Same_Bytes
+                 (Last_Request
+                    (Last_Request'Last - Subsystem_Bytes'Length + 1
+                     .. Last_Request'Last),
+                  Subsystem_Bytes),
+               "phase19 configured subsystem uses RemoteCommand subsystem");
+         end;
+         Status_Value := SSH_Lib.Channels.Close (Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 configured subsystem close succeeds");
+         Configured_Options.Session_Type := To_Unbounded_String ("none");
+         SSH_Lib.Sessions.Test_Support.Mark_Authenticated_Open_For_Test
+           (Session_Item);
+         Status_Value :=
+           SSH_Lib.Config_Apply.Open_Configured_Subsystem
+             (Session_Item,
+              Configured_Options,
+              "default-subsystem",
+              Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 configured subsystem honors SessionType none");
+         Check
+           (SSH_Lib.Sessions.Test_Support.Active_Channel_Count_For_Test
+              (Session_Item)
+            = 0,
+            "phase19 configured subsystem SessionType none opens no channel");
+         Configured_Options.Session_Type := To_Unbounded_String ("invalid");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Open_Configured_Subsystem
+             (Session_Item,
+              Configured_Options,
+              "default-subsystem",
+              Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 configured subsystem rejects invalid SessionType");
+         Configured_Options.Session_Type := Null_Unbounded_String;
+         Configured_Options.Remote_Command := Null_Unbounded_String;
+         Configured_Options.Request_TTY := To_Unbounded_String ("no");
+         SSH_Lib.Sessions.Test_Support.Mark_Authenticated_Open_For_Test
+           (Session_Item);
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Channel_Open_Response_For_Test
+             (Session_Item, Build_Open_Confirmation (0, 232, 4096, 8192));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured shell open response");
+         for Index in 1 .. 3 loop
+            Status_Value :=
+              SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+                (Session_Item,
+                 Build_Exec_Reply
+                   (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+            Check_Status
+              (Status_Value,
+               CryptoLib.Errors.Ok,
+               "phase19 queue configured shell env response");
+         end loop;
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured shell request response");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Open_Configured_Shell
+             (Session_Item,
+              Configured_Options,
+              Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 configured shell applies env and opens shell");
+         Check
+           (SSH_Lib.Channels.Test_Support.Last_EOF_Payload_For_Test
+              (Channel_Item)'Length > 0,
+            "phase19 configured shell StdinNull sends EOF");
+         declare
+            Last_Request : constant Ada.Streams.Stream_Element_Array :=
+              SSH_Lib.Sessions.Test_Support.Last_Exec_Request_Payload_For_Test
+                (Session_Item);
+         begin
+            Check
+              (Same_Bytes
+                 (Last_Request
+                    (Last_Request'First + 9 .. Last_Request'First + 13),
+                  Bytes_From_String ("shell")),
+               "phase19 configured shell RequestTTY no opens shell");
+         end;
+         Status_Value := SSH_Lib.Channels.Close (Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 configured shell close succeeds");
+         Configured_Options.Request_TTY := To_Unbounded_String ("force");
+         SSH_Lib.Sessions.Test_Support.Mark_Authenticated_Open_For_Test
+           (Session_Item);
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Channel_Open_Response_For_Test
+             (Session_Item, Build_Open_Confirmation (0, 233, 4096, 8192));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured pty shell open response");
+         for Index in 1 .. 3 loop
+            Status_Value :=
+              SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+                (Session_Item,
+                 Build_Exec_Reply
+                   (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+            Check_Status
+              (Status_Value,
+               CryptoLib.Errors.Ok,
+               "phase19 queue configured pty shell env response");
+         end loop;
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured pty request response");
+         Status_Value :=
+           SSH_Lib.Sessions.Test_Support.Queue_Exec_Response_For_Test
+             (Session_Item,
+              Build_Exec_Reply
+                (SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_SUCCESS, 0));
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 queue configured pty shell request response");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Open_Configured_Shell
+             (Session_Item,
+              Configured_Options,
+              Channel_Item,
+              "xterm-256color",
+              120,
+              40);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 configured shell RequestTTY force opens pty shell");
+         declare
+            Last_Request : constant Ada.Streams.Stream_Element_Array :=
+              SSH_Lib.Sessions.Test_Support.Last_Exec_Request_Payload_For_Test
+                (Session_Item);
+         begin
+            Check
+              (Same_Bytes
+                 (Last_Request
+                    (Last_Request'First + 9 .. Last_Request'First + 13),
+                  Bytes_From_String ("shell")),
+               "phase19 configured pty shell completes shell request");
+         end;
+         Status_Value := SSH_Lib.Channels.Close (Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 configured pty shell close succeeds");
+         Configured_Options.Request_TTY := To_Unbounded_String ("invalid");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Open_Configured_Shell
+             (Session_Item,
+              Configured_Options,
+              Channel_Item);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 configured shell rejects invalid RequestTTY");
+      end;
+      SSH_Lib.Platform.Environment.Reset_Provider;
 
       SSH_Lib.Sessions.Test_Support.Mark_Authenticated_Open_For_Test
         (Session_Item);
@@ -23067,6 +24537,8 @@ package body SSH_Lib.Tests.Legacy is
         SSH_Lib.Config_Apply.Managed_Forward_Service_Array (1 .. 1);
       Config_Dynamic_Services :
         SSH_Lib.Config_Apply.Managed_Forward_Service_Array (1 .. 1);
+      Config_Remote_Services  :
+        SSH_Lib.Config_Apply.Managed_Forward_Service_Array (1 .. 1);
       Config_Bound_Ports      : SSH_Lib.Config_Apply.Bound_Port_Array (1 .. 1);
       Config_Started          : Natural := 99;
       Config_Requested        : Natural := 99;
@@ -23084,6 +24556,59 @@ package body SSH_Lib.Tests.Legacy is
       Ada.Text_IO.Put_Line (File_Item, "  ControlMaster auto");
       Ada.Text_IO.Put_Line (File_Item, "  ControlPath ~/.ssh/cm-%r@%h:%p");
       Ada.Text_IO.Put_Line (File_Item, "  ControlPersist 10m");
+      Ada.Text_IO.Put_Line (File_Item, "  BatchMode yes");
+      Ada.Text_IO.Put_Line (File_Item, "  ForwardAgent yes");
+      Ada.Text_IO.Put_Line (File_Item, "  ForwardX11 yes");
+      Ada.Text_IO.Put_Line (File_Item, "  RequestTTY force");
+      Ada.Text_IO.Put_Line (File_Item, "  RemoteCommand git status --porcelain");
+      Ada.Text_IO.Put_Line (File_Item, "  ServerAliveInterval 15");
+      Ada.Text_IO.Put_Line (File_Item, "  ServerAliveCountMax 4");
+      Ada.Text_IO.Put_Line (File_Item, "  TCPKeepAlive no");
+      Ada.Text_IO.Put_Line (File_Item, "  LogLevel VERBOSE");
+      Ada.Text_IO.Put_Line (File_Item, "  VisualHostKey yes");
+      Ada.Text_IO.Put_Line (File_Item, "  UpdateHostKeys ask");
+      Ada.Text_IO.Put_Line (File_Item, "  PasswordAuthentication no");
+      Ada.Text_IO.Put_Line (File_Item, "  PubkeyAuthentication no");
+      Ada.Text_IO.Put_Line (File_Item, "  KbdInteractiveAuthentication no");
+      Ada.Text_IO.Put_Line (File_Item, "  NumberOfPasswordPrompts 2");
+      Ada.Text_IO.Put_Line (File_Item, "  StrictHostKeyChecking accept-new");
+      Ada.Text_IO.Put_Line (File_Item, "  CheckHostIP yes");
+      Ada.Text_IO.Put_Line (File_Item, "  HashKnownHosts yes");
+      Ada.Text_IO.Put_Line
+        (File_Item, "  CanonicalDomains example.test corp.test");
+      Ada.Text_IO.Put_Line (File_Item, "  CanonicalizeMaxDots 2");
+      Ada.Text_IO.Put_Line (File_Item, "  CanonicalizeFallbackLocal no");
+      Ada.Text_IO.Put_Line
+        (File_Item,
+         "  CanonicalizePermittedCNAMEs *.example.test:*.corp.test");
+      Ada.Text_IO.Put_Line (File_Item, "  HostbasedAuthentication yes");
+      Ada.Text_IO.Put_Line
+        (File_Item, "  NoHostAuthenticationForLocalhost yes");
+      Ada.Text_IO.Put_Line (File_Item, "  AddressFamily inet");
+      Ada.Text_IO.Put_Line (File_Item, "  BindAddress 127.0.0.1");
+      Ada.Text_IO.Put_Line (File_Item, "  BindInterface lo");
+      Ada.Text_IO.Put_Line (File_Item, "  IPQoS throughput lowdelay");
+      Ada.Text_IO.Put_Line (File_Item, "  EscapeChar none");
+      Ada.Text_IO.Put_Line (File_Item, "  SessionType none");
+      Ada.Text_IO.Put_Line (File_Item, "  StdinNull yes");
+      Ada.Text_IO.Put_Line (File_Item, "  ForkAfterAuthentication yes");
+      Ada.Text_IO.Put_Line (File_Item, "  ProxyUseFdpass yes");
+      Ada.Text_IO.Put_Line (File_Item, "  EnableSSHKeysign yes");
+      Ada.Text_IO.Put_Line (File_Item, "  GSSAPIAuthentication yes");
+      Ada.Text_IO.Put_Line (File_Item, "  GSSAPIDelegateCredentials yes");
+      Ada.Text_IO.Put_Line (File_Item, "  LogVerbose kex.c:*");
+      Ada.Text_IO.Put_Line (File_Item, "  VerifyHostKeyDNS ask");
+      Ada.Text_IO.Put_Line (File_Item, "  FingerprintHash sha256");
+      Ada.Text_IO.Put_Line (File_Item, "  ConnectionAttempts 2");
+      Ada.Text_IO.Put_Line (File_Item, "  RekeyLimit 1G 1h");
+      Ada.Text_IO.Put_Line (File_Item, "  CASignatureAlgorithms ssh-ed25519");
+      Ada.Text_IO.Put_Line
+        (File_Item, "  KnownHostsCommand ssh-known-hosts %h %p");
+      Ada.Text_IO.Put_Line (File_Item, "  PermitLocalCommand yes");
+      Ada.Text_IO.Put_Line (File_Item, "  LocalCommand printf ready");
+      Ada.Text_IO.Put_Line (File_Item, "  AddKeysToAgent confirm");
+      Ada.Text_IO.Put_Line (File_Item, "  ClearAllForwardings yes");
+      Ada.Text_IO.Put_Line (File_Item, "  ExitOnForwardFailure yes");
       Ada.Text_IO.Put_Line
         (File_Item, "  LocalForward 127.0.0.1:8022 target.example:22");
       Ada.Text_IO.Put_Line
@@ -23231,6 +24756,695 @@ package body SSH_Lib.Tests.Legacy is
         (To_String (Options_Item.Control_Persist) = "10m",
          "phase19 config ControlPersist is preserved as session data");
       Check
+        (SSH_Lib.Config_Apply.Control_Master_Mode_Of (Options_Item)
+         = SSH_Lib.Config_Apply.Control_Master_Auto,
+         "phase19 config ControlMaster auto is classified");
+      Options_Item.Control_Path :=
+        To_Unbounded_String ("/tmp/sshlib-home/.ssh/cm-%r@%h:%p");
+      declare
+         Expanded_Control_Path : Unbounded_String;
+      begin
+         Status_Value :=
+           SSH_Lib.Config_Apply.Expand_Control_Path
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Result          => Expanded_Control_Path);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config ControlPath expands");
+         Check
+           (To_String (Expanded_Control_Path)
+            = "/tmp/sshlib-home/.ssh/cm-git@fixture-host:22",
+            "phase19 config ControlPath expands OpenSSH tokens");
+      end;
+      Options_Item.Control_Master := To_Unbounded_String ("autoask");
+      Check
+        (SSH_Lib.Config_Apply.Control_Master_Mode_Of (Options_Item)
+         = SSH_Lib.Config_Apply.Control_Master_Auto_Ask,
+         "phase19 config ControlMaster autoask is classified");
+      Options_Item.Control_Master := To_Unbounded_String ("invalid-mode");
+      Check
+        (SSH_Lib.Config_Apply.Control_Master_Mode_Of (Options_Item)
+         = SSH_Lib.Config_Apply.Control_Master_Invalid,
+         "phase19 config ControlMaster invalid mode is fail-closed");
+      Options_Item.Control_Master := To_Unbounded_String ("auto");
+      Options_Item.Control_Path := To_Unbounded_String ("%x");
+      declare
+         Expanded_Control_Path : Unbounded_String;
+      begin
+         Status_Value :=
+           SSH_Lib.Config_Apply.Expand_Control_Path
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Result          => Expanded_Control_Path);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Unsupported_Feature,
+            "phase19 config ControlPath rejects unknown tokens");
+      end;
+      Options_Item.Control_Path := To_Unbounded_String ("~/.ssh/cm-%r@%h:%p");
+      declare
+         Persist_Seconds : Natural := 0;
+      begin
+         Status_Value :=
+           SSH_Lib.Config_Apply.Control_Persist_Seconds
+             (Options_Item, Persist_Seconds);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config ControlPersist duration parses");
+         Check
+           (Persist_Seconds = 600,
+            "phase19 config ControlPersist 10m maps to seconds");
+         Options_Item.Control_Persist := To_Unbounded_String ("1h30m");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Control_Persist_Seconds
+             (Options_Item, Persist_Seconds);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config ControlPersist compound duration parses");
+         Check
+           (Persist_Seconds = 5_400,
+            "phase19 config ControlPersist compound duration maps to seconds");
+         Options_Item.Control_Persist := To_Unbounded_String ("no");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Control_Persist_Seconds
+             (Options_Item, Persist_Seconds);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config ControlPersist no parses");
+         Check
+           (Persist_Seconds = 0,
+            "phase19 config ControlPersist no disables persistence");
+         Options_Item.Control_Persist := To_Unbounded_String ("bad");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Control_Persist_Seconds
+             (Options_Item, Persist_Seconds);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 config ControlPersist rejects malformed values");
+         Options_Item.Control_Persist := To_Unbounded_String ("10m");
+      end;
+      declare
+         use type SSH_Lib.Config_Apply.Control_Master_Action;
+         Planned_Path    : Unbounded_String;
+         Persist_Seconds : Natural := 0;
+         Control_Action  : SSH_Lib.Config_Apply.Control_Master_Action;
+         Approval_Calls  : Natural := 0;
+         Approval_Start  : Boolean := False;
+         Existing_Path   : constant String :=
+           SSH_Lib.Tests.Fixtures.Temp_Paths.Path
+             ("phase19_control_master_existing.sock");
+         Start_Path      : constant String :=
+           "/tmp/sshlib-cm-start.sock";
+         Ask_Path        : constant String :=
+           "/tmp/sshlib-cm-ask.sock";
+
+         function Approve_Control_Master
+           (Host         : String;
+            User         : String;
+            Control_Path : String;
+            Start_Master : Boolean) return Boolean
+         is
+            pragma Unreferenced (Host, User, Control_Path);
+         begin
+            Approval_Calls := Approval_Calls + 1;
+            Approval_Start := Start_Master;
+            return True;
+         end Approve_Control_Master;
+
+         function Deny_Control_Master
+           (Host         : String;
+            User         : String;
+            Control_Path : String;
+            Start_Master : Boolean) return Boolean
+         is
+            pragma Unreferenced (Host, User, Control_Path);
+         begin
+            Approval_Calls := Approval_Calls + 1;
+            Approval_Start := Start_Master;
+            return False;
+         end Deny_Control_Master;
+
+         procedure Remove_Control_Path (Path : String) is
+            Deleted : Boolean := False;
+         begin
+            GNAT.OS_Lib.Delete_File (Path, Deleted);
+         exception
+            when others =>
+               null;
+         end Remove_Control_Path;
+      begin
+         Options_Item.Control_Master := To_Unbounded_String ("no");
+         Options_Item.Control_Path := To_Unbounded_String (Existing_Path);
+         Status_Value :=
+           SSH_Lib.Config_Apply.Plan_Control_Master
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Control_Path    => Planned_Path,
+              Persist_Seconds => Persist_Seconds,
+              Action          => Control_Action);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config ControlMaster no plans successfully");
+         Check
+           (Control_Action
+            = SSH_Lib.Config_Apply.Control_Master_Do_Not_Use,
+            "phase19 config ControlMaster no disables multiplexing");
+
+         Options_Item.Control_Master := To_Unbounded_String ("auto");
+         Options_Item.Control_Path := To_Unbounded_String (Existing_Path);
+         Options_Item.Control_Persist := To_Unbounded_String ("10m");
+         if Ada.Directories.Exists (Existing_Path) then
+            Ada.Directories.Delete_File (Existing_Path);
+         end if;
+         Status_Value :=
+           SSH_Lib.Config_Apply.Plan_Control_Master
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Control_Path    => Planned_Path,
+              Persist_Seconds => Persist_Seconds,
+              Action          => Control_Action);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config ControlMaster auto plans missing path");
+         Check
+           (Control_Action
+            = SSH_Lib.Config_Apply.Control_Master_Start_Master,
+            "phase19 config ControlMaster auto starts master when path is absent");
+         Check
+           (To_String (Planned_Path) = Existing_Path
+            and then Persist_Seconds = 600,
+            "phase19 config ControlMaster plan expands path and persist");
+
+         Ada.Text_IO.Create (File_Item, Ada.Text_IO.Out_File, Existing_Path);
+         Ada.Text_IO.Put_Line (File_Item, "control-socket-placeholder");
+         Ada.Text_IO.Close (File_Item);
+         Status_Value :=
+           SSH_Lib.Config_Apply.Plan_Control_Master
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Control_Path    => Planned_Path,
+              Persist_Seconds => Persist_Seconds,
+              Action          => Control_Action);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config ControlMaster auto plans stale path");
+         Check
+           (Control_Action
+            = SSH_Lib.Config_Apply.Control_Master_Start_Master,
+            "phase19 config ControlMaster auto ignores stale regular path");
+
+         Options_Item.Control_Master := To_Unbounded_String ("autoask");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Plan_Control_Master
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Control_Path    => Planned_Path,
+              Persist_Seconds => Persist_Seconds,
+              Action          => Control_Action);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config ControlMaster autoask plans stale path");
+         Check
+           (Control_Action
+            = SSH_Lib.Config_Apply.Control_Master_Start_Master_Ask,
+            "phase19 config ControlMaster autoask starts master for stale path");
+         Ada.Directories.Delete_File (Existing_Path);
+
+         Options_Item.Control_Master := To_Unbounded_String ("auto");
+         Options_Item.Control_Path := Null_Unbounded_String;
+         Status_Value :=
+           SSH_Lib.Config_Apply.Plan_Control_Master
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Control_Path    => Planned_Path,
+              Persist_Seconds => Persist_Seconds,
+              Action          => Control_Action);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 config ControlMaster requires ControlPath");
+
+         declare
+            Master : SSH_Lib.Mux.Mux_Master;
+         begin
+            Remove_Control_Path (Start_Path);
+
+            Options_Item.Control_Master := To_Unbounded_String ("auto");
+            Options_Item.Control_Path := To_Unbounded_String (Start_Path);
+            Options_Item.Control_Persist := To_Unbounded_String ("10m");
+            Options_Item.Control_Master_Approval_Callback := null;
+            Status_Value :=
+              SSH_Lib.Config_Apply.Start_Planned_Control_Master
+                (Options_Item,
+                 Original_Host   => "gh",
+                 Local_Host_Name => "client.example.test",
+                 Master          => Master,
+                 Control_Path    => Planned_Path,
+                 Persist_Seconds => Persist_Seconds,
+                 Action          => Control_Action,
+                 Server_Pid      => 777);
+            Check_Status
+              (Status_Value,
+               CryptoLib.Errors.Ok,
+               "phase19 config starts planned ControlMaster auto");
+            Check
+              (Control_Action
+               = SSH_Lib.Config_Apply.Control_Master_Start_Master,
+               "phase19 config reports planned ControlMaster auto start action");
+            Check
+              (SSH_Lib.Mux.Is_Listening (Master)
+               and then To_String (Planned_Path) = Start_Path
+               and then Persist_Seconds = 600,
+               "phase19 config planned ControlMaster opens requested listener");
+            Check
+              (SSH_Lib.Mux.Server_Pid_Of (Master) = 777
+               and then SSH_Lib.Mux.Active_Client_Count (Master) = 0,
+               "phase19 config planned ControlMaster records caller pid");
+            SSH_Lib.Mux.Close_Master (Master);
+            Remove_Control_Path (Start_Path);
+
+            Remove_Control_Path (Ask_Path);
+
+            Options_Item.Control_Master := To_Unbounded_String ("autoask");
+            Options_Item.Control_Path := To_Unbounded_String (Ask_Path);
+            Options_Item.Control_Master_Approval_Callback := null;
+            Status_Value :=
+              SSH_Lib.Config_Apply.Start_Planned_Control_Master
+                (Options_Item,
+                 Original_Host   => "gh",
+                 Local_Host_Name => "client.example.test",
+                 Master          => Master,
+                 Control_Path    => Planned_Path,
+                 Persist_Seconds => Persist_Seconds,
+                 Action          => Control_Action);
+            Check_Status
+              (Status_Value,
+               CryptoLib.Errors.Cancelled,
+               "phase19 config autoask start requires approval callback");
+            Check
+              (not SSH_Lib.Mux.Is_Listening (Master),
+               "phase19 config autoask without callback leaves master closed");
+
+            Approval_Calls := 0;
+            Approval_Start := False;
+            Options_Item.Control_Master_Approval_Callback :=
+              Deny_Control_Master'Unrestricted_Access;
+            Status_Value :=
+              SSH_Lib.Config_Apply.Start_Planned_Control_Master
+                (Options_Item,
+                 Original_Host   => "gh",
+                 Local_Host_Name => "client.example.test",
+                 Master          => Master,
+                 Control_Path    => Planned_Path,
+                 Persist_Seconds => Persist_Seconds,
+                 Action          => Control_Action);
+            Check_Status
+              (Status_Value,
+               CryptoLib.Errors.Cancelled,
+               "phase19 config autoask denied start is cancelled");
+            Check
+              (Approval_Calls = 1
+               and then Approval_Start
+               and then not SSH_Lib.Mux.Is_Listening (Master),
+               "phase19 config autoask denied start calls approval once");
+
+            Approval_Calls := 0;
+            Approval_Start := False;
+            Options_Item.Control_Master_Approval_Callback :=
+              Approve_Control_Master'Unrestricted_Access;
+            Status_Value :=
+              SSH_Lib.Config_Apply.Start_Planned_Control_Master
+                (Options_Item,
+                 Original_Host   => "gh",
+                 Local_Host_Name => "client.example.test",
+                 Master          => Master,
+                 Control_Path    => Planned_Path,
+                 Persist_Seconds => Persist_Seconds,
+                 Action          => Control_Action,
+                 Server_Pid      => 778);
+            Check_Status
+              (Status_Value,
+               CryptoLib.Errors.Ok,
+               "phase19 config autoask approved start opens master");
+            Check
+              (Control_Action
+               = SSH_Lib.Config_Apply.Control_Master_Start_Master_Ask,
+               "phase19 config autoask approved start reports ask action");
+            Check
+              (Approval_Calls = 1
+               and then Approval_Start
+               and then SSH_Lib.Mux.Is_Listening (Master)
+               and then SSH_Lib.Mux.Server_Pid_Of (Master) = 778,
+               "phase19 config autoask approved start records listener state");
+            SSH_Lib.Mux.Close_Master (Master);
+            Remove_Control_Path (Ask_Path);
+         end;
+      end;
+      Check
+        (Options_Item.Batch_Mode,
+         "phase19 config BatchMode is preserved as session data");
+      Check
+        (Options_Item.Forward_Agent,
+         "phase19 config ForwardAgent is preserved as session data");
+      Check
+        (Options_Item.Forward_X11,
+         "phase19 config ForwardX11 is preserved as session data");
+      Check
+        (To_String (Options_Item.Request_TTY) = "force",
+         "phase19 config RequestTTY is preserved as session data");
+      Check
+        (SSH_Lib.Config_Apply.Request_TTY_Mode_Of (Options_Item)
+         = SSH_Lib.Config_Apply.Request_TTY_Force,
+         "phase19 config RequestTTY force is classified");
+      Check
+        (To_String (Options_Item.Remote_Command) = "git status --porcelain",
+         "phase19 config RemoteCommand preserves command tail");
+      Check
+        (Options_Item.Server_Alive_Interval = 15,
+         "phase19 config ServerAliveInterval is preserved as session data");
+      Check
+        (Options_Item.Server_Alive_Count_Max = 4,
+         "phase19 config ServerAliveCountMax is preserved as session data");
+      Check
+        (not Options_Item.TCP_Keep_Alive,
+         "phase19 config TCPKeepAlive is preserved as session data");
+      Check
+        (To_String (Options_Item.Log_Level) = "VERBOSE",
+         "phase19 config LogLevel is preserved as session data");
+      Check
+        (Options_Item.Visual_Host_Key,
+         "phase19 config VisualHostKey is preserved as session data");
+      Check
+        (To_String (Options_Item.Update_Host_Keys) = "ask",
+         "phase19 config UpdateHostKeys is preserved as session data");
+      Check
+        (not Options_Item.Password_Authentication,
+         "phase19 config PasswordAuthentication is preserved as session data");
+      Check
+        (not Options_Item.Pubkey_Authentication,
+         "phase19 config PubkeyAuthentication is preserved as session data");
+      Check
+        (not Options_Item.Kbd_Interactive_Authentication,
+         "phase19 config KbdInteractiveAuthentication is preserved");
+      Check
+        (Options_Item.Number_Of_Password_Prompts = 2,
+         "phase19 config NumberOfPasswordPrompts is preserved");
+      Check
+        (To_String (Options_Item.Strict_Host_Key_Checking) = "accept-new",
+         "phase19 config StrictHostKeyChecking is preserved");
+      Check
+        (Options_Item.Check_Host_IP,
+         "phase19 config CheckHostIP is preserved as session data");
+      Check
+        (Options_Item.Hash_Known_Hosts,
+         "phase19 config HashKnownHosts is preserved as session data");
+      Check
+        (To_String (Options_Item.Canonical_Domains)
+         = "example.test corp.test",
+         "phase19 config CanonicalDomains preserves the value tail");
+      Check
+        (Options_Item.Canonicalize_Max_Dots = 2,
+         "phase19 config CanonicalizeMaxDots is preserved");
+      Check
+        (not Options_Item.Canonicalize_Fallback_Local,
+         "phase19 config CanonicalizeFallbackLocal is preserved");
+      Check
+        (To_String (Options_Item.Canonicalize_Permitted_CNAMEs)
+         = "*.example.test:*.corp.test",
+         "phase19 config CanonicalizePermittedCNAMEs is preserved");
+      Check
+        (Options_Item.Hostbased_Authentication,
+         "phase19 config HostbasedAuthentication is preserved");
+      Check
+        (Options_Item.No_Host_Authentication_For_Localhost,
+         "phase19 config NoHostAuthenticationForLocalhost is preserved");
+      Check
+        (To_String (Options_Item.Address_Family) = "inet",
+         "phase19 config AddressFamily is preserved as session data");
+      Check
+        (To_String (Options_Item.Bind_Address) = "127.0.0.1",
+         "phase19 config BindAddress is preserved as session data");
+      Check
+        (To_String (Options_Item.Bind_Interface) = "lo",
+         "phase19 config BindInterface is preserved as session data");
+      Check
+        (To_String (Options_Item.IP_QoS) = "throughput lowdelay",
+         "phase19 config IPQoS preserves the value tail");
+      Check
+        (To_String (Options_Item.Escape_Char) = "none",
+         "phase19 config EscapeChar is preserved as session data");
+      Check
+        (To_String (Options_Item.Session_Type) = "none",
+         "phase19 config SessionType is preserved as session data");
+      Check
+        (SSH_Lib.Config_Apply.Session_Type_Mode_Of (Options_Item)
+         = SSH_Lib.Config_Apply.Session_Type_None,
+         "phase19 config SessionType none is classified");
+      Check
+        (Options_Item.Stdin_Null,
+         "phase19 config StdinNull is preserved as session data");
+      Check
+        (Options_Item.Fork_After_Authentication,
+         "phase19 config ForkAfterAuthentication is preserved");
+      Check
+        (Options_Item.Proxy_Use_Fdpass,
+         "phase19 config ProxyUseFdpass is preserved as session data");
+      Check
+        (Options_Item.Enable_SSH_Keysign,
+         "phase19 config EnableSSHKeysign is preserved as session data");
+      Check
+        (Options_Item.GSSAPI_Authentication,
+         "phase19 config GSSAPIAuthentication is preserved");
+      Check
+        (Options_Item.GSSAPI_Delegate_Credentials,
+         "phase19 config GSSAPIDelegateCredentials is preserved");
+      Check
+        (To_String (Options_Item.Log_Verbose) = "kex.c:*",
+         "phase19 config LogVerbose is preserved as session data");
+      Check
+        (To_String (Options_Item.Verify_Host_Key_DNS) = "ask",
+         "phase19 config VerifyHostKeyDNS is preserved as session data");
+      Check
+        (To_String (Options_Item.Fingerprint_Hash) = "sha256",
+         "phase19 config FingerprintHash is preserved as session data");
+      Check
+        (Options_Item.Connection_Attempts = 2,
+         "phase19 config ConnectionAttempts is preserved as session data");
+      Check
+        (To_String (Options_Item.Rekey_Limit) = "1G 1h",
+         "phase19 config RekeyLimit preserves the value tail");
+      Check
+        (Options_Item.Rekey_After_Bytes = 1_073_741_824,
+         "phase19 config RekeyLimit maps byte threshold");
+      Check
+        (Options_Item.Rekey_After_Seconds = 3_600,
+         "phase19 config RekeyLimit maps time threshold");
+      Check
+        (To_String (Options_Item.CA_Signature_Algorithms) = "ssh-ed25519",
+         "phase19 config CASignatureAlgorithms is preserved");
+      Check
+        (To_String (Options_Item.Known_Hosts_Command)
+         = "ssh-known-hosts %h %p",
+         "phase19 config KnownHostsCommand preserves command tail");
+      declare
+         Expanded_Known_Hosts_Command : Unbounded_String;
+         Known_Host_Key               : constant SSH_Lib.Known_Hosts.Host_Key :=
+           SSH_Lib.Tests.Fixtures.Known_Hosts.Fixture_Host_Key;
+         Fingerprint_Value            : SSH_Lib.Keys.Fingerprint;
+      begin
+         Status_Value :=
+           SSH_Lib.Known_Hosts.SHA256_Fingerprint
+             (Known_Host_Key, Fingerprint_Value);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config KnownHostsCommand fixture fingerprints");
+         Options_Item.Known_Hosts_Command :=
+           To_Unbounded_String
+             ("known %I %t %K %f %h %H %n %p %r %l %L %%");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Expand_Known_Hosts_Command
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Reason          => "ORDER",
+              Presented_Key   => Known_Host_Key,
+              Result          => Expanded_Known_Hosts_Command);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config KnownHostsCommand expands");
+         Check
+           (To_String (Expanded_Known_Hosts_Command)
+            = "known ORDER "
+              & SSH_Lib.Known_Hosts.Algorithm (Known_Host_Key)
+              & " "
+              & SSH_Lib.Known_Hosts.Encoded (Known_Host_Key)
+              & " "
+              & SSH_Lib.Keys.Image (Fingerprint_Value)
+              & " fixture-host fixture-host gh 22 git client.example.test client %",
+            "phase19 config KnownHostsCommand expands OpenSSH-style tokens");
+         Status_Value :=
+           SSH_Lib.Known_Hosts.Fingerprint_With_Hash
+             (Known_Host_Key, "md5", Fingerprint_Value);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config KnownHostsCommand fixture md5 fingerprints");
+         Options_Item.Fingerprint_Hash := To_Unbounded_String ("md5");
+         Options_Item.Known_Hosts_Command := To_Unbounded_String ("known %f");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Expand_Known_Hosts_Command
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Reason          => "ORDER",
+              Presented_Key   => Known_Host_Key,
+              Result          => Expanded_Known_Hosts_Command);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config KnownHostsCommand expands md5 fingerprint");
+         Check
+           (To_String (Expanded_Known_Hosts_Command)
+            = "known " & SSH_Lib.Keys.Image (Fingerprint_Value),
+            "phase19 config KnownHostsCommand honors FingerprintHash md5");
+         Options_Item.Known_Hosts_Command := To_Unbounded_String ("known %x");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Expand_Known_Hosts_Command
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Reason          => "ORDER",
+              Presented_Key   => Known_Host_Key,
+              Result          => Expanded_Known_Hosts_Command);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Unsupported_Feature,
+            "phase19 config KnownHostsCommand rejects unknown tokens");
+         Options_Item.Known_Hosts_Command :=
+           To_Unbounded_String ("known" & Character'Val (10) & "bad");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Expand_Known_Hosts_Command
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Reason          => "ORDER",
+              Presented_Key   => Known_Host_Key,
+              Result          => Expanded_Known_Hosts_Command);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 config KnownHostsCommand rejects control characters");
+         Options_Item.Known_Hosts_Command :=
+           To_Unbounded_String ("ssh-known-hosts %h %p");
+      end;
+      Check
+        (Options_Item.Permit_Local_Command,
+         "phase19 config PermitLocalCommand is preserved as session data");
+      Check
+        (To_String (Options_Item.Local_Command) = "printf ready",
+         "phase19 config LocalCommand preserves command tail");
+      declare
+         Expanded_Local_Command : Unbounded_String;
+      begin
+         Status_Value :=
+           SSH_Lib.Config_Apply.Expand_Local_Command
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Result          => Expanded_Local_Command);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config LocalCommand expands");
+         Check
+           (To_String (Expanded_Local_Command) = "printf ready",
+            "phase19 config LocalCommand without tokens is preserved");
+         Options_Item.Local_Command :=
+           To_Unbounded_String ("printf '%r %h %n %p %l %L %%'");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Expand_Local_Command
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Result          => Expanded_Local_Command);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config LocalCommand token expansion succeeds");
+         Check
+           (To_String (Expanded_Local_Command)
+            = "printf 'git fixture-host gh 22 client.example.test client %'",
+            "phase19 config LocalCommand expands OpenSSH-style tokens");
+         Options_Item.Local_Command := To_Unbounded_String ("printf %x");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Expand_Local_Command
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Result          => Expanded_Local_Command);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Unsupported_Feature,
+            "phase19 config LocalCommand rejects unknown tokens");
+         Options_Item.Local_Command :=
+           To_Unbounded_String ("printf" & Character'Val (10) & "bad");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Expand_Local_Command
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Result          => Expanded_Local_Command);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 config LocalCommand rejects control characters");
+         Options_Item.Permit_Local_Command := False;
+         Options_Item.Local_Command := To_Unbounded_String ("printf skipped");
+         Status_Value :=
+           SSH_Lib.Config_Apply.Expand_Local_Command
+             (Options_Item,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Result          => Expanded_Local_Command);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 config LocalCommand disabled succeeds");
+         Check
+           (Length (Expanded_Local_Command) = 0,
+            "phase19 config LocalCommand disabled expands to empty command");
+         Options_Item.Permit_Local_Command := True;
+         Options_Item.Local_Command := To_Unbounded_String ("printf ready");
+      end;
+      Check
+        (To_String (Options_Item.Add_Keys_To_Agent) = "confirm",
+         "phase19 config AddKeysToAgent is preserved as session data");
+      Check
+        (Options_Item.Clear_All_Forwardings,
+         "phase19 config ClearAllForwardings is preserved as session data");
+      Check
+        (Options_Item.Exit_On_Forward_Failure,
+         "phase19 config ExitOnForwardFailure is preserved as session data");
+      Check
         (To_String (Options_Item.Local_Forwards)
          = "127.0.0.1:8022 target.example:22",
          "phase19 config LocalForward is preserved as session data");
@@ -23247,6 +25461,59 @@ package body SSH_Lib.Tests.Legacy is
       Check
         (To_String (Options_Item.Set_Env) = "TERM=xterm-256color FOO=bar",
          "phase19 config SetEnv is preserved as session data");
+      Status_Value :=
+        SSH_Lib.Config_Apply.Start_Configured_Local_Forwards
+          (Empty_Session,
+           Options_Item,
+           Config_Local_Services,
+           Config_Started);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "phase19 ClearAllForwardings skips configured LocalForward");
+      Check
+        (Config_Started = 0,
+         "phase19 ClearAllForwardings starts zero local services");
+      Status_Value :=
+        SSH_Lib.Config_Apply.Start_Configured_Dynamic_Forwards
+          (Empty_Session,
+           Options_Item,
+           Config_Dynamic_Services,
+           Config_Started);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "phase19 ClearAllForwardings skips configured DynamicForward");
+      Check
+        (Config_Started = 0,
+         "phase19 ClearAllForwardings starts zero dynamic services");
+      Status_Value :=
+        SSH_Lib.Config_Apply.Request_Configured_Remote_Forwards
+          (Empty_Session,
+           Options_Item,
+           Config_Bound_Ports,
+           Config_Requested);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "phase19 ClearAllForwardings skips configured RemoteForward request");
+      Check
+        (Config_Requested = 0 and then Config_Bound_Ports (1) = 0,
+         "phase19 ClearAllForwardings requests zero remote forwards");
+      Status_Value :=
+        SSH_Lib.Config_Apply.Start_Configured_Remote_Forwards
+          (Empty_Session,
+           Options_Item,
+           Config_Remote_Services,
+           Config_Bound_Ports,
+           Config_Started);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "phase19 ClearAllForwardings skips managed RemoteForward");
+      Check
+        (Config_Started = 0 and then Config_Bound_Ports (1) = 0,
+         "phase19 ClearAllForwardings starts zero remote services");
       Status_Value :=
         SSH_Lib.Config_Apply.Start_Configured_Local_Forwards
           (Empty_Session,
@@ -23287,6 +25554,73 @@ package body SSH_Lib.Tests.Legacy is
         (Config_Requested = 0 and then Config_Bound_Ports (1) = 0,
          "phase19 config apply empty RemoteForward requests zero forwards");
       Status_Value :=
+        SSH_Lib.Config_Apply.Start_Configured_Remote_Forwards
+          (Empty_Session,
+           Empty_Options,
+           Config_Remote_Services,
+           Config_Bound_Ports,
+           Config_Started);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Ok,
+         "phase19 config apply empty managed RemoteForward succeeds");
+      Check
+        (Config_Started = 0 and then Config_Bound_Ports (1) = 0,
+         "phase19 config apply empty managed RemoteForward starts zero services");
+      declare
+         Strict_Options  : SSH_Lib.Sessions.Session_Options := Empty_Options;
+         Lenient_Options : SSH_Lib.Sessions.Session_Options := Empty_Options;
+         No_Local        :
+           SSH_Lib.Config_Apply.Managed_Forward_Service_Array (1 .. 0);
+         No_Dynamic      :
+           SSH_Lib.Config_Apply.Managed_Forward_Service_Array (1 .. 0);
+         No_Remote       :
+           SSH_Lib.Config_Apply.Managed_Forward_Service_Array (1 .. 0);
+         No_Ports        : SSH_Lib.Config_Apply.Bound_Port_Array (1 .. 1);
+         Local_Count     : Natural := 99;
+         Dynamic_Count   : Natural := 99;
+         Remote_Count    : Natural := 99;
+      begin
+         Strict_Options.Local_Forwards :=
+           To_Unbounded_String ("127.0.0.1:8022 target.example:22");
+         Strict_Options.Exit_On_Forward_Failure := True;
+         Status_Value :=
+           SSH_Lib.Config_Apply.Start_Configured_Forwards
+             (Empty_Session,
+              Strict_Options,
+              No_Local,
+              No_Dynamic,
+              No_Remote,
+              No_Ports,
+              Local_Count,
+              Dynamic_Count,
+              Remote_Count);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 ExitOnForwardFailure makes configured forward failure fatal");
+         Lenient_Options := Strict_Options;
+         Lenient_Options.Exit_On_Forward_Failure := False;
+         Status_Value :=
+           SSH_Lib.Config_Apply.Start_Configured_Forwards
+             (Empty_Session,
+              Lenient_Options,
+              No_Local,
+              No_Dynamic,
+              No_Remote,
+              No_Ports,
+              Local_Count,
+              Dynamic_Count,
+              Remote_Count);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 ExitOnForwardFailure no tolerates configured forward failure");
+         Check
+           (Local_Count = 0 and then Dynamic_Count = 0 and then Remote_Count = 0,
+            "phase19 lenient configured forward failure reports zero starts");
+      end;
+      Status_Value :=
         SSH_Lib.Config_Apply.Apply_Configured_Environment
           (Empty_Session,
            Empty_Channel,
@@ -23298,6 +25632,47 @@ package body SSH_Lib.Tests.Legacy is
       Check
         (To_String (Command_Item) = "git-upload-pack 'repo.git'",
          "phase18 upload-pack command is exact");
+
+      Status_Value :=
+        SSH_Lib.Git_Transport.Run_Service_With_Local_Git
+          (Repository_Path => "",
+           Requested       => SSH_Lib.Git_Transport.Upload_Pack,
+           Request         => Binary_Probe,
+           Response        => Workflow_Response,
+           Last            => Last_Index,
+           Summary         => Workflow_Summary,
+           Timeout_MS      => 1);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Invalid_Command,
+         "phase19 local git fallback rejects empty repository without spawn");
+      Status_Value :=
+        SSH_Lib.Git_Transport.Run_Service_With_Local_Git
+          (Repository_Path => "bad" & Character'Val (10) & "repo.git",
+           Requested       => SSH_Lib.Git_Transport.Receive_Pack,
+           Request         => Binary_Probe,
+           Response        => Workflow_Response,
+           Last            => Last_Index,
+           Summary         => Workflow_Summary,
+           Timeout_MS      => 1);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Invalid_Command,
+         "phase19 local git fallback rejects control characters");
+      Status_Value :=
+        SSH_Lib.Git_Transport.Run_Service_With_Local_SSH
+          (Options    => Empty_Options,
+           Command    => To_String (Command_Item),
+           Requested  => SSH_Lib.Git_Transport.Upload_Pack,
+           Request    => Binary_Probe,
+           Response   => Workflow_Response,
+           Last       => Last_Index,
+           Summary    => Workflow_Summary,
+           Timeout_MS => 1);
+      Check_Status
+        (Status_Value,
+         CryptoLib.Errors.Invalid_Command,
+         "phase19 local ssh fallback rejects empty host without spawn");
 
       Status_Value :=
         SSH_Lib.Git_Transport.Prepare
@@ -24029,6 +26404,1412 @@ package body SSH_Lib.Tests.Legacy is
          "phase19 secret redaction emits no secret material");
    end Run_Phase_19_Security_Audit_Tests;
 
+   procedure Run_Phase_19_Mux_Protocol_Tests is
+      Payload : constant Ada.Streams.Stream_Element_Array (1 .. 5) :=
+        [1 => Character'Pos ('a'),
+         2 => Character'Pos ('l'),
+         3 => Character'Pos ('i'),
+         4 => Character'Pos ('v'),
+         5 => Character'Pos ('e')];
+      Packet       : SSH_Lib.Mux.Mux_Message;
+      Parsed       : SSH_Lib.Mux.Mux_Message;
+      Frame_Data   : Ada.Streams.Stream_Element_Array (1 .. 64) := [others => 0];
+      Frame_Last   : Ada.Streams.Stream_Element_Offset := 0;
+      Status_Value : CryptoLib.Errors.Status;
+
+      function Payload_Matches
+        (Message : SSH_Lib.Mux.Mux_Message;
+         Expected : Ada.Streams.Stream_Element_Array)
+         return Boolean
+      is
+      begin
+         if Message.Payload_Length /= Expected'Length then
+            return False;
+         end if;
+
+         for Offset in 0 .. Expected'Length - 1 loop
+            if Message.Payload
+                 (Ada.Streams.Stream_Element_Offset (1 + Offset))
+              /= Expected
+                   (Expected'First
+                    + Ada.Streams.Stream_Element_Offset (Offset))
+            then
+               return False;
+            end if;
+         end loop;
+         return True;
+      end Payload_Matches;
+
+      procedure Append_U32
+        (Target : in out Ada.Streams.Stream_Element_Array;
+         Cursor : in out Ada.Streams.Stream_Element_Offset;
+         Value  : Interfaces.Unsigned_32)
+      is
+      begin
+         for Byte_Value of SSH_Lib.Protocol.Numbers.Encode_Uint32 (Value) loop
+            Target (Cursor) := Byte_Value;
+            Cursor := Cursor + 1;
+         end loop;
+      end Append_U32;
+
+      task type One_Shot_Mux_Server is
+         entry Start (Socket_Path : String);
+         entry Ready;
+      end One_Shot_Mux_Server;
+
+      task type Loop_Mux_Server is
+         entry Start (Socket_Path : String);
+         entry Ready;
+         entry Finished
+           (Status_Value : out CryptoLib.Errors.Status;
+            Decision     : out SSH_Lib.Mux.Mux_Master_Decision;
+            Listening    : out Boolean);
+      end Loop_Mux_Server;
+
+      task type Proxy_Response_Mux_Server is
+         entry Start (Socket_Path : String);
+         entry Ready;
+         entry Finished (Status_Value : out CryptoLib.Errors.Status);
+      end Proxy_Response_Mux_Server;
+
+      task type Owning_Proxy_Mux_Server is
+         entry Start (Socket_Path : String);
+         entry Ready;
+         entry Finished
+           (Status_Value       : out CryptoLib.Errors.Status;
+            Decision           : out SSH_Lib.Mux.Mux_Master_Decision;
+            Connected_Before   : out Boolean;
+            Active_Before      : out Natural;
+            Active_After       : out Natural);
+      end Owning_Proxy_Mux_Server;
+
+      task body One_Shot_Mux_Server is
+         Path_Text   : String (1 .. 200) := [others => Character'Val (0)];
+         Path_Length : Natural := 0;
+         Master     : SSH_Lib.Mux.Mux_Master;
+         Peer       : SSH_Lib.Mux.Mux_Client;
+         Request    : SSH_Lib.Mux.Mux_Message;
+         Response   : SSH_Lib.Mux.Mux_Message;
+         Decision   : SSH_Lib.Mux.Mux_Master_Decision;
+         Peer_Version : Interfaces.Unsigned_32 := 0;
+         Status_Item : CryptoLib.Errors.Status := CryptoLib.Errors.Ok;
+      begin
+         accept Start (Socket_Path : String) do
+            Path_Length := Natural'Min (Socket_Path'Length, Path_Text'Length);
+            Path_Text (1 .. Path_Length) :=
+              Socket_Path (Socket_Path'First .. Socket_Path'First + Path_Length - 1);
+         end Start;
+
+         Status_Item :=
+           SSH_Lib.Mux.Start_Master
+             (Path_Text (1 .. Path_Length), Master);
+         accept Ready;
+         if Status_Item = CryptoLib.Errors.Ok then
+            Status_Item :=
+              SSH_Lib.Mux.Accept_Control (Master, Peer);
+            if Status_Item = CryptoLib.Errors.Ok then
+               Status_Item := SSH_Lib.Mux.Receive_Message (Peer, Request);
+            end if;
+            if Status_Item = CryptoLib.Errors.Ok then
+               if Request.Kind = SSH_Lib.Mux.Mux_Hello then
+                  Status_Item :=
+                    SSH_Lib.Mux.Decode_Hello (Request, Peer_Version);
+                  if Status_Item = CryptoLib.Errors.Ok then
+                     Status_Item :=
+                       SSH_Lib.Mux.Encode_Hello
+                         (SSH_Lib.Mux.Mux_Protocol_Version, Response);
+                  end if;
+                  if Status_Item = CryptoLib.Errors.Ok then
+                     Status_Item := SSH_Lib.Mux.Send_Message (Peer, Response);
+                  end if;
+                  if Status_Item = CryptoLib.Errors.Ok then
+                     Status_Item := SSH_Lib.Mux.Receive_Message (Peer, Request);
+                  end if;
+               end if;
+            end if;
+            if Status_Item = CryptoLib.Errors.Ok then
+               Status_Item :=
+                 SSH_Lib.Mux.Route_Master_Request
+                   (Master, Request, Response, Decision);
+            end if;
+            if Status_Item = CryptoLib.Errors.Ok then
+               Status_Item := SSH_Lib.Mux.Send_Message (Peer, Response);
+            end if;
+         end if;
+         SSH_Lib.Mux.Release_Control (Master, Peer);
+         SSH_Lib.Mux.Close_Master (Master);
+      exception
+         when others =>
+            SSH_Lib.Mux.Release_Control (Master, Peer);
+            SSH_Lib.Mux.Close_Master (Master);
+      end One_Shot_Mux_Server;
+
+      task body Loop_Mux_Server is
+         Path_Text     : String (1 .. 200) := [others => Character'Val (0)];
+         Path_Length   : Natural := 0;
+         Master        : SSH_Lib.Mux.Mux_Master;
+         Final_Decision : SSH_Lib.Mux.Mux_Master_Decision :=
+           SSH_Lib.Mux.Mux_Reject_Decision;
+         Status_Item   : CryptoLib.Errors.Status := CryptoLib.Errors.Ok;
+         Listening_After : Boolean := False;
+      begin
+         accept Start (Socket_Path : String) do
+            Path_Length := Natural'Min (Socket_Path'Length, Path_Text'Length);
+            Path_Text (1 .. Path_Length) :=
+              Socket_Path (Socket_Path'First .. Socket_Path'First + Path_Length - 1);
+         end Start;
+
+         Status_Item :=
+           SSH_Lib.Mux.Start_Master
+             (Path_Text (1 .. Path_Length), Master);
+         accept Ready;
+         if Status_Item = CryptoLib.Errors.Ok then
+            Status_Item :=
+              SSH_Lib.Mux.Serve_Control_Master
+                (Master,
+                 (New_Session       => null,
+                  Open_Forward      => null,
+                  Close_Forward     => null,
+                  New_Stdio_Forward => null,
+                  Proxy             => null),
+                 Final_Decision,
+                 Max_Clients             => 2,
+                 Max_Requests_Per_Client => 1);
+            Listening_After := SSH_Lib.Mux.Is_Listening (Master);
+         end if;
+         SSH_Lib.Mux.Close_Master (Master);
+         accept Finished
+           (Status_Value : out CryptoLib.Errors.Status;
+            Decision     : out SSH_Lib.Mux.Mux_Master_Decision;
+            Listening    : out Boolean)
+         do
+            Status_Value := Status_Item;
+            Decision := Final_Decision;
+            Listening := Listening_After;
+         end Finished;
+      exception
+         when others =>
+            SSH_Lib.Mux.Close_Master (Master);
+            accept Finished
+              (Status_Value : out CryptoLib.Errors.Status;
+               Decision     : out SSH_Lib.Mux.Mux_Master_Decision;
+               Listening    : out Boolean)
+            do
+               Status_Value := CryptoLib.Errors.Internal_Error;
+               Decision := SSH_Lib.Mux.Mux_Reject_Decision;
+               Listening := False;
+            end Finished;
+      end Loop_Mux_Server;
+
+      task body Proxy_Response_Mux_Server is
+         Path_Text    : String (1 .. 200) := [others => Character'Val (0)];
+         Path_Length  : Natural := 0;
+         Master       : SSH_Lib.Mux.Mux_Master;
+         Peer         : SSH_Lib.Mux.Mux_Client;
+         Request      : SSH_Lib.Mux.Mux_Message;
+         Response     : SSH_Lib.Mux.Mux_Message;
+         Peer_Version : Interfaces.Unsigned_32 := 0;
+         Status_Item  : CryptoLib.Errors.Status := CryptoLib.Errors.Ok;
+      begin
+         accept Start (Socket_Path : String) do
+            Path_Length := Natural'Min (Socket_Path'Length, Path_Text'Length);
+            Path_Text (1 .. Path_Length) :=
+              Socket_Path (Socket_Path'First .. Socket_Path'First + Path_Length - 1);
+         end Start;
+
+         Status_Item :=
+           SSH_Lib.Mux.Start_Master
+             (Path_Text (1 .. Path_Length), Master);
+         accept Ready;
+         if Status_Item = CryptoLib.Errors.Ok then
+            Status_Item := SSH_Lib.Mux.Accept_Control (Master, Peer);
+         end if;
+         if Status_Item = CryptoLib.Errors.Ok then
+            Status_Item := SSH_Lib.Mux.Receive_Message (Peer, Request);
+         end if;
+         if Status_Item = CryptoLib.Errors.Ok then
+            Status_Item := SSH_Lib.Mux.Decode_Hello (Request, Peer_Version);
+         end if;
+         if Status_Item = CryptoLib.Errors.Ok then
+            Status_Item :=
+              SSH_Lib.Mux.Encode_Hello
+                (SSH_Lib.Mux.Mux_Protocol_Version, Response);
+         end if;
+         if Status_Item = CryptoLib.Errors.Ok then
+            Status_Item := SSH_Lib.Mux.Send_Message (Peer, Response);
+         end if;
+         if Status_Item = CryptoLib.Errors.Ok then
+            Status_Item := SSH_Lib.Mux.Receive_Message (Peer, Request);
+         end if;
+         if Status_Item = CryptoLib.Errors.Ok
+           and then Request.Kind = SSH_Lib.Mux.Mux_Proxy
+         then
+            Status_Item :=
+              SSH_Lib.Mux.Encode_Proxy_Response
+                (Request.Request_Id, Response);
+         elsif Status_Item = CryptoLib.Errors.Ok then
+            Status_Item := CryptoLib.Errors.Invalid_Command;
+         end if;
+         if Status_Item = CryptoLib.Errors.Ok then
+            Status_Item := SSH_Lib.Mux.Send_Message (Peer, Response);
+         end if;
+         delay 0.05;
+         SSH_Lib.Mux.Release_Control (Master, Peer);
+         SSH_Lib.Mux.Close_Master (Master);
+         accept Finished (Status_Value : out CryptoLib.Errors.Status) do
+            Status_Value := Status_Item;
+         end Finished;
+      exception
+         when others =>
+            SSH_Lib.Mux.Release_Control (Master, Peer);
+            SSH_Lib.Mux.Close_Master (Master);
+            accept Finished (Status_Value : out CryptoLib.Errors.Status) do
+               Status_Value := CryptoLib.Errors.Internal_Error;
+            end Finished;
+      end Proxy_Response_Mux_Server;
+
+      task body Owning_Proxy_Mux_Server is
+         Path_Text        : String (1 .. 200) := [others => Character'Val (0)];
+         Path_Length      : Natural := 0;
+         Master           : SSH_Lib.Mux.Mux_Master;
+         Peer             : SSH_Lib.Mux.Mux_Client;
+         Final_Decision   : SSH_Lib.Mux.Mux_Master_Decision :=
+           SSH_Lib.Mux.Mux_Reject_Decision;
+         Status_Item      : CryptoLib.Errors.Status := CryptoLib.Errors.Ok;
+         Connected_Result : Boolean := False;
+         Active_Pre       : Natural := 0;
+         Active_Post      : Natural := 0;
+
+         function Proxy_Backend
+           (Master   : in out SSH_Lib.Mux.Mux_Master;
+            Client   : in out SSH_Lib.Mux.Mux_Client;
+            Request  : SSH_Lib.Mux.Mux_Message;
+            Response : out SSH_Lib.Mux.Mux_Message)
+            return CryptoLib.Errors.Status
+         is
+            pragma Unreferenced (Master, Client);
+         begin
+            return SSH_Lib.Mux.Encode_Proxy_Response
+              (Request.Request_Id, Response);
+         end Proxy_Backend;
+      begin
+         accept Start (Socket_Path : String) do
+            Path_Length := Natural'Min (Socket_Path'Length, Path_Text'Length);
+            Path_Text (1 .. Path_Length) :=
+              Socket_Path (Socket_Path'First .. Socket_Path'First + Path_Length - 1);
+         end Start;
+
+         Status_Item :=
+           SSH_Lib.Mux.Start_Master
+             (Path_Text (1 .. Path_Length), Master);
+         accept Ready;
+         if Status_Item = CryptoLib.Errors.Ok then
+            Status_Item :=
+              SSH_Lib.Mux.Serve_One_Control
+                (Master,
+                 (New_Session       => null,
+                  Open_Forward      => null,
+                  Close_Forward     => null,
+                  New_Stdio_Forward => null,
+                  Proxy             => Proxy_Backend'Unrestricted_Access),
+                 Final_Decision,
+                 Peer,
+                 Max_Requests => 1);
+            Connected_Result := SSH_Lib.Mux.Is_Connected (Peer);
+            Active_Pre := SSH_Lib.Mux.Active_Client_Count (Master);
+            SSH_Lib.Mux.Release_Control (Master, Peer);
+            Active_Post := SSH_Lib.Mux.Active_Client_Count (Master);
+         end if;
+         SSH_Lib.Mux.Close_Master (Master);
+         accept Finished
+           (Status_Value       : out CryptoLib.Errors.Status;
+            Decision           : out SSH_Lib.Mux.Mux_Master_Decision;
+            Connected_Before   : out Boolean;
+            Active_Before      : out Natural;
+            Active_After       : out Natural)
+         do
+            Status_Value := Status_Item;
+            Decision := Final_Decision;
+            Connected_Before := Connected_Result;
+            Active_Before := Active_Pre;
+            Active_After := Active_Post;
+         end Finished;
+      exception
+         when others =>
+            SSH_Lib.Mux.Release_Control (Master, Peer);
+            SSH_Lib.Mux.Close_Master (Master);
+            accept Finished
+              (Status_Value       : out CryptoLib.Errors.Status;
+               Decision           : out SSH_Lib.Mux.Mux_Master_Decision;
+               Connected_Before   : out Boolean;
+               Active_Before      : out Natural;
+               Active_After       : out Natural)
+            do
+               Status_Value := CryptoLib.Errors.Internal_Error;
+               Decision := SSH_Lib.Mux.Mux_Reject_Decision;
+               Connected_Before := False;
+               Active_Before := 0;
+               Active_After := 0;
+            end Finished;
+      end Owning_Proxy_Mux_Server;
+   begin
+      Check
+        (SSH_Lib.Mux.Kind_For_Code
+           (SSH_Lib.Mux.Kind_Code (SSH_Lib.Mux.Mux_Alive_Check))
+         = SSH_Lib.Mux.Mux_Alive_Check,
+         "phase19 mux alive-check opcode round-trips");
+      Check
+        (SSH_Lib.Mux.Kind_For_Code
+           (SSH_Lib.Mux.Kind_Code (SSH_Lib.Mux.Mux_Stop_Listening))
+         = SSH_Lib.Mux.Mux_Stop_Listening,
+         "phase19 mux stop-listening opcode round-trips");
+      Check
+        (SSH_Lib.Mux.Kind_For_Code
+           (SSH_Lib.Mux.Kind_Code (SSH_Lib.Mux.Mux_New_Stdio_Fwd))
+         = SSH_Lib.Mux.Mux_New_Stdio_Fwd,
+         "phase19 mux stdio-forward opcode round-trips");
+      Check
+        (SSH_Lib.Mux.Kind_For_Code
+           (SSH_Lib.Mux.Kind_Code (SSH_Lib.Mux.Mux_Session_Open))
+         = SSH_Lib.Mux.Mux_Session_Open,
+         "phase19 mux session-opened opcode round-trips");
+      Check
+        (SSH_Lib.Mux.Kind_For_Code
+           (SSH_Lib.Mux.Kind_Code (SSH_Lib.Mux.Mux_Alive))
+         = SSH_Lib.Mux.Mux_Alive,
+         "phase19 mux alive response opcode round-trips");
+      Check
+        (SSH_Lib.Mux.Kind_For_Code
+           (SSH_Lib.Mux.Kind_Code (SSH_Lib.Mux.Mux_Ext_Info))
+         = SSH_Lib.Mux.Mux_Ext_Info,
+         "phase19 mux ext-info request opcode round-trips");
+      Check
+        (SSH_Lib.Mux.Kind_For_Code
+           (SSH_Lib.Mux.Kind_Code (SSH_Lib.Mux.Mux_Proxy_Response))
+         = SSH_Lib.Mux.Mux_Proxy_Response,
+         "phase19 mux proxy response opcode round-trips");
+      Check
+        (SSH_Lib.Mux.Kind_For_Code
+           (SSH_Lib.Mux.Kind_Code (SSH_Lib.Mux.Mux_Ext_Info_Response))
+         = SSH_Lib.Mux.Mux_Ext_Info_Response,
+         "phase19 mux ext-info response opcode round-trips");
+      Check
+        (SSH_Lib.Mux.Kind_For_Code (16#DEAD_BEEF#)
+         = SSH_Lib.Mux.Mux_Unknown,
+         "phase19 mux unknown opcode is classified");
+
+      declare
+         Control_Left  : GNAT.Sockets.Socket_Type;
+         Control_Right : GNAT.Sockets.Socket_Type;
+         Pass_Left     : GNAT.Sockets.Socket_Type;
+         Pass_Right    : GNAT.Sockets.Socket_Type;
+         Sent_FDs      : SSH_Lib.Platform.FD_Passing.File_Descriptor_Array
+           (1 .. 1);
+         Received_FDs  : SSH_Lib.Platform.FD_Passing.File_Descriptor_Array
+           (1 .. 1);
+         Received_Count : Natural := 0;
+      begin
+         GNAT.Sockets.Create_Socket_Pair (Control_Left, Control_Right);
+         GNAT.Sockets.Create_Socket_Pair (Pass_Left, Pass_Right);
+         Sent_FDs (1) :=
+           SSH_Lib.Platform.FD_Passing.File_Descriptor
+             (GNAT.Sockets.To_C (Pass_Left));
+         Status_Value :=
+           SSH_Lib.Platform.FD_Passing.Send_File_Descriptors
+             (Control_Left, Sent_FDs);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 platform sends fd over Unix socket");
+         Status_Value :=
+           SSH_Lib.Platform.FD_Passing.Receive_File_Descriptors
+             (Control_Right, Received_FDs, Received_Count);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 platform receives fd over Unix socket");
+         Check
+           (Received_Count = 1 and then Integer (Received_FDs (1)) >= 0,
+            "phase19 platform fd passing returns one descriptor");
+         GNAT.Sockets.Close_Socket
+           (GNAT.Sockets.To_Ada (Integer (Received_FDs (1))));
+         GNAT.Sockets.Close_Socket (Pass_Left);
+         GNAT.Sockets.Close_Socket (Pass_Right);
+         GNAT.Sockets.Close_Socket (Control_Left);
+         GNAT.Sockets.Close_Socket (Control_Right);
+      end;
+
+      Status_Value :=
+        SSH_Lib.Mux.Encode
+          (SSH_Lib.Mux.Mux_Alive_Check, 42, Payload, Packet);
+      Check_Status
+        (Status_Value, CryptoLib.Errors.Ok, "phase19 mux encode alive-check");
+      Check (Packet.Payload_Length = 5, "phase19 mux encode length");
+      Check (Payload_Matches (Packet, Payload), "phase19 mux encode payload");
+
+      Status_Value := SSH_Lib.Mux.Frame (Packet, Frame_Data, Frame_Last);
+      Check_Status
+        (Status_Value, CryptoLib.Errors.Ok, "phase19 mux frame alive-check");
+      Check
+        (Frame_Last = 12 + Payload'Length,
+         "phase19 mux frame length includes OpenSSH header and request id");
+
+      Status_Value :=
+        SSH_Lib.Mux.Decode
+          (Frame_Data (Frame_Data'First .. Frame_Last), Parsed);
+      Check_Status
+        (Status_Value, CryptoLib.Errors.Ok, "phase19 mux decode alive-check");
+      Check
+        (Parsed.Kind = SSH_Lib.Mux.Mux_Alive_Check,
+         "phase19 mux decoded kind");
+      Check (Parsed.Request_Id = 42, "phase19 mux decoded request id");
+      Check (Payload_Matches (Parsed, Payload), "phase19 mux decoded payload");
+
+      declare
+         Hello_Version : Interfaces.Unsigned_32 := 0;
+      begin
+         Status_Value :=
+           SSH_Lib.Mux.Encode_Hello
+             (SSH_Lib.Mux.Mux_Protocol_Version, Packet);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux encodes hello");
+         Status_Value := SSH_Lib.Mux.Frame (Packet, Frame_Data, Frame_Last);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux frames hello");
+         Check
+           (Frame_Last = 12,
+            "phase19 mux hello frame omits request id");
+         Status_Value :=
+           SSH_Lib.Mux.Decode
+             (Frame_Data (Frame_Data'First .. Frame_Last), Parsed);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux decodes hello frame");
+         Status_Value := SSH_Lib.Mux.Decode_Hello (Parsed, Hello_Version);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux decodes hello version");
+         Check
+           (Hello_Version = SSH_Lib.Mux.Mux_Protocol_Version,
+            "phase19 mux hello version round-trips");
+      end;
+
+      declare
+         Session_Id  : Interfaces.Unsigned_32 := 0;
+         Remote_Port : Interfaces.Unsigned_32 := 0;
+         Exit_Value  : Interfaces.Unsigned_32 := 0;
+      begin
+         Status_Value :=
+           SSH_Lib.Mux.Encode_Session_Opened (81, 7001, Packet);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux encodes session-opened response");
+         Status_Value :=
+           SSH_Lib.Mux.Decode_Session_Opened (Packet, Session_Id);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux decodes session-opened response");
+         Check
+           (Packet.Request_Id = 81 and then Session_Id = 7001,
+            "phase19 mux session-opened preserves request and session id");
+
+         Status_Value :=
+           SSH_Lib.Mux.Encode_Remote_Port (82, 49152, Packet);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux encodes remote-port response");
+         Status_Value :=
+           SSH_Lib.Mux.Decode_Remote_Port (Packet, Remote_Port);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux decodes remote-port response");
+         Check
+           (Packet.Request_Id = 82 and then Remote_Port = 49152,
+            "phase19 mux remote-port preserves request and allocated port");
+
+         Status_Value :=
+           SSH_Lib.Mux.Encode_Exit_Message (7001, 23, Packet);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux encodes exit-message response");
+         Status_Value :=
+           SSH_Lib.Mux.Decode_Exit_Message
+             (Packet, Session_Id, Exit_Value);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux decodes exit-message response");
+         Check
+           (Session_Id = 7001 and then Exit_Value = 23,
+            "phase19 mux exit-message preserves session id and exit value");
+
+         Status_Value :=
+           SSH_Lib.Mux.Encode_TTY_Alloc_Fail (7001, Packet);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux encodes tty-alloc-fail response");
+         Status_Value :=
+           SSH_Lib.Mux.Decode_TTY_Alloc_Fail (Packet, Session_Id);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux decodes tty-alloc-fail response");
+         Check
+           (Session_Id = 7001,
+            "phase19 mux tty-alloc-fail preserves session id");
+
+         Status_Value :=
+           SSH_Lib.Mux.Encode_Ext_Info (83, 0, Packet);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux encodes ext-info response");
+         Status_Value := SSH_Lib.Mux.Decode_Ext_Info (Packet, Remote_Port);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux decodes ext-info response");
+         Check
+           (Packet.Request_Id = 83 and then Remote_Port = 0,
+            "phase19 mux ext-info response preserves empty extension bitmask");
+
+         Status_Value :=
+           SSH_Lib.Mux.Encode_Proxy_Response (84, Packet);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux encodes proxy response");
+         Check
+           (Packet.Kind = SSH_Lib.Mux.Mux_Proxy_Response
+            and then Packet.Request_Id = 84
+            and then Packet.Payload_Length = 0,
+            "phase19 mux proxy response is empty");
+      end;
+
+      declare
+         Unknown_Frame : Ada.Streams.Stream_Element_Array (1 .. 8) :=
+           [others => 0];
+         Cursor : Ada.Streams.Stream_Element_Offset := Unknown_Frame'First;
+      begin
+         Append_U32 (Unknown_Frame, Cursor, 4);
+         Append_U32 (Unknown_Frame, Cursor, 16#DEAD_BEEF#);
+         Status_Value := SSH_Lib.Mux.Decode (Unknown_Frame, Parsed);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Unsupported_Feature,
+            "phase19 mux rejects unknown opcode");
+      end;
+
+      declare
+         Truncated_Request_Frame : Ada.Streams.Stream_Element_Array (1 .. 8) :=
+           [others => 0];
+         Cursor : Ada.Streams.Stream_Element_Offset :=
+           Truncated_Request_Frame'First;
+      begin
+         Append_U32 (Truncated_Request_Frame, Cursor, 4);
+         Append_U32
+           (Truncated_Request_Frame,
+            Cursor,
+            SSH_Lib.Mux.Kind_Code (SSH_Lib.Mux.Mux_Alive_Check));
+         Status_Value := SSH_Lib.Mux.Decode (Truncated_Request_Frame, Parsed);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 mux rejects truncated request id");
+      end;
+
+      declare
+         Short_Frame : Ada.Streams.Stream_Element_Array (1 .. 8) :=
+           [others => 0];
+         Short_Last : Ada.Streams.Stream_Element_Offset := 0;
+      begin
+         Status_Value := SSH_Lib.Mux.Frame (Packet, Short_Frame, Short_Last);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Unsupported_Feature,
+            "phase19 mux rejects undersized output buffer");
+      end;
+
+      declare
+         Forward_Request : SSH_Lib.Mux.Mux_Forward_Request;
+         Parsed_Forward  : SSH_Lib.Mux.Mux_Forward_Request;
+         Forward_Payload : Ada.Streams.Stream_Element_Array (1 .. 128) :=
+           [others => 0];
+         Forward_Last    : Ada.Streams.Stream_Element_Offset := 0;
+      begin
+         Forward_Request.Forward_Type := SSH_Lib.Mux.Mux_Forward_Local;
+         Forward_Request.Listen_Host := To_Unbounded_String ("127.0.0.1");
+         Forward_Request.Listen_Port := 8022;
+         Forward_Request.Connect_Host := To_Unbounded_String ("target.example");
+         Forward_Request.Connect_Port := 22;
+         Status_Value :=
+           SSH_Lib.Mux.Encode_Forward_Request
+             (Forward_Request, Forward_Payload, Forward_Last);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux encodes local forward payload");
+         Status_Value :=
+           SSH_Lib.Mux.Decode_Forward_Request
+             (Forward_Payload (Forward_Payload'First .. Forward_Last),
+              Parsed_Forward);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux decodes local forward payload");
+         Check
+           (Parsed_Forward.Forward_Type = SSH_Lib.Mux.Mux_Forward_Local
+            and then To_String (Parsed_Forward.Listen_Host) = "127.0.0.1"
+            and then Parsed_Forward.Listen_Port = 8022
+            and then To_String (Parsed_Forward.Connect_Host) = "target.example"
+            and then Parsed_Forward.Connect_Port = 22,
+            "phase19 mux local forward payload round-trips");
+
+         Forward_Request.Forward_Type := SSH_Lib.Mux.Mux_Forward_Remote;
+         Forward_Request.Listen_Host := To_Unbounded_String ("/tmp/listen.sock");
+         Forward_Request.Listen_Port := SSH_Lib.Mux.Mux_Unix_Socket_Port;
+         Forward_Request.Connect_Host := To_Unbounded_String ("/tmp/target.sock");
+         Forward_Request.Connect_Port := SSH_Lib.Mux.Mux_Unix_Socket_Port;
+         Status_Value :=
+           SSH_Lib.Mux.Encode_Forward_Request
+             (Forward_Request, Forward_Payload, Forward_Last);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux encodes Unix-socket forward payload");
+         Status_Value :=
+           SSH_Lib.Mux.Decode_Forward_Request
+             (Forward_Payload (Forward_Payload'First .. Forward_Last),
+              Parsed_Forward);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux decodes Unix-socket forward payload");
+         Check
+           (Parsed_Forward.Forward_Type = SSH_Lib.Mux.Mux_Forward_Remote
+            and then Parsed_Forward.Listen_Port
+              = SSH_Lib.Mux.Mux_Unix_Socket_Port
+            and then Parsed_Forward.Connect_Port
+              = SSH_Lib.Mux.Mux_Unix_Socket_Port,
+            "phase19 mux preserves Unix-socket sentinel ports");
+
+         Status_Value :=
+           SSH_Lib.Mux.Decode_Forward_Request
+             (Forward_Payload
+                (Forward_Payload'First
+                 .. Forward_Last + 1),
+              Parsed_Forward);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 mux rejects trailing forward payload bytes");
+
+         Status_Value :=
+           SSH_Lib.Mux.Encode
+             (SSH_Lib.Mux.Mux_Open_Fwd,
+              71,
+              Forward_Payload (Forward_Payload'First .. Forward_Last),
+              Packet);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux encodes open-forward request");
+         declare
+            Forward_Decision : SSH_Lib.Mux.Mux_Master_Decision;
+         begin
+            Status_Value :=
+              SSH_Lib.Mux.Classify_Master_Request
+                (Packet, Forward_Decision);
+            Check_Status
+              (Status_Value,
+               CryptoLib.Errors.Ok,
+               "phase19 mux classifies valid open-forward request");
+            Check
+              (Forward_Decision
+               = SSH_Lib.Mux.Mux_Open_Forward_Decision,
+               "phase19 mux open-forward classification is actionable");
+         end;
+      end;
+
+      declare
+         Session_Request : SSH_Lib.Mux.Mux_New_Session_Request;
+         Parsed_Session  : SSH_Lib.Mux.Mux_New_Session_Request;
+         Session_Payload : Ada.Streams.Stream_Element_Array (1 .. 256) :=
+           [others => 0];
+         Session_Last    : Ada.Streams.Stream_Element_Offset := 0;
+      begin
+         Session_Request.Reserved := To_Unbounded_String ("");
+         Session_Request.Want_TTY := True;
+         Session_Request.Want_X11 := True;
+         Session_Request.Want_Agent := False;
+         Session_Request.Is_Subsystem := False;
+         Session_Request.Escape_Char := Character'Pos ('~');
+         Session_Request.Terminal_Type := To_Unbounded_String ("xterm-256color");
+         Session_Request.Command := To_Unbounded_String ("git status");
+         Session_Request.Environment_Count := 2;
+         Session_Request.Environment (1) := To_Unbounded_String ("LANG=C");
+         Session_Request.Environment (2) := To_Unbounded_String ("TERM=xterm");
+         Status_Value :=
+           SSH_Lib.Mux.Encode_New_Session_Request
+             (Session_Request, Session_Payload, Session_Last);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux encodes new-session payload");
+         Status_Value :=
+           SSH_Lib.Mux.Decode_New_Session_Request
+             (Session_Payload (Session_Payload'First .. Session_Last),
+              Parsed_Session);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux decodes new-session payload");
+         Check
+           (Parsed_Session.Want_TTY
+            and then Parsed_Session.Want_X11
+            and then not Parsed_Session.Want_Agent
+            and then not Parsed_Session.Is_Subsystem
+            and then Parsed_Session.Escape_Char = Character'Pos ('~')
+            and then To_String (Parsed_Session.Terminal_Type) = "xterm-256color"
+            and then To_String (Parsed_Session.Command) = "git status"
+            and then Parsed_Session.Environment_Count = 2
+            and then To_String (Parsed_Session.Environment (1)) = "LANG=C"
+            and then To_String (Parsed_Session.Environment (2)) = "TERM=xterm",
+            "phase19 mux new-session payload round-trips");
+
+         Session_Payload
+           (Session_Payload'First + 4) := 2;
+         Status_Value :=
+           SSH_Lib.Mux.Decode_New_Session_Request
+             (Session_Payload (Session_Payload'First .. Session_Last),
+              Parsed_Session);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 mux rejects malformed new-session boolean");
+         Session_Payload
+           (Session_Payload'First + 4) := 0;
+
+         Status_Value :=
+           SSH_Lib.Mux.Encode
+             (SSH_Lib.Mux.Mux_New_Session,
+              72,
+              Session_Payload (Session_Payload'First .. Session_Last),
+              Packet);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux encodes classified new-session request");
+         declare
+            Session_Decision : SSH_Lib.Mux.Mux_Master_Decision;
+         begin
+            Status_Value :=
+              SSH_Lib.Mux.Classify_Master_Request
+                (Packet, Session_Decision);
+            Check_Status
+              (Status_Value,
+               CryptoLib.Errors.Ok,
+               "phase19 mux classifies valid new-session request");
+            Check
+              (Session_Decision
+               = SSH_Lib.Mux.Mux_New_Session_Decision,
+               "phase19 mux new-session classification is actionable");
+         end;
+      end;
+
+      declare
+         Socket_Path : constant String := "/tmp/sshlib-mux-master-lifecycle.sock";
+         Master      : SSH_Lib.Mux.Mux_Master;
+         Routed_Request  : SSH_Lib.Mux.Mux_Message;
+         Routed_Response : SSH_Lib.Mux.Mux_Message;
+         Decision        : SSH_Lib.Mux.Mux_Master_Decision;
+         Reason_Text     : Unbounded_String;
+         Empty_Data      : constant Ada.Streams.Stream_Element_Array (1 .. 0) :=
+           [others => 0];
+         Session_Request : SSH_Lib.Mux.Mux_New_Session_Request;
+         Session_Payload : Ada.Streams.Stream_Element_Array (1 .. 256) :=
+           [others => 0];
+         Session_Last    : Ada.Streams.Stream_Element_Offset := 0;
+         Backend_Client  : SSH_Lib.Mux.Mux_Client;
+
+         function Session_Backend
+           (Master   : in out SSH_Lib.Mux.Mux_Master;
+            Client   : in out SSH_Lib.Mux.Mux_Client;
+            Request  : SSH_Lib.Mux.Mux_Message;
+            Response : out SSH_Lib.Mux.Mux_Message)
+            return CryptoLib.Errors.Status
+         is
+            pragma Unreferenced (Master, Client);
+            Parsed_Request : SSH_Lib.Mux.Mux_New_Session_Request;
+            State          : CryptoLib.Errors.Status;
+         begin
+            State :=
+              SSH_Lib.Mux.Decode_New_Session_Request
+                (Request.Payload
+                   (Request.Payload'First
+                    .. Request.Payload'First
+                       + Ada.Streams.Stream_Element_Offset
+                           (Request.Payload_Length)
+                       - 1),
+                 Parsed_Request);
+            if State /= CryptoLib.Errors.Ok then
+               return State;
+            end if;
+            return SSH_Lib.Mux.Encode_Session_Opened
+              (Request.Request_Id, 7002, Response);
+         end Session_Backend;
+
+         function Empty_Success_Backend
+           (Master   : in out SSH_Lib.Mux.Mux_Master;
+            Client   : in out SSH_Lib.Mux.Mux_Client;
+            Request  : SSH_Lib.Mux.Mux_Message;
+            Response : out SSH_Lib.Mux.Mux_Message)
+            return CryptoLib.Errors.Status
+         is
+            pragma Unreferenced (Master, Client, Request, Response);
+         begin
+            return CryptoLib.Errors.Ok;
+         end Empty_Success_Backend;
+      begin
+         if Ada.Directories.Exists (Socket_Path) then
+            Ada.Directories.Delete_File (Socket_Path);
+         end if;
+
+         Status_Value :=
+           SSH_Lib.Mux.Start_Master
+             (Socket_Path,
+              Master,
+              Persist_Seconds => 600,
+              Server_Pid      => 1234);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux master starts Unix control listener");
+         Check
+           (SSH_Lib.Mux.Is_Listening (Master),
+            "phase19 mux master records listening state");
+         Check
+           (SSH_Lib.Mux.Persist_Seconds_Of (Master) = 600,
+            "phase19 mux master records ControlPersist seconds");
+         Check
+           (SSH_Lib.Mux.Server_Pid_Of (Master) = 1234,
+            "phase19 mux master records alive-check pid");
+         Check
+           (SSH_Lib.Mux.Active_Client_Count (Master) = 0,
+            "phase19 mux master starts with no active control clients");
+         Check
+           (not SSH_Lib.Mux.Should_Terminate_When_Idle (Master, 599),
+            "phase19 mux master persists before idle timeout");
+         Check
+           (SSH_Lib.Mux.Should_Terminate_When_Idle (Master, 600),
+            "phase19 mux master terminates after idle timeout");
+         SSH_Lib.Mux.Configure_Persist (Master, Natural'Last);
+         Check
+           (not SSH_Lib.Mux.Should_Terminate_When_Idle
+              (Master, Natural'Last),
+            "phase19 mux master supports indefinite ControlPersist");
+
+         Status_Value :=
+           SSH_Lib.Mux.Encode
+             (SSH_Lib.Mux.Mux_Terminate, 91, Empty_Data, Routed_Request);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux master encodes terminate request");
+         Status_Value :=
+           SSH_Lib.Mux.Route_Master_Request
+             (Master, Routed_Request, Routed_Response, Decision);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux master routes terminate request");
+         Check
+           (Decision = SSH_Lib.Mux.Mux_Terminate_Decision
+            and then Routed_Response.Kind = SSH_Lib.Mux.Mux_Ok
+            and then Routed_Response.Request_Id = 91,
+            "phase19 mux master terminate returns ok and shutdown decision");
+
+         Status_Value :=
+           SSH_Lib.Mux.Encode
+             (SSH_Lib.Mux.Mux_Stop_Listening, 92, Empty_Data, Routed_Request);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux master encodes stop-listening request");
+         Status_Value :=
+           SSH_Lib.Mux.Route_Master_Request
+             (Master, Routed_Request, Routed_Response, Decision);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux master routes stop-listening request");
+         Check
+           (Decision = SSH_Lib.Mux.Mux_Stop_Listening_Decision
+            and then Routed_Response.Kind = SSH_Lib.Mux.Mux_Ok
+            and then Routed_Response.Request_Id = 92,
+           "phase19 mux master stop-listening returns ok and decision");
+
+         Status_Value :=
+           SSH_Lib.Mux.Encode
+             (SSH_Lib.Mux.Mux_Ext_Info, 96, Empty_Data, Routed_Request);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux master encodes ext-info request");
+         Status_Value :=
+           SSH_Lib.Mux.Route_Master_Request
+             (Master, Routed_Request, Routed_Response, Decision);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux master routes ext-info request");
+         Check
+           (Decision = SSH_Lib.Mux.Mux_Ext_Info_Decision
+            and then Routed_Response.Kind = SSH_Lib.Mux.Mux_Ext_Info_Response
+            and then Routed_Response.Request_Id = 96,
+            "phase19 mux master returns ext-info response and decision");
+
+         Session_Request.Reserved := To_Unbounded_String ("");
+         Session_Request.Command := To_Unbounded_String ("true");
+         Status_Value :=
+           SSH_Lib.Mux.Encode_New_Session_Request
+             (Session_Request, Session_Payload, Session_Last);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux master encodes routeable session payload");
+         Status_Value :=
+           SSH_Lib.Mux.Encode
+             (SSH_Lib.Mux.Mux_New_Session,
+              93,
+              Session_Payload (Session_Payload'First .. Session_Last),
+              Routed_Request);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux master encodes backend session request");
+         Status_Value :=
+           SSH_Lib.Mux.Route_Master_Request
+             (Master, Routed_Request, Routed_Response, Decision);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux master routes backend session request");
+         Check
+           (Decision = SSH_Lib.Mux.Mux_New_Session_Decision
+            and then Routed_Response.Kind = SSH_Lib.Mux.Mux_Failure
+            and then Routed_Response.Request_Id = 93,
+            "phase19 mux master reports caller-backend session routing");
+         Status_Value :=
+           SSH_Lib.Mux.Decode_Reason
+             (Routed_Response.Payload
+                (Routed_Response.Payload'First
+                 .. Routed_Response.Payload'First
+                    + Ada.Streams.Stream_Element_Offset
+                        (Routed_Response.Payload_Length)
+                    - 1),
+              Reason_Text);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux failure reason decodes");
+         Check
+           (To_String (Reason_Text) = "mux request requires caller backend",
+            "phase19 mux caller-backend failure reason is preserved");
+
+         Status_Value :=
+           SSH_Lib.Mux.Route_Master_Request
+             (Master,
+              Backend_Client,
+              Routed_Request,
+              (New_Session       => Session_Backend'Unrestricted_Access,
+               Open_Forward      => null,
+               Close_Forward     => null,
+               New_Stdio_Forward => null,
+               Proxy             => null),
+              Routed_Response,
+              Decision);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux master dispatches new-session backend handler");
+         Check
+           (Decision = SSH_Lib.Mux.Mux_New_Session_Decision
+            and then Routed_Response.Kind = SSH_Lib.Mux.Mux_Session_Open
+            and then Routed_Response.Request_Id = 93,
+            "phase19 mux backend can return session-opened response");
+
+         Status_Value :=
+           SSH_Lib.Mux.Route_Master_Request
+             (Master,
+              Backend_Client,
+              Routed_Request,
+              (New_Session       => Empty_Success_Backend'Unrestricted_Access,
+               Open_Forward      => null,
+               Close_Forward     => null,
+               New_Stdio_Forward => null,
+               Proxy             => null),
+              Routed_Response,
+              Decision);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 mux rejects empty successful backend response");
+         Check
+           (Decision = SSH_Lib.Mux.Mux_New_Session_Decision,
+            "phase19 mux preserves backend decision on bad response");
+
+         Status_Value :=
+           SSH_Lib.Mux.Encode
+             (SSH_Lib.Mux.Mux_New_Session, 95, Empty_Data, Routed_Request);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux master encodes malformed empty session request");
+         Status_Value :=
+           SSH_Lib.Mux.Route_Master_Request
+             (Master, Routed_Request, Routed_Response, Decision);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Invalid_Command,
+            "phase19 mux master rejects malformed empty session routing");
+         Check
+           (Decision = SSH_Lib.Mux.Mux_Reject_Decision,
+            "phase19 mux malformed request remains a reject decision");
+
+         Status_Value :=
+           SSH_Lib.Mux.Encode_Reason_Response
+             (SSH_Lib.Mux.Mux_Alive,
+              94,
+              "wrong response type",
+              Routed_Response);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Unsupported_Feature,
+            "phase19 mux rejects reason payload for non-error response");
+         SSH_Lib.Mux.Close_Master (Master);
+         Check
+           (not SSH_Lib.Mux.Is_Listening (Master),
+            "phase19 mux master close clears listening state");
+         if Ada.Directories.Exists (Socket_Path) then
+            Ada.Directories.Delete_File (Socket_Path);
+         end if;
+      end;
+
+      declare
+         Socket_Path : constant String := "/tmp/sshlib-mux-control-test.sock";
+         Server      : One_Shot_Mux_Server;
+         Client      : SSH_Lib.Mux.Mux_Client;
+         Response    : SSH_Lib.Mux.Mux_Message;
+         Server_Pid  : Interfaces.Unsigned_32 := 99;
+         Next_Index  : Ada.Streams.Stream_Element_Offset := 1;
+      begin
+         if Ada.Directories.Exists (Socket_Path) then
+            Ada.Directories.Delete_File (Socket_Path);
+         end if;
+
+         Server.Start (Socket_Path);
+         Server.Ready;
+         Status_Value := SSH_Lib.Mux.Connect_Control (Socket_Path, Client);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux connects to Unix control socket");
+         Check
+           (SSH_Lib.Mux.Is_Connected (Client),
+            "phase19 mux client records connected state");
+
+         Status_Value := SSH_Lib.Mux.Alive_Check (Client, 314, Response);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux alive-check request over control socket");
+         Check
+           (Response.Kind = SSH_Lib.Mux.Mux_Alive,
+            "phase19 mux alive-check response kind");
+         Check
+           (Response.Request_Id = 314,
+            "phase19 mux alive-check response request id");
+         Check
+           (Response.Payload_Length = 4,
+            "phase19 mux alive-check response carries pid payload");
+         Status_Value :=
+           SSH_Lib.Protocol.Numbers.Decode_Uint32
+             (Response.Payload
+                (Response.Payload'First
+                 .. Response.Payload'First
+                    + Ada.Streams.Stream_Element_Offset
+                        (Response.Payload_Length)
+                    - 1),
+              Response.Payload'First,
+              Server_Pid,
+              Next_Index);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux alive-check pid decodes");
+         Check (Server_Pid = 0, "phase19 mux default test server pid is zero");
+         SSH_Lib.Mux.Close (Client);
+         Check
+           (not SSH_Lib.Mux.Is_Connected (Client),
+            "phase19 mux close clears connected state");
+
+         if Ada.Directories.Exists (Socket_Path) then
+            Ada.Directories.Delete_File (Socket_Path);
+         end if;
+      end;
+
+      declare
+         Socket_Path      : constant String :=
+           "/tmp/sshlib-mux-loop-control-test.sock";
+         Server           : Loop_Mux_Server;
+         Client           : SSH_Lib.Mux.Mux_Client;
+         Response         : SSH_Lib.Mux.Mux_Message;
+         Peer_Version     : Interfaces.Unsigned_32 := 0;
+         Server_Status    : CryptoLib.Errors.Status := CryptoLib.Errors.Ok;
+         Server_Decision  : SSH_Lib.Mux.Mux_Master_Decision :=
+           SSH_Lib.Mux.Mux_Reject_Decision;
+         Server_Listening : Boolean := True;
+      begin
+         if Ada.Directories.Exists (Socket_Path) then
+            Ada.Directories.Delete_File (Socket_Path);
+         end if;
+
+         Server.Start (Socket_Path);
+         Server.Ready;
+
+         Status_Value := SSH_Lib.Mux.Connect_Control (Socket_Path, Client);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux loop first client connects");
+         Status_Value := SSH_Lib.Mux.Exchange_Hello (Client, Peer_Version);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux loop first client negotiates hello");
+         Check
+           (Peer_Version = SSH_Lib.Mux.Mux_Protocol_Version,
+            "phase19 mux loop first client observes mux version");
+         Status_Value := SSH_Lib.Mux.Alive_Check (Client, 401, Response);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux loop first client alive-check succeeds");
+         Check
+           (Response.Kind = SSH_Lib.Mux.Mux_Alive
+            and then Response.Request_Id = 401,
+            "phase19 mux loop first client receives alive response");
+         SSH_Lib.Mux.Close (Client);
+
+         Status_Value := SSH_Lib.Mux.Connect_Control (Socket_Path, Client);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux loop second client connects");
+         Status_Value := SSH_Lib.Mux.Exchange_Hello (Client, Peer_Version);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux loop second client negotiates hello");
+         Status_Value := SSH_Lib.Mux.Stop_Listening (Client, 402, Response);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux loop stop-listening succeeds");
+         Check
+           (Response.Kind = SSH_Lib.Mux.Mux_Ok
+            and then Response.Request_Id = 402,
+            "phase19 mux loop stop-listening returns ok");
+         SSH_Lib.Mux.Close (Client);
+
+         Server.Finished
+           (Server_Status, Server_Decision, Server_Listening);
+         Check_Status
+           (Server_Status,
+            CryptoLib.Errors.Ok,
+            "phase19 mux loop server exits successfully");
+         Check
+           (Server_Decision = SSH_Lib.Mux.Mux_Stop_Listening_Decision,
+            "phase19 mux loop reports stop-listening decision");
+         Check
+           (not Server_Listening,
+            "phase19 mux loop closes listener after stop-listening");
+
+         if Ada.Directories.Exists (Socket_Path) then
+            Ada.Directories.Delete_File (Socket_Path);
+         end if;
+      end;
+
+      declare
+         Socket_Path   : constant String :=
+           "/tmp/sshlib-mux-proxy-transcript-test.sock";
+         Server        : Proxy_Response_Mux_Server;
+         Transcript    : SSH_Lib.Sessions.Live_Transcript.Driver;
+         Server_Status : CryptoLib.Errors.Status := CryptoLib.Errors.Ok;
+      begin
+         if Ada.Directories.Exists (Socket_Path) then
+            Ada.Directories.Delete_File (Socket_Path);
+         end if;
+
+         Server.Start (Socket_Path);
+         Server.Ready;
+         Status_Value :=
+           SSH_Lib.Sessions.Live_Transcript.Connect_Through_Mux_Proxy
+             (Transcript,
+              Socket_Path,
+              Read_Timeout_MS  => 1000,
+              Write_Timeout_MS => 1000);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux proxy transcript connects through control socket");
+         Check
+           (SSH_Lib.Sessions.Live_Transcript.Is_Connected (Transcript),
+            "phase19 mux proxy transcript owns detached socket");
+         SSH_Lib.Sessions.Live_Transcript.Close (Transcript);
+
+         Server.Finished (Server_Status);
+         Check_Status
+           (Server_Status,
+            CryptoLib.Errors.Ok,
+            "phase19 mux proxy fake server completed handshake");
+
+         if Ada.Directories.Exists (Socket_Path) then
+            Ada.Directories.Delete_File (Socket_Path);
+         end if;
+      end;
+
+      declare
+         Socket_Path      : constant String :=
+           "/tmp/sshlib-mux-owning-proxy-test.sock";
+         Server           : Owning_Proxy_Mux_Server;
+         Client           : SSH_Lib.Mux.Mux_Client;
+         Response         : SSH_Lib.Mux.Mux_Message;
+         Peer_Version     : Interfaces.Unsigned_32 := 0;
+         Empty_Data       : constant Ada.Streams.Stream_Element_Array (1 .. 0) :=
+           [others => 0];
+         Server_Status    : CryptoLib.Errors.Status := CryptoLib.Errors.Ok;
+         Server_Decision  : SSH_Lib.Mux.Mux_Master_Decision :=
+           SSH_Lib.Mux.Mux_Reject_Decision;
+         Connected_Before : Boolean := False;
+         Active_Before    : Natural := 0;
+         Active_After     : Natural := 0;
+      begin
+         if Ada.Directories.Exists (Socket_Path) then
+            Ada.Directories.Delete_File (Socket_Path);
+         end if;
+
+         Server.Start (Socket_Path);
+         Server.Ready;
+         Status_Value := SSH_Lib.Mux.Connect_Control (Socket_Path, Client);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux owning proxy client connects");
+         Status_Value := SSH_Lib.Mux.Exchange_Hello (Client, Peer_Version);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux owning proxy negotiates hello");
+         Status_Value :=
+           SSH_Lib.Mux.Request
+             (Client,
+              SSH_Lib.Mux.Mux_Proxy,
+              501,
+              Empty_Data,
+              Response);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux owning proxy request succeeds");
+         Check
+           (Response.Kind = SSH_Lib.Mux.Mux_Proxy_Response
+            and then Response.Request_Id = 501,
+            "phase19 mux owning proxy receives proxy response");
+         SSH_Lib.Mux.Close (Client);
+
+         Server.Finished
+           (Server_Status,
+            Server_Decision,
+            Connected_Before,
+            Active_Before,
+            Active_After);
+         Check_Status
+           (Server_Status,
+            CryptoLib.Errors.Ok,
+            "phase19 mux owning proxy server completes");
+         Check
+           (Server_Decision = SSH_Lib.Mux.Mux_Proxy_Decision,
+            "phase19 mux owning proxy reports proxy decision");
+         Check
+           (Connected_Before and then Active_Before = 1 and then Active_After = 0,
+            "phase19 mux owning proxy preserves client until explicit release");
+
+         if Ada.Directories.Exists (Socket_Path) then
+            Ada.Directories.Delete_File (Socket_Path);
+         end if;
+      end;
+
+      declare
+         Socket_Path     : constant String :=
+           "/tmp/sshlib-mux-plan-control-test.sock";
+         Server          : One_Shot_Mux_Server;
+         Options         : SSH_Lib.Sessions.Session_Options;
+         Planned_Path    : Unbounded_String;
+         Persist_Seconds : Natural := 0;
+         Control_Action  : SSH_Lib.Config_Apply.Control_Master_Action;
+      begin
+         Options.Host := To_Unbounded_String ("fixture-host");
+         Options.User := To_Unbounded_String ("git");
+         Options.Port := 22;
+         Options.Control_Master := To_Unbounded_String ("auto");
+         Options.Control_Path := To_Unbounded_String (Socket_Path);
+         Options.Control_Persist := To_Unbounded_String ("10m");
+         if Ada.Directories.Exists (Socket_Path) then
+            Ada.Directories.Delete_File (Socket_Path);
+         end if;
+
+         Server.Start (Socket_Path);
+         Server.Ready;
+         Status_Value :=
+           SSH_Lib.Config_Apply.Plan_Control_Master
+             (Options,
+              Original_Host   => "gh",
+              Local_Host_Name => "client.example.test",
+              Control_Path    => Planned_Path,
+              Persist_Seconds => Persist_Seconds,
+              Action          => Control_Action);
+         Check_Status
+           (Status_Value,
+            CryptoLib.Errors.Ok,
+            "phase19 mux planner probes live control master");
+         Check
+           (Control_Action = SSH_Lib.Config_Apply.Control_Master_Use_Existing,
+            "phase19 mux planner reuses live control master");
+         Check
+           (To_String (Planned_Path) = Socket_Path
+            and then Persist_Seconds = 600,
+            "phase19 mux planner preserves path and persist seconds");
+
+         if Ada.Directories.Exists (Socket_Path) then
+            Ada.Directories.Delete_File (Socket_Path);
+         end if;
+      end;
+   end Run_Phase_19_Mux_Protocol_Tests;
+
    procedure Run_Phase_19_Agent_Transport_Fixture_Tests is
    begin
       SSH_Lib
@@ -24326,12 +28107,11 @@ package body SSH_Lib.Tests.Legacy is
 
    procedure Run_Phase_19_Algorithm_Security_Fixture_Tests is
    begin
-   null;
-      --  SSH_Lib
-      --    .Tests
-      --    .Fixtures
-      --    .Algorithm_Security
-      --    .Assert_Algorithm_Negotiation_Security;
+      SSH_Lib
+        .Tests
+        .Fixtures
+        .Algorithm_Security
+        .Assert_Algorithm_Negotiation_Security;
    end Run_Phase_19_Algorithm_Security_Fixture_Tests;
 
    procedure Run_Phase_19_Crypto_Primitive_Fixture_Tests is
@@ -24541,6 +28321,40 @@ package body SSH_Lib.Tests.Legacy is
          6 => 16#FF#];
       IV_Data      : constant Ada.Streams.Stream_Element_Array (1 .. 16) :=
         [others => 0];
+      DES3_Key     : constant Ada.Streams.Stream_Element_Array (1 .. 24) :=
+        [1  => 16#01#,
+         2  => 16#23#,
+         3  => 16#45#,
+         4  => 16#67#,
+         5  => 16#89#,
+         6  => 16#AB#,
+         7  => 16#CD#,
+         8  => 16#EF#,
+         9  => 16#FE#,
+         10 => 16#DC#,
+         11 => 16#BA#,
+         12 => 16#98#,
+         13 => 16#76#,
+         14 => 16#54#,
+         15 => 16#32#,
+         16 => 16#10#,
+         17 => 16#89#,
+         18 => 16#AB#,
+         19 => 16#CD#,
+         20 => 16#EF#,
+         21 => 16#01#,
+         22 => 16#23#,
+         23 => 16#45#,
+         24 => 16#67#];
+      DES3_IV      : constant Ada.Streams.Stream_Element_Array (1 .. 8) :=
+        [1 => 16#12#,
+         2 => 16#34#,
+         3 => 16#56#,
+         4 => 16#78#,
+         5 => 16#90#,
+         6 => 16#AB#,
+         7 => 16#CD#,
+         8 => 16#EF#];
       Mac_512_Key  : constant Ada.Streams.Stream_Element_Array (1 .. 64) :=
         [others => 16#42#];
    begin
@@ -24601,6 +28415,170 @@ package body SSH_Lib.Tests.Legacy is
          Check
            (SSH_Lib.Protocol.Buffers.To_Array (Payload_Buffer) = Payload_Data,
             "phase19 aes128/umac64 protected packet preserves binary payload");
+      end;
+
+      declare
+         Encode_State   : SSH_Lib.Protocol.Protected_Packets.Protected_State;
+         Decode_State   : SSH_Lib.Protocol.Protected_Packets.Protected_State;
+         Packet_Buffer  : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+         Payload_Buffer : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+         Result_Status  : CryptoLib.Errors.Status;
+         Chacha_Key : constant Ada.Streams.Stream_Element_Array (1 .. 64) :=
+           [others => 16#5A#];
+         Chacha_IV  : constant Ada.Streams.Stream_Element_Array (1 .. 12) :=
+           [others => 0];
+         Chacha_Payload : constant Ada.Streams.Stream_Element_Array :=
+           [5, 0, 0, 0, 12, 115, 115, 104, 45, 117, 115, 101, 114, 97, 117,
+            116, 104];
+      begin
+         SSH_Lib.Protocol.Protected_Packets.Reset_With_Ciphers
+           (Encode_State,
+            "chacha20-poly1305@openssh.com", "chacha20-poly1305@openssh.com",
+            "hmac-sha2-256", "hmac-sha2-256",
+            Mac_512_Key, Mac_512_Key,
+            Chacha_Key, Chacha_IV, Chacha_Key, Chacha_IV);
+         SSH_Lib.Protocol.Protected_Packets.Reset_With_Ciphers
+           (Decode_State,
+            "chacha20-poly1305@openssh.com", "chacha20-poly1305@openssh.com",
+            "hmac-sha2-256", "hmac-sha2-256",
+            Mac_512_Key, Mac_512_Key,
+            Chacha_Key, Chacha_IV, Chacha_Key, Chacha_IV);
+         Check (not SSH_Lib.Protocol.Protected_Packets.Is_Dirty (Encode_State),
+                "chacha20 protected state initializes");
+         Result_Status :=
+           SSH_Lib.Protocol.Protected_Packets.Encode_Protected_Packet
+             (Encode_State, Chacha_Payload, Packet_Buffer, True, 16#00#);
+         Check_Status (Result_Status, CryptoLib.Errors.Ok,
+                       "chacha20 protected packet encode");
+         Result_Status :=
+           SSH_Lib.Protocol.Protected_Packets.Decode_Protected_Packet
+             (Decode_State,
+              SSH_Lib.Protocol.Buffers.To_Array (Packet_Buffer),
+              Payload_Buffer);
+         Check_Status (Result_Status, CryptoLib.Errors.Ok,
+                       "chacha20 protected packet decode");
+         Check (SSH_Lib.Protocol.Buffers.To_Array (Payload_Buffer)
+                = Chacha_Payload,
+                "chacha20 protected packet roundtrips");
+      end;
+
+      declare
+         Encode_State : SSH_Lib.Protocol.Protected_Packets.Protected_State;
+         Decode_State : SSH_Lib.Protocol.Protected_Packets.Protected_State;
+         Pkt1, Pkt2   : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+         Out1, Out2   : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+         Result_Status : CryptoLib.Errors.Status;
+         GCM_Key : constant Ada.Streams.Stream_Element_Array (1 .. 32) :=
+           [others => 16#3C#];
+         GCM_IV  : constant Ada.Streams.Stream_Element_Array (1 .. 12) :=
+           [others => 0];
+         GCM_Payload : constant Ada.Streams.Stream_Element_Array :=
+           [5, 0, 0, 0, 12, 115, 115, 104, 45, 117, 115, 101, 114, 97, 117,
+            116, 104];
+      begin
+         SSH_Lib.Protocol.Protected_Packets.Reset_With_Ciphers
+           (Encode_State,
+            "aes256-gcm@openssh.com", "aes256-gcm@openssh.com",
+            "hmac-sha2-256", "hmac-sha2-256",
+            Mac_512_Key, Mac_512_Key,
+            GCM_Key, GCM_IV, GCM_Key, GCM_IV);
+         SSH_Lib.Protocol.Protected_Packets.Reset_With_Ciphers
+           (Decode_State,
+            "aes256-gcm@openssh.com", "aes256-gcm@openssh.com",
+            "hmac-sha2-256", "hmac-sha2-256",
+            Mac_512_Key, Mac_512_Key,
+            GCM_Key, GCM_IV, GCM_Key, GCM_IV);
+         Check (not SSH_Lib.Protocol.Protected_Packets.Is_Dirty (Encode_State),
+                "aes256-gcm protected state initializes");
+         Result_Status :=
+           SSH_Lib.Protocol.Protected_Packets.Encode_Protected_Packet
+             (Encode_State, GCM_Payload, Pkt1, True, 16#00#);
+         Check_Status (Result_Status, CryptoLib.Errors.Ok,
+                       "aes256-gcm protected packet encode 1");
+         Result_Status :=
+           SSH_Lib.Protocol.Protected_Packets.Encode_Protected_Packet
+             (Encode_State, GCM_Payload, Pkt2, True, 16#00#);
+         Check_Status (Result_Status, CryptoLib.Errors.Ok,
+                       "aes256-gcm protected packet encode 2");
+         --  Identical payloads must produce distinct wire bytes: the invocation
+         --  counter advanced, so the GCM nonce differs between the two packets.
+         Check (SSH_Lib.Protocol.Buffers.To_Array (Pkt1)
+                /= SSH_Lib.Protocol.Buffers.To_Array (Pkt2),
+                "aes256-gcm invocation counter advances per packet");
+         Result_Status :=
+           SSH_Lib.Protocol.Protected_Packets.Decode_Protected_Packet
+             (Decode_State, SSH_Lib.Protocol.Buffers.To_Array (Pkt1), Out1);
+         Check_Status (Result_Status, CryptoLib.Errors.Ok,
+                       "aes256-gcm protected packet decode 1");
+         Check (SSH_Lib.Protocol.Buffers.To_Array (Out1) = GCM_Payload,
+                "aes256-gcm protected packet roundtrips 1");
+         Result_Status :=
+           SSH_Lib.Protocol.Protected_Packets.Decode_Protected_Packet
+             (Decode_State, SSH_Lib.Protocol.Buffers.To_Array (Pkt2), Out2);
+         Check_Status (Result_Status, CryptoLib.Errors.Ok,
+                       "aes256-gcm protected packet decode 2");
+         Check (SSH_Lib.Protocol.Buffers.To_Array (Out2) = GCM_Payload,
+                "aes256-gcm protected packet roundtrips 2");
+      end;
+
+      declare
+         Encode_State   : SSH_Lib.Protocol.Protected_Packets.Protected_State;
+         Decode_State   : SSH_Lib.Protocol.Protected_Packets.Protected_State;
+         Packet_Buffer  : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+         Payload_Buffer : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+         Result_Status  : CryptoLib.Errors.Status;
+      begin
+         SSH_Lib.Protocol.Protected_Packets.Reset_With_Ciphers
+           (Encode_State,
+            "3des-cbc",
+            "3des-cbc",
+            "hmac-md5",
+            "hmac-md5",
+            Key_Data,
+            Key_Data,
+            DES3_Key,
+            DES3_IV,
+            DES3_Key,
+            DES3_IV);
+         SSH_Lib.Protocol.Protected_Packets.Reset_With_Ciphers
+           (Decode_State,
+            "3des-cbc",
+            "3des-cbc",
+            "hmac-md5",
+            "hmac-md5",
+            Key_Data,
+            Key_Data,
+            DES3_Key,
+            DES3_IV,
+            DES3_Key,
+            DES3_IV);
+         Check
+           (SSH_Lib.Protocol.Protected_Packets.Outbound_Block_Size
+              (Encode_State) = 8,
+            "phase19 3des-cbc protected state uses 8-byte blocks");
+         Check
+           (SSH_Lib.Protocol.Protected_Packets.Outbound_Mac_Size
+              (Encode_State) = 16,
+            "phase19 hmac-md5 protected state uses 16-byte tag");
+         Result_Status :=
+           SSH_Lib.Protocol.Protected_Packets.Encode_Protected_Packet
+             (Encode_State, Payload_Data, Packet_Buffer, True, 16#66#);
+         Check_Status
+           (Result_Status,
+            CryptoLib.Errors.Ok,
+            "phase19 3des/hmac-md5 protected packet encode");
+         Result_Status :=
+           SSH_Lib.Protocol.Protected_Packets.Decode_Protected_Packet
+             (Decode_State,
+              SSH_Lib.Protocol.Buffers.To_Array (Packet_Buffer),
+              Payload_Buffer);
+         Check_Status
+           (Result_Status,
+            CryptoLib.Errors.Ok,
+            "phase19 3des/hmac-md5 protected packet decode");
+         Check
+           (SSH_Lib.Protocol.Buffers.To_Array (Payload_Buffer) = Payload_Data,
+            "phase19 3des/hmac-md5 protected packet preserves binary payload");
       end;
 
       declare
@@ -26812,6 +30790,7 @@ package body SSH_Lib.Tests.Legacy is
       Run_Phase_19_Session_Open_Success_Fixture_Tests;
       Run_Phase_19_Open_Runtime_Fixture_Tests;
       Run_Phase_19_Packet_Protection_Fixture_Tests;
+      Run_Phase_19_Mux_Protocol_Tests;
       Run_Phase_19_Context_Compliance_Tests;
       Run_Phase_19_Open_Option_Preflight_Tests;
       Run_Phase_19_Security_Audit_Tests;

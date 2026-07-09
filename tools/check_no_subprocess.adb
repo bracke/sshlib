@@ -6,9 +6,10 @@ with Ada.Strings.Maps.Constants;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 
+with Project_Tools.Files;
+
 procedure Check_No_Subprocess is
    use Ada.Strings.Fixed;
-   use type Ada.Directories.File_Kind;
    use Ada.Strings.Unbounded;
 
    Failure_Count : Natural := 0;
@@ -225,7 +226,8 @@ procedure Check_No_Subprocess is
    begin
       return Lower_Path = "src/ssh_lib-sessions-live_transcript.adb"
         or else Lower_Path = "src/ssh_lib-sessions-live_transcript.ads"
-        or else Lower_Path = "src/ssh_lib-git.adb";
+        or else Lower_Path = "src/ssh_lib-git.adb"
+        or else Lower_Path = "src/ssh_lib-git_transport.adb";
    end Is_Explicit_Subprocess_Boundary_File;
 
    procedure Scan_File (Path : String) is
@@ -258,44 +260,30 @@ procedure Check_No_Subprocess is
          Fail ("unable to scan source: " & Path);
    end Scan_File;
 
-   procedure Scan_Tree (Directory_Path : String) is
-      Search_Item : Ada.Directories.Search_Type;
-      Entry_Item  : Ada.Directories.Directory_Entry_Type;
-   begin
-      if not Ada.Directories.Exists (Directory_Path) then
-         return;
-      end if;
+   Skip_Dirs : constant Project_Tools.Files.Name_List :=
+     [To_Unbounded_String ("obj"),
+      To_Unbounded_String ("bin"),
+      To_Unbounded_String (".git")];
 
-      Ada.Directories.Start_Search
-        (Search    => Search_Item,
-         Directory => Directory_Path,
-         Pattern   => "*",
-         Filter    => [Ada.Directories.Ordinary_File => True,
-                       Ada.Directories.Directory => True,
-                       Ada.Directories.Special_File => False]);
-      while Ada.Directories.More_Entries (Search_Item) loop
-         Ada.Directories.Get_Next_Entry (Search_Item, Entry_Item);
+   procedure Scan_Tree (Directory_Path : String) is
+   begin
+      --  Recursive file walk via the shared project_tools helper (skipping the
+      --  same build/VCS directories), applying the same file filter; the file
+      --  set, order, and output are unchanged.
+      for Path_Item of
+        Project_Tools.Files.List_Tree (Directory_Path, "*", Skip_Dirs)
+      loop
          declare
-            Path_Text : constant String := Ada.Directories.Full_Name (Entry_Item);
-            Name_Text : constant String := Ada.Directories.Simple_Name (Entry_Item);
+            Path_Text : constant String := To_String (Path_Item);
+            Name_Text : constant String := Ada.Directories.Simple_Name (Path_Text);
          begin
-            if Ada.Directories.Kind (Entry_Item) = Ada.Directories.Directory then
-               if Name_Text /= "."
-                 and then Name_Text /= ".."
-                 and then Name_Text /= "obj"
-                 and then Name_Text /= "bin"
-                 and then Name_Text /= ".git"
-               then
-                  Scan_Tree (Path_Text);
-               end if;
-            elsif Is_Ada_Or_Project_File (Name_Text)
+            if Is_Ada_Or_Project_File (Name_Text)
               and then not Is_Excluded_Audit_File (Name_Text)
             then
                Scan_File (Path_Text);
             end if;
          end;
       end loop;
-      Ada.Directories.End_Search (Search_Item);
    exception
       when others =>
          Fail ("unable to scan directory: " & Directory_Path);

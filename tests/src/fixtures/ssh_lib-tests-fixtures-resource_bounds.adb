@@ -228,7 +228,7 @@ package body SSH_Lib.Tests.Fixtures.Resource_Bounds is
         (Path, "example.com", 22, Presented_Key);
       Check
         (Result_Value = SSH_Lib.Known_Hosts.Unsupported_Entry,
-         "oversized known_hosts line fails closed before any later trust can mask it");
+         "oversized known_hosts line is ignored, not trusted before any later trust can mask it");
       Remove_If_Exists (Path);
    end Check_Known_Hosts_Line_Bound;
 

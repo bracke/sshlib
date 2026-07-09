@@ -195,6 +195,8 @@ package body SSH_Lib.Agent.Protocol is
       return
         Public_Key_Algorithm = "ssh-ed25519"
         or else Public_Key_Algorithm = "ecdsa-sha2-nistp256"
+        or else Public_Key_Algorithm = "ecdsa-sha2-nistp384"
+        or else Public_Key_Algorithm = "ecdsa-sha2-nistp521"
         or else Public_Key_Algorithm = "sk-ssh-ed25519@openssh.com"
         or else Public_Key_Algorithm = "sk-ecdsa-sha2-nistp256@openssh.com"
         or else Public_Key_Algorithm = "sk-ssh-ed25519-cert-v01@openssh.com"
@@ -379,6 +381,10 @@ package body SSH_Lib.Agent.Protocol is
                  or else
                    Bytes_Equal_Text (Algorithm_Data, "ecdsa-sha2-nistp256")
                  or else
+                   Bytes_Equal_Text (Algorithm_Data, "ecdsa-sha2-nistp384")
+                 or else
+                   Bytes_Equal_Text (Algorithm_Data, "ecdsa-sha2-nistp521")
+                 or else
                    Bytes_Equal_Text
                      (Algorithm_Data, "sk-ssh-ed25519@openssh.com")
                  or else
@@ -420,6 +426,18 @@ package body SSH_Lib.Agent.Protocol is
          if Bytes_Equal_Text (Algorithm_Data, "ecdsa-sha2-nistp256") then
             Status_Value :=
               SSH_Lib.ECDSA.Validate_Signature_Nistp256 (Signature_Bytes);
+            if Status_Value /= Ok then
+               return Authentication_Failed;
+            end if;
+         elsif Bytes_Equal_Text (Algorithm_Data, "ecdsa-sha2-nistp384") then
+            Status_Value :=
+              SSH_Lib.ECDSA.Validate_Signature_Nistp384 (Signature_Bytes);
+            if Status_Value /= Ok then
+               return Authentication_Failed;
+            end if;
+         elsif Bytes_Equal_Text (Algorithm_Data, "ecdsa-sha2-nistp521") then
+            Status_Value :=
+              SSH_Lib.ECDSA.Validate_Signature_Nistp521 (Signature_Bytes);
             if Status_Value /= Ok then
                return Authentication_Failed;
             end if;

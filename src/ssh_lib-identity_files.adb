@@ -27,13 +27,6 @@ package body SSH_Lib.Identity_Files is
    Max_OpenSSH_BCrypt_Output_Size : constant Natural :=
      CryptoLib.BCrypt_PBKDF.Max_Output_Length;
 
-   procedure Clear_Stream_Array (Item : in out Stream_Element_Array) is
-   begin
-      for Index_Value in Item'Range loop
-         Item (Index_Value) := 0;
-      end loop;
-   end Clear_Stream_Array;
-
    procedure Clear (Item : out Identity_Key) is
    begin
       Item.Key_Type := No_Key;
@@ -176,13 +169,23 @@ package body SSH_Lib.Identity_Files is
             return True;
          end if;
 
-         while Cursor <= Text'Last
-           and then
-             (Text (Cursor) = Character'Val (10)
-              or else Text (Cursor) = Character'Val (13))
-         loop
-            Cursor := Cursor + 1;
-         end loop;
+         if Cursor <= Text'Last then
+            declare
+               First_EOL : constant Character := Text (Cursor);
+            begin
+               Cursor := Cursor + 1;
+               if Cursor <= Text'Last
+                 and then
+                   ((First_EOL = Character'Val (13)
+                     and then Text (Cursor) = Character'Val (10))
+                    or else
+                    (First_EOL = Character'Val (10)
+                     and then Text (Cursor) = Character'Val (13)))
+               then
+                  Cursor := Cursor + 1;
+               end if;
+            end;
+         end if;
       end loop;
       return False;
    end Contains_Line;
@@ -276,13 +279,23 @@ package body SSH_Lib.Identity_Files is
             end if;
          end;
 
-         while Cursor <= Text'Last
-           and then
-             (Text (Cursor) = Character'Val (10)
-              or else Text (Cursor) = Character'Val (13))
-         loop
-            Cursor := Cursor + 1;
-         end loop;
+         if Cursor <= Text'Last then
+            declare
+               First_EOL : constant Character := Text (Cursor);
+            begin
+               Cursor := Cursor + 1;
+               if Cursor <= Text'Last
+                 and then
+                   ((First_EOL = Character'Val (13)
+                     and then Text (Cursor) = Character'Val (10))
+                    or else
+                    (First_EOL = Character'Val (10)
+                     and then Text (Cursor) = Character'Val (13)))
+               then
+                  Cursor := Cursor + 1;
+               end if;
+            end;
+         end if;
       end loop;
 
       if Saw_End then
@@ -420,6 +433,8 @@ package body SSH_Lib.Identity_Files is
       return
         Value = "ssh-ed25519-cert-v01@openssh.com"
         or else Value = "ecdsa-sha2-nistp256-cert-v01@openssh.com"
+        or else Value = "ecdsa-sha2-nistp384-cert-v01@openssh.com"
+        or else Value = "ecdsa-sha2-nistp521-cert-v01@openssh.com"
         or else Value = "rsa-sha2-512-cert-v01@openssh.com"
         or else Value = "rsa-sha2-256-cert-v01@openssh.com"
         or else Value = "ssh-rsa-cert-v01@openssh.com";
@@ -436,6 +451,12 @@ package body SSH_Lib.Identity_Files is
       elsif Key_Algorithm = "ecdsa-sha2-nistp256" then
          return
            Certificate_Algorithm = "ecdsa-sha2-nistp256-cert-v01@openssh.com";
+      elsif Key_Algorithm = "ecdsa-sha2-nistp384" then
+         return
+           Certificate_Algorithm = "ecdsa-sha2-nistp384-cert-v01@openssh.com";
+      elsif Key_Algorithm = "ecdsa-sha2-nistp521" then
+         return
+           Certificate_Algorithm = "ecdsa-sha2-nistp521-cert-v01@openssh.com";
       elsif Key_Algorithm = "ssh-rsa" then
          return
            Certificate_Algorithm = "rsa-sha2-512-cert-v01@openssh.com"
@@ -448,6 +469,90 @@ package body SSH_Lib.Identity_Files is
       when others =>
          return False;
    end Signing_Algorithm_Matches_Certificate;
+
+   function Is_ECDSA_Algorithm (Value : String) return Boolean is
+   begin
+      return
+        Value = "ecdsa-sha2-nistp256"
+        or else Value = "ecdsa-sha2-nistp384"
+        or else Value = "ecdsa-sha2-nistp521";
+   end Is_ECDSA_Algorithm;
+
+   function ECDSA_Curve_Name (Algorithm_Name : String) return String is
+   begin
+      if Algorithm_Name = "ecdsa-sha2-nistp256" then
+         return "nistp256";
+      elsif Algorithm_Name = "ecdsa-sha2-nistp384" then
+         return "nistp384";
+      elsif Algorithm_Name = "ecdsa-sha2-nistp521" then
+         return "nistp521";
+      else
+         return "";
+      end if;
+   end ECDSA_Curve_Name;
+
+   function ECDSA_Public_Point_Length (Algorithm_Name : String) return Natural is
+   begin
+      if Algorithm_Name = "ecdsa-sha2-nistp256" then
+         return 65;
+      elsif Algorithm_Name = "ecdsa-sha2-nistp384" then
+         return 97;
+      elsif Algorithm_Name = "ecdsa-sha2-nistp521" then
+         return 133;
+      else
+         return 0;
+      end if;
+   end ECDSA_Public_Point_Length;
+
+   function Validate_ECDSA_Raw_Point
+     (Algorithm_Name : String; Public_Point : Stream_Element_Array)
+      return Status is
+   begin
+      if Algorithm_Name = "ecdsa-sha2-nistp256" then
+         return SSH_Lib.ECDSA.Validate_Raw_Point_Nistp256 (Public_Point);
+      elsif Algorithm_Name = "ecdsa-sha2-nistp384" then
+         return SSH_Lib.ECDSA.Validate_Raw_Point_Nistp384 (Public_Point);
+      elsif Algorithm_Name = "ecdsa-sha2-nistp521" then
+         return SSH_Lib.ECDSA.Validate_Raw_Point_Nistp521 (Public_Point);
+      else
+         return Unsupported_Feature;
+      end if;
+   end Validate_ECDSA_Raw_Point;
+
+   function ECDSA_Public_Matches_Private
+     (Algorithm_Name       : String;
+      Public_Key_Blob      : Stream_Element_Array;
+      Private_Scalar_Mpint : Stream_Element_Array) return Status is
+   begin
+      if Algorithm_Name = "ecdsa-sha2-nistp256" then
+         return
+           SSH_Lib.ECDSA.Public_Matches_Private_Nistp256
+             (Public_Key_Blob, Private_Scalar_Mpint);
+      elsif Algorithm_Name = "ecdsa-sha2-nistp384" then
+         return
+           SSH_Lib.ECDSA.Public_Matches_Private_Nistp384
+             (Public_Key_Blob, Private_Scalar_Mpint);
+      elsif Algorithm_Name = "ecdsa-sha2-nistp521" then
+         return
+           SSH_Lib.ECDSA.Public_Matches_Private_Nistp521
+             (Public_Key_Blob, Private_Scalar_Mpint);
+      else
+         return Unsupported_Feature;
+      end if;
+   end ECDSA_Public_Matches_Private;
+
+   function ECDSA_Key_Kind_For (Algorithm_Name : String) return Key_Kind is
+   begin
+      if Algorithm_Name = "ecdsa-sha2-nistp256" then
+         return ECDSA_Nistp256_Key;
+      elsif Algorithm_Name = "ecdsa-sha2-nistp384" then
+         return ECDSA_Nistp384_Key;
+      elsif Algorithm_Name = "ecdsa-sha2-nistp521" then
+         return ECDSA_Nistp521_Key;
+      else
+         return Unsupported_Key;
+      end if;
+   end ECDSA_Key_Kind_For;
 
    function Extract_Public_Line_Fields
      (Line_Text      : String;
@@ -1141,7 +1246,7 @@ package body SSH_Lib.Identity_Files is
                null;
             elsif Algorithm_Text = "ssh-rsa" then
                null;
-            elsif Algorithm_Text = "ecdsa-sha2-nistp256" then
+            elsif Is_ECDSA_Algorithm (Algorithm_Text) then
                null;
             else
                return Finish_Section (Unsupported_Feature);
@@ -1218,7 +1323,7 @@ package body SSH_Lib.Identity_Files is
                end if;
                Private_Data := [others => 0];
             end;
-         elsif To_String (Item.Algorithm) = "ecdsa-sha2-nistp256" then
+         elsif Is_ECDSA_Algorithm (To_String (Item.Algorithm)) then
             Status_Value :=
               SSH_Lib.Protocol.Numbers.Decode_SSH_String
                 (Section_Data,
@@ -1227,7 +1332,8 @@ package body SSH_Lib.Identity_Files is
                  Section_Next);
             if Status_Value /= Ok
               or else
-                Bytes_To_String (To_Array (Public_Field_Buffer)) /= "nistp256"
+                Bytes_To_String (To_Array (Public_Field_Buffer))
+                  /= ECDSA_Curve_Name (To_String (Item.Algorithm))
             then
                return Finish_Section (Authentication_Failed);
             end if;
@@ -1238,7 +1344,9 @@ package body SSH_Lib.Identity_Files is
                  Section_Cursor,
                  Private_Field_Buffer,
                  Section_Next);
-            if Status_Value /= Ok or else Length (Private_Field_Buffer) /= 65
+            if Status_Value /= Ok
+              or else Length (Private_Field_Buffer)
+                /= ECDSA_Public_Point_Length (To_String (Item.Algorithm))
             then
                return Finish_Section (Authentication_Failed);
             end if;
@@ -1414,7 +1522,7 @@ package body SSH_Lib.Identity_Files is
                then
                   return Finish_Blob (Authentication_Failed);
                end if;
-            elsif To_String (Item.Algorithm) = "ecdsa-sha2-nistp256" then
+            elsif Is_ECDSA_Algorithm (To_String (Item.Algorithm)) then
                declare
                   Blob_Public_Point : Packet_Buffer;
                   Blob_Next_Two     : Stream_Element_Offset;
@@ -1428,7 +1536,8 @@ package body SSH_Lib.Identity_Files is
                      Clear (Blob_Public_Point);
                      return Finish_Blob (Authentication_Failed);
                   end if;
-                  if Bytes_To_String (To_Array (Blob_Public)) /= "nistp256"
+                  if Bytes_To_String (To_Array (Blob_Public))
+                       /= ECDSA_Curve_Name (To_String (Item.Algorithm))
                     or else
                       not Same_Bytes
                             (To_Array (Blob_Public_Point),
@@ -1506,18 +1615,20 @@ package body SSH_Lib.Identity_Files is
       end if;
       if To_String (Item.Algorithm) = "ssh-rsa" then
          Item.Key_Type := RSA_Key;
-      elsif To_String (Item.Algorithm) = "ecdsa-sha2-nistp256" then
+      elsif Is_ECDSA_Algorithm (To_String (Item.Algorithm)) then
          declare
             Match_Status : constant Status :=
-              SSH_Lib.ECDSA.Public_Matches_Private_Nistp256
-                (To_Array (Public_Buffer), To_Array (Item.ECDSA_Private));
+              ECDSA_Public_Matches_Private
+                (To_String (Item.Algorithm),
+                 To_Array (Public_Buffer),
+                 To_Array (Item.ECDSA_Private));
          begin
             if Match_Status /= Ok then
                Clear (Item);
                return Finish (Match_Status);
             end if;
          end;
-         Item.Key_Type := ECDSA_Nistp256_Key;
+         Item.Key_Type := ECDSA_Key_Kind_For (To_String (Item.Algorithm));
       else
          Item.Key_Type := Ed25519_Key;
       end if;
@@ -1585,13 +1696,23 @@ package body SSH_Lib.Identity_Files is
             end if;
          end;
 
-         while Cursor <= Text'Last
-           and then
-             (Text (Cursor) = Character'Val (10)
-              or else Text (Cursor) = Character'Val (13))
-         loop
-            Cursor := Cursor + 1;
-         end loop;
+         if Cursor <= Text'Last then
+            declare
+               First_EOL : constant Character := Text (Cursor);
+            begin
+               Cursor := Cursor + 1;
+               if Cursor <= Text'Last
+                 and then
+                   ((First_EOL = Character'Val (13)
+                     and then Text (Cursor) = Character'Val (10))
+                    or else
+                    (First_EOL = Character'Val (10)
+                     and then Text (Cursor) = Character'Val (13)))
+               then
+                  Cursor := Cursor + 1;
+               end if;
+            end;
+         end if;
       end loop;
 
       if Saw_End then
@@ -2151,13 +2272,23 @@ package body SSH_Lib.Identity_Files is
             end if;
          end;
 
-         while Cursor <= Text'Last
-           and then
-             (Text (Cursor) = Character'Val (10)
-              or else Text (Cursor) = Character'Val (13))
-         loop
-            Cursor := Cursor + 1;
-         end loop;
+         if Cursor <= Text'Last then
+            declare
+               First_EOL : constant Character := Text (Cursor);
+            begin
+               Cursor := Cursor + 1;
+               if Cursor <= Text'Last
+                 and then
+                   ((First_EOL = Character'Val (13)
+                     and then Text (Cursor) = Character'Val (10))
+                    or else
+                    (First_EOL = Character'Val (10)
+                     and then Text (Cursor) = Character'Val (13)))
+               then
+                  Cursor := Cursor + 1;
+               end if;
+            end;
+         end if;
       end loop;
 
       if Saw_End then
@@ -2181,311 +2312,6 @@ package body SSH_Lib.Identity_Files is
       end if;
       return Ok;
    end Extract_Encrypted_Legacy_PEM;
-
-   function Digest_MD5
-     (Data : Stream_Element_Array) return Stream_Element_Array
-   is
-      subtype Word32 is Unsigned_32;
-      S            : constant array (Natural range 0 .. 63) of Natural :=
-        [7,
-         12,
-         17,
-         22,
-         7,
-         12,
-         17,
-         22,
-         7,
-         12,
-         17,
-         22,
-         7,
-         12,
-         17,
-         22,
-         5,
-         9,
-         14,
-         20,
-         5,
-         9,
-         14,
-         20,
-         5,
-         9,
-         14,
-         20,
-         5,
-         9,
-         14,
-         20,
-         4,
-         11,
-         16,
-         23,
-         4,
-         11,
-         16,
-         23,
-         4,
-         11,
-         16,
-         23,
-         4,
-         11,
-         16,
-         23,
-         6,
-         10,
-         15,
-         21,
-         6,
-         10,
-         15,
-         21,
-         6,
-         10,
-         15,
-         21,
-         6,
-         10,
-         15,
-         21];
-      K            : constant array (Natural range 0 .. 63) of Word32 :=
-        [16#D76AA478#,
-         16#E8C7B756#,
-         16#242070DB#,
-         16#C1BDCEEE#,
-         16#F57C0FAF#,
-         16#4787C62A#,
-         16#A8304613#,
-         16#FD469501#,
-         16#698098D8#,
-         16#8B44F7AF#,
-         16#FFFF5BB1#,
-         16#895CD7BE#,
-         16#6B901122#,
-         16#FD987193#,
-         16#A679438E#,
-         16#49B40821#,
-         16#F61E2562#,
-         16#C040B340#,
-         16#265E5A51#,
-         16#E9B6C7AA#,
-         16#D62F105D#,
-         16#02441453#,
-         16#D8A1E681#,
-         16#E7D3FBC8#,
-         16#21E1CDE6#,
-         16#C33707D6#,
-         16#F4D50D87#,
-         16#455A14ED#,
-         16#A9E3E905#,
-         16#FCEFA3F8#,
-         16#676F02D9#,
-         16#8D2A4C8A#,
-         16#FFFA3942#,
-         16#8771F681#,
-         16#6D9D6122#,
-         16#FDE5380C#,
-         16#A4BEEA44#,
-         16#4BDECFA9#,
-         16#F6BB4B60#,
-         16#BEBFBC70#,
-         16#289B7EC6#,
-         16#EAA127FA#,
-         16#D4EF3085#,
-         16#04881D05#,
-         16#D9D4D039#,
-         16#E6DB99E5#,
-         16#1FA27CF8#,
-         16#C4AC5665#,
-         16#F4292244#,
-         16#432AFF97#,
-         16#AB9423A7#,
-         16#FC93A039#,
-         16#655B59C3#,
-         16#8F0CCC92#,
-         16#FFEFF47D#,
-         16#85845DD1#,
-         16#6FA87E4F#,
-         16#FE2CE6E0#,
-         16#A3014314#,
-         16#4E0811A1#,
-         16#F7537E82#,
-         16#BD3AF235#,
-         16#2AD7D2BB#,
-         16#EB86D391#];
-      Total_Length : constant Natural :=
-        Data'Length
-        + 1
-        + Natural ((56 - ((Data'Length + 1) mod 64)) mod 64)
-        + 8;
-      Padded       :
-        Stream_Element_Array (1 .. Stream_Element_Offset (Total_Length)) :=
-          [others => 0];
-      Bit_Length   : constant Unsigned_64 := Unsigned_64 (Data'Length) * 8;
-      A0           : Word32 := 16#67452301#;
-      B0           : Word32 := 16#EFCDAB89#;
-      C0           : Word32 := 16#98BADCFE#;
-      D0           : Word32 := 16#10325476#;
-
-      function LE_Word (Offset_Value : Stream_Element_Offset) return Word32 is
-      begin
-         return
-           Word32 (Padded (Offset_Value))
-           or Shift_Left (Word32 (Padded (Offset_Value + 1)), 8)
-           or Shift_Left (Word32 (Padded (Offset_Value + 2)), 16)
-           or Shift_Left (Word32 (Padded (Offset_Value + 3)), 24);
-      end LE_Word;
-
-      procedure Store_LE
-        (Output      : in out Stream_Element_Array;
-         First_Index : Stream_Element_Offset;
-         Value       : Word32) is
-      begin
-         Output (First_Index) := Stream_Element (Value and 16#FF#);
-         Output (First_Index + 1) :=
-           Stream_Element (Shift_Right (Value, 8) and 16#FF#);
-         Output (First_Index + 2) :=
-           Stream_Element (Shift_Right (Value, 16) and 16#FF#);
-         Output (First_Index + 3) :=
-           Stream_Element (Shift_Right (Value, 24) and 16#FF#);
-      end Store_LE;
-   begin
-      for Offset_Value in 0 .. Data'Length - 1 loop
-         Padded (Padded'First + Stream_Element_Offset (Offset_Value)) :=
-           Data (Data'First + Stream_Element_Offset (Offset_Value));
-      end loop;
-      Padded (Padded'First + Stream_Element_Offset (Data'Length)) := 16#80#;
-      for Offset_Value in 0 .. 7 loop
-         Padded (Padded'Last - Stream_Element_Offset (7 - Offset_Value)) :=
-           Stream_Element
-             (Shift_Right (Bit_Length, 8 * Offset_Value) and 16#FF#);
-      end loop;
-
-      declare
-         Block_First : Stream_Element_Offset := Padded'First;
-      begin
-         while Block_First <= Padded'Last loop
-            declare
-               M       : array (Natural range 0 .. 15) of Word32 :=
-                 [others => 0];
-               A       : Word32 := A0;
-               B       : Word32 := B0;
-               C       : Word32 := C0;
-               D       : Word32 := D0;
-               F_Value : Word32;
-               G_Value : Natural;
-               Temp    : Word32;
-            begin
-               for Word_Index in 0 .. 15 loop
-                  M (Word_Index) :=
-                    LE_Word
-                      (Block_First + Stream_Element_Offset (Word_Index * 4));
-               end loop;
-               for Round_Index in 0 .. 63 loop
-                  if Round_Index < 16 then
-                     F_Value := (B and C) or ((not B) and D);
-                     G_Value := Round_Index;
-                  elsif Round_Index < 32 then
-                     F_Value := (D and B) or ((not D) and C);
-                     G_Value := (5 * Round_Index + 1) mod 16;
-                  elsif Round_Index < 48 then
-                     F_Value := B xor C xor D;
-                     G_Value := (3 * Round_Index + 5) mod 16;
-                  else
-                     F_Value := C xor (B or (not D));
-                     G_Value := (7 * Round_Index) mod 16;
-                  end if;
-                  Temp := D;
-                  D := C;
-                  C := B;
-                  B :=
-                    B
-                    + Rotate_Left
-                        (A + F_Value + K (Round_Index) + M (G_Value),
-                         S (Round_Index));
-                  A := Temp;
-               end loop;
-               A0 := A0 + A;
-               B0 := B0 + B;
-               C0 := C0 + C;
-               D0 := D0 + D;
-            end;
-            Block_First := Block_First + 64;
-         end loop;
-      end;
-
-      declare
-         Result : Stream_Element_Array (1 .. 16) := [others => 0];
-      begin
-         Store_LE (Result, 1, A0);
-         Store_LE (Result, 5, B0);
-         Store_LE (Result, 9, C0);
-         Store_LE (Result, 13, D0);
-         Padded := [others => 0];
-         return Result;
-      end;
-   exception
-      when others =>
-         return [1 .. 16 => 0];
-   end Digest_MD5;
-
-   function EVP_Bytes_To_Key_MD5
-     (Passphrase : String;
-      Salt_Data  : Stream_Element_Array;
-      Key_Length : Natural) return Stream_Element_Array
-   is
-      Pass_Data       : Stream_Element_Array := String_To_Bytes (Passphrase);
-      Need_Length     : constant Natural := Key_Length;
-      Result          :
-        Stream_Element_Array (1 .. Stream_Element_Offset (Need_Length)) :=
-          [others => 0];
-      Generated       : Natural := 0;
-      Previous_Length : Natural := 0;
-      Previous        : Stream_Element_Array (1 .. 16) := [others => 0];
-   begin
-      while Generated < Need_Length loop
-         declare
-            Input_Length : constant Natural :=
-              Previous_Length + Pass_Data'Length + Salt_Data'Length;
-            Input_Data   :
-              Stream_Element_Array
-                (1 .. Stream_Element_Offset (Input_Length)) := [others => 0];
-            Cursor_Value : Stream_Element_Offset := Input_Data'First;
-         begin
-            for Index_Value in 1 .. Previous_Length loop
-               Input_Data (Cursor_Value) :=
-                 Previous (Stream_Element_Offset (Index_Value));
-               Cursor_Value := Cursor_Value + 1;
-            end loop;
-            for Byte_Value of Pass_Data loop
-               Input_Data (Cursor_Value) := Byte_Value;
-               Cursor_Value := Cursor_Value + 1;
-            end loop;
-            for Byte_Value of Salt_Data loop
-               Input_Data (Cursor_Value) := Byte_Value;
-               Cursor_Value := Cursor_Value + 1;
-            end loop;
-            Previous := Digest_MD5 (Input_Data);
-            Clear_Stream_Array (Input_Data);
-            Previous_Length := 16;
-         end;
-         for Index_Value in Previous'Range loop
-            exit when Generated = Need_Length;
-            Generated := Generated + 1;
-            Result (Stream_Element_Offset (Generated)) :=
-              Previous (Index_Value);
-         end loop;
-      end loop;
-      Pass_Data := [others => 0];
-      Previous := [others => 0];
-      return Result;
-   exception
-      when others =>
-         return [1 .. Stream_Element_Offset (Key_Length) => 0];
-   end EVP_Bytes_To_Key_MD5;
 
    function PKCS7_Unpad
      (Data       : Stream_Element_Array;
@@ -2599,11 +2425,14 @@ package body SSH_Lib.Identity_Files is
            To_Array (IV_Buffer);
          Salt_Data      : constant Stream_Element_Array :=
            IV_Data (IV_Data'First .. IV_Data'First + 7);
+         Pass_Data      : Stream_Element_Array := String_To_Bytes (Passphrase);
          Key_Data       : Stream_Element_Array :=
-           EVP_Bytes_To_Key_MD5 (Passphrase, Salt_Data, Key_Length);
+           CryptoLib.Macs.EVP_Bytes_To_Key_MD5
+             (Pass_Data, Salt_Data, Key_Length);
          Decrypted_Data : Stream_Element_Array (Ciphertext'Range) :=
            [others => 0];
       begin
+         Pass_Data := [others => 0];
          Status_Value :=
            CryptoLib.Ciphers.Decrypt_CBC_Raw
              (To_String (Algorithm_Name),
@@ -2673,12 +2502,19 @@ package body SSH_Lib.Identity_Files is
       IV_Hex := Null_Unbounded_String;
       if Status_Value /= Ok then
          Clear (Plain_Buffer);
+         if Status_Value = Unsupported_Feature then
+            return Authentication_Failed;
+         end if;
          return Status_Value;
       end if;
       Status_Value :=
         Parse_Legacy_RSA_PEM_Binary (To_Array (Plain_Buffer), Item);
       Clear (Plain_Buffer);
-      return Status_Value;
+      if Status_Value /= Ok then
+         Clear (Item);
+         return Authentication_Failed;
+      end if;
+      return Ok;
    exception
       when others =>
          Clear (Item);
@@ -2724,16 +2560,19 @@ package body SSH_Lib.Identity_Files is
          return Internal_Error;
    end DER_Bit_String;
 
-   function Build_ECDSA_Nistp256_Public_Blob
-     (Public_Point : Stream_Element_Array; Blob : out Packet_Buffer)
+   function Build_ECDSA_Public_Blob
+     (Algorithm_Name : String;
+      Curve_Name     : String;
+      Public_Point   : Stream_Element_Array;
+      Blob           : out Packet_Buffer)
       return Status
    is
       Algorithm_Buffer : constant Packet_Buffer :=
         SSH_Lib.Protocol.Numbers.Encode_SSH_String
-          (String_To_Bytes ("ecdsa-sha2-nistp256"));
+          (String_To_Bytes (Algorithm_Name));
       Curve_Buffer     : constant Packet_Buffer :=
         SSH_Lib.Protocol.Numbers.Encode_SSH_String
-          (String_To_Bytes ("nistp256"));
+          (String_To_Bytes (Curve_Name));
       Point_Buffer     : constant Packet_Buffer :=
         SSH_Lib.Protocol.Numbers.Encode_SSH_String (Public_Point);
       Status_Value     : Status;
@@ -2759,10 +2598,12 @@ package body SSH_Lib.Identity_Files is
       when others =>
          Clear (Blob);
          return Internal_Error;
-   end Build_ECDSA_Nistp256_Public_Blob;
+   end Build_ECDSA_Public_Blob;
 
-   function Parse_SEC1_EC_P256_PEM_Binary
-     (Data : Stream_Element_Array; Item : out Identity_Key) return Status
+   function Parse_SEC1_EC_PEM_Binary
+     (Data : Stream_Element_Array;
+      Item : out Identity_Key;
+      Expected_Algorithm_Name : String := "") return Status
    is
       P256_OID            : constant Stream_Element_Array (1 .. 10) :=
         [16#06#,
@@ -2775,6 +2616,10 @@ package body SSH_Lib.Identity_Files is
          16#03#,
          16#01#,
          16#07#];
+      P384_OID            : constant Stream_Element_Array (1 .. 7) :=
+        [16#06#, 16#05#, 16#2B#, 16#81#, 16#04#, 16#00#, 16#22#];
+      P521_OID            : constant Stream_Element_Array (1 .. 7) :=
+        [16#06#, 16#05#, 16#2B#, 16#81#, 16#04#, 16#00#, 16#23#];
       Seq_First, Seq_Last : Stream_Element_Offset;
       Cursor              : Stream_Element_Offset;
       Ctx_First, Ctx_Last : Stream_Element_Offset;
@@ -2784,6 +2629,8 @@ package body SSH_Lib.Identity_Files is
       Public_Buffer       : Packet_Buffer;
       Public_Blob         : Packet_Buffer;
       Saw_Public          : Boolean := False;
+      Algorithm_Name      : Unbounded_String :=
+        To_Unbounded_String (Expected_Algorithm_Name);
       Status_Value        : Status;
 
       function Finish (Result : Status) return Status is
@@ -2824,7 +2671,7 @@ package body SSH_Lib.Identity_Files is
       Status_Value := DER_Octet_String (Data, Cursor, Private_Buffer);
       if Status_Value /= Ok
         or else Length (Private_Buffer) = 0
-        or else Length (Private_Buffer) > 33
+        or else Length (Private_Buffer) > 67
       then
          return Finish (Authentication_Failed);
       end if;
@@ -2837,9 +2684,36 @@ package body SSH_Lib.Identity_Files is
                return Finish (Authentication_Failed);
             end if;
             if Ctx_Last - Ctx_First + 1
-              /= Stream_Element_Offset (P256_OID'Length)
-              or else not Bytes_Equal (Data, Ctx_First, P256_OID)
+                 = Stream_Element_Offset (P256_OID'Length)
+              and then Bytes_Equal (Data, Ctx_First, P256_OID)
             then
+               if Length (Algorithm_Name) > 0
+                 and then To_String (Algorithm_Name) /= "ecdsa-sha2-nistp256"
+               then
+                  return Finish (Authentication_Failed);
+               end if;
+               Algorithm_Name := To_Unbounded_String ("ecdsa-sha2-nistp256");
+            elsif Ctx_Last - Ctx_First + 1
+                    = Stream_Element_Offset (P384_OID'Length)
+              and then Bytes_Equal (Data, Ctx_First, P384_OID)
+            then
+               if Length (Algorithm_Name) > 0
+                 and then To_String (Algorithm_Name) /= "ecdsa-sha2-nistp384"
+               then
+                  return Finish (Authentication_Failed);
+               end if;
+               Algorithm_Name := To_Unbounded_String ("ecdsa-sha2-nistp384");
+            elsif Ctx_Last - Ctx_First + 1
+                    = Stream_Element_Offset (P521_OID'Length)
+              and then Bytes_Equal (Data, Ctx_First, P521_OID)
+            then
+               if Length (Algorithm_Name) > 0
+                 and then To_String (Algorithm_Name) /= "ecdsa-sha2-nistp521"
+               then
+                  return Finish (Authentication_Failed);
+               end if;
+               Algorithm_Name := To_Unbounded_String ("ecdsa-sha2-nistp521");
+            else
                return Finish (Unsupported_Feature);
             end if;
             Cursor := Ctx_Last + 1;
@@ -2854,7 +2728,10 @@ package body SSH_Lib.Identity_Files is
             if Status_Value /= Ok or else Ctx_Cursor /= Ctx_Last + 1 then
                return Finish (Authentication_Failed);
             end if;
-            if Length (Public_Buffer) /= 65 then
+            if Length (Algorithm_Name) = 0
+              or else Length (Public_Buffer)
+                /= ECDSA_Public_Point_Length (To_String (Algorithm_Name))
+            then
                return Finish (Authentication_Failed);
             end if;
             Saw_Public := True;
@@ -2867,14 +2744,21 @@ package body SSH_Lib.Identity_Files is
       if not Saw_Public then
          return Finish (Unsupported_Feature);
       end if;
+      if Length (Algorithm_Name) = 0 then
+         return Finish (Unsupported_Feature);
+      end if;
       Status_Value :=
-        SSH_Lib.ECDSA.Validate_Raw_Point_Nistp256 (To_Array (Public_Buffer));
+        Validate_ECDSA_Raw_Point
+          (To_String (Algorithm_Name), To_Array (Public_Buffer));
       if Status_Value /= Ok then
          return Finish (Status_Value);
       end if;
       Status_Value :=
-        Build_ECDSA_Nistp256_Public_Blob
-          (To_Array (Public_Buffer), Public_Blob);
+        Build_ECDSA_Public_Blob
+          (To_String (Algorithm_Name),
+           ECDSA_Curve_Name (To_String (Algorithm_Name)),
+           To_Array (Public_Buffer),
+           Public_Blob);
       if Status_Value /= Ok then
          return Finish (Status_Value);
       end if;
@@ -2882,7 +2766,10 @@ package body SSH_Lib.Identity_Files is
       if Status_Value /= Ok then
          return Finish (Status_Value);
       end if;
-      Status_Value := Set (Item.ECDSA_Curve, String_To_Bytes ("nistp256"));
+      Status_Value :=
+        Set
+          (Item.ECDSA_Curve,
+           String_To_Bytes (ECDSA_Curve_Name (To_String (Algorithm_Name))));
       if Status_Value /= Ok then
          return Finish (Status_Value);
       end if;
@@ -2920,19 +2807,21 @@ package body SSH_Lib.Identity_Files is
          return Finish (Status_Value);
       end if;
       Status_Value :=
-        SSH_Lib.ECDSA.Public_Matches_Private_Nistp256
-          (To_Array (Item.Public_Blob), To_Array (Item.ECDSA_Private));
+        ECDSA_Public_Matches_Private
+          (To_String (Algorithm_Name),
+           To_Array (Item.Public_Blob),
+           To_Array (Item.ECDSA_Private));
       if Status_Value /= Ok then
          return Finish (Status_Value);
       end if;
-      Item.Key_Type := ECDSA_Nistp256_Key;
-      Item.Algorithm := To_Unbounded_String ("ecdsa-sha2-nistp256");
+      Item.Key_Type := ECDSA_Key_Kind_For (To_String (Algorithm_Name));
+      Item.Algorithm := Algorithm_Name;
       return Finish (Ok);
    exception
       when others =>
          Clear (Item);
          return Finish (Internal_Error);
-   end Parse_SEC1_EC_P256_PEM_Binary;
+   end Parse_SEC1_EC_PEM_Binary;
 
    function Parse_Legacy_EC_PEM
      (Text : String; Item : out Identity_Key) return Status
@@ -2958,7 +2847,7 @@ package body SSH_Lib.Identity_Files is
          return Status_Value;
       end if;
       Status_Value :=
-        Parse_SEC1_EC_P256_PEM_Binary (To_Array (Binary_Buffer), Item);
+        Parse_SEC1_EC_PEM_Binary (To_Array (Binary_Buffer), Item);
       Clear (Binary_Buffer);
       if Status_Value /= Ok then
          Clear (Item);
@@ -3011,12 +2900,19 @@ package body SSH_Lib.Identity_Files is
       IV_Hex := Null_Unbounded_String;
       if Status_Value /= Ok then
          Clear (Plain_Buffer);
+         if Status_Value = Unsupported_Feature then
+            return Authentication_Failed;
+         end if;
          return Status_Value;
       end if;
       Status_Value :=
-        Parse_SEC1_EC_P256_PEM_Binary (To_Array (Plain_Buffer), Item);
+        Parse_SEC1_EC_PEM_Binary (To_Array (Plain_Buffer), Item);
       Clear (Plain_Buffer);
-      return Status_Value;
+      if Status_Value /= Ok then
+         Clear (Item);
+         return Authentication_Failed;
+      end if;
+      return Ok;
    exception
       when others =>
          Clear (Item);
@@ -3084,61 +2980,11 @@ package body SSH_Lib.Identity_Files is
          return Internal_Error;
    end DER_Octet_String;
 
-   function Digest_To_Array_SHA1
-     (Digest_Value : CryptoLib.Macs.HMAC_SHA1_Digest)
-      return Stream_Element_Array
-   is
-      Result : Stream_Element_Array (1 .. 20) := [others => 0];
-   begin
-      for Index_Value in Digest_Value'Range loop
-         Result (Stream_Element_Offset (Index_Value)) :=
-           Digest_Value (Index_Value);
-      end loop;
-      return Result;
-   end Digest_To_Array_SHA1;
-
-   function Digest_To_Array_SHA256
-     (Digest_Value : CryptoLib.Macs.HMAC_SHA256_Digest)
-      return Stream_Element_Array
-   is
-      Result : Stream_Element_Array (1 .. 32) := [others => 0];
-   begin
-      for Index_Value in Digest_Value'Range loop
-         Result (Stream_Element_Offset (Index_Value)) :=
-           Digest_Value (Index_Value);
-      end loop;
-      return Result;
-   end Digest_To_Array_SHA256;
-
-   function Digest_To_Array_SHA512
-     (Digest_Value : CryptoLib.Macs.HMAC_SHA512_Digest)
-      return Stream_Element_Array
-   is
-      Result : Stream_Element_Array (1 .. 64) := [others => 0];
-   begin
-      for Index_Value in Digest_Value'Range loop
-         Result (Stream_Element_Offset (Index_Value)) :=
-           Digest_Value (Index_Value);
-      end loop;
-      return Result;
-   end Digest_To_Array_SHA512;
-
    type PBKDF2_PRF is
-     (PBKDF2_HMAC_SHA1, PBKDF2_HMAC_SHA256, PBKDF2_HMAC_SHA512);
-
-   function PBKDF2_Digest_Size (Prf_Kind : PBKDF2_PRF) return Natural is
-   begin
-      case Prf_Kind is
-         when PBKDF2_HMAC_SHA1   =>
-            return 20;
-
-         when PBKDF2_HMAC_SHA256 =>
-            return 32;
-
-         when PBKDF2_HMAC_SHA512 =>
-            return 64;
-      end case;
-   end PBKDF2_Digest_Size;
+     (PBKDF2_HMAC_SHA1,
+      PBKDF2_HMAC_SHA256,
+      PBKDF2_HMAC_SHA384,
+      PBKDF2_HMAC_SHA512);
 
    function PBKDF2_HMAC
      (Passphrase  : String;
@@ -3147,98 +2993,36 @@ package body SSH_Lib.Identity_Files is
       Output_Size : Natural;
       Prf_Kind    : PBKDF2_PRF) return Stream_Element_Array
    is
-      Pass_Data   : Stream_Element_Array := String_To_Bytes (Passphrase);
-      Digest_Size : constant Natural := PBKDF2_Digest_Size (Prf_Kind);
-      Block_Count : constant Natural :=
-        (Output_Size + Digest_Size - 1) / Digest_Size;
-      Result      :
+      Pass_Data : Stream_Element_Array := String_To_Bytes (Passphrase);
+      Result    :
         Stream_Element_Array (1 .. Stream_Element_Offset (Output_Size)) :=
-          [others => 0];
-      Result_Pos  : Natural := 0;
+        [others => 0];
    begin
       if Iterations = 0 or else Output_Size = 0 then
          Pass_Data := [others => 0];
          return Result;
       end if;
-      for Block_Index in 1 .. Block_Count loop
-         declare
-            Salt_Block   :
-              Stream_Element_Array
-                (1 .. Stream_Element_Offset (Salt_Data'Length + 4)) :=
-                [others => 0];
-            Cursor_Value : Stream_Element_Offset := Salt_Block'First;
-            U_Data       :
-              Stream_Element_Array
-                (1 .. Stream_Element_Offset (Digest_Size)) := [others => 0];
-            T_Data       :
-              Stream_Element_Array
-                (1 .. Stream_Element_Offset (Digest_Size)) := [others => 0];
-         begin
-            for Byte_Value of Salt_Data loop
-               Salt_Block (Cursor_Value) := Byte_Value;
-               Cursor_Value := Cursor_Value + 1;
-            end loop;
-            Salt_Block (Cursor_Value) :=
-              Stream_Element
-                (Shift_Right (Unsigned_32 (Block_Index), 24) and 16#FF#);
-            Salt_Block (Cursor_Value + 1) :=
-              Stream_Element
-                (Shift_Right (Unsigned_32 (Block_Index), 16) and 16#FF#);
-            Salt_Block (Cursor_Value + 2) :=
-              Stream_Element
-                (Shift_Right (Unsigned_32 (Block_Index), 8) and 16#FF#);
-            Salt_Block (Cursor_Value + 3) :=
-              Stream_Element (Unsigned_32 (Block_Index) and 16#FF#);
-            case Prf_Kind is
-               when PBKDF2_HMAC_SHA1   =>
-                  U_Data :=
-                    Digest_To_Array_SHA1
-                      (CryptoLib.Macs.HMAC_SHA1 (Pass_Data, Salt_Block));
+      case Prf_Kind is
+         when PBKDF2_HMAC_SHA1 =>
+            Result :=
+              CryptoLib.Macs.PBKDF2_HMAC_SHA1
+                (Pass_Data, Salt_Data, Positive (Iterations), Output_Size);
 
-               when PBKDF2_HMAC_SHA256 =>
-                  U_Data :=
-                    Digest_To_Array_SHA256
-                      (CryptoLib.Macs.HMAC_SHA256 (Pass_Data, Salt_Block));
+         when PBKDF2_HMAC_SHA256 =>
+            Result :=
+              CryptoLib.Macs.PBKDF2_HMAC_SHA256
+                (Pass_Data, Salt_Data, Positive (Iterations), Output_Size);
 
-               when PBKDF2_HMAC_SHA512 =>
-                  U_Data :=
-                    Digest_To_Array_SHA512
-                      (CryptoLib.Macs.HMAC_SHA512 (Pass_Data, Salt_Block));
-            end case;
-            T_Data := U_Data;
-            for Iteration_Index in 2 .. Iterations loop
-               case Prf_Kind is
-                  when PBKDF2_HMAC_SHA1   =>
-                     U_Data :=
-                       Digest_To_Array_SHA1
-                         (CryptoLib.Macs.HMAC_SHA1 (Pass_Data, U_Data));
+         when PBKDF2_HMAC_SHA384 =>
+            Result :=
+              CryptoLib.Macs.PBKDF2_HMAC_SHA384
+                (Pass_Data, Salt_Data, Positive (Iterations), Output_Size);
 
-                  when PBKDF2_HMAC_SHA256 =>
-                     U_Data :=
-                       Digest_To_Array_SHA256
-                         (CryptoLib.Macs.HMAC_SHA256 (Pass_Data, U_Data));
-
-                  when PBKDF2_HMAC_SHA512 =>
-                     U_Data :=
-                       Digest_To_Array_SHA512
-                         (CryptoLib.Macs.HMAC_SHA512 (Pass_Data, U_Data));
-               end case;
-               for Index_Value in U_Data'Range loop
-                  T_Data (Index_Value) :=
-                    T_Data (Index_Value) xor U_Data (Index_Value);
-               end loop;
-            end loop;
-            for Index_Value in T_Data'Range loop
-               exit when Result_Pos = Output_Size;
-               Result_Pos := Result_Pos + 1;
-               Result (Stream_Element_Offset (Result_Pos)) :=
-                 T_Data (Index_Value);
-            end loop;
-            Clear_Stream_Array (Salt_Block);
-            Clear_Stream_Array (U_Data);
-            Clear_Stream_Array (T_Data);
-         end;
-      end loop;
+         when PBKDF2_HMAC_SHA512 =>
+            Result :=
+              CryptoLib.Macs.PBKDF2_HMAC_SHA512
+                (Pass_Data, Salt_Data, Positive (Iterations), Output_Size);
+      end case;
       Pass_Data := [others => 0];
       return Result;
    exception
@@ -3246,11 +3030,191 @@ package body SSH_Lib.Identity_Files is
          return [1 .. Stream_Element_Offset (Output_Size) => 0];
    end PBKDF2_HMAC;
 
+   type PBKDF1_Hash is (PBKDF1_MD5, PBKDF1_SHA1);
+
+   function PBKDF1
+     (Passphrase  : String;
+      Salt_Data   : Stream_Element_Array;
+      Iterations  : Natural;
+      Output_Size : Natural;
+      Hash_Kind   : PBKDF1_Hash) return Stream_Element_Array
+   is
+      Pass_Data : Stream_Element_Array := String_To_Bytes (Passphrase);
+      Result    :
+        Stream_Element_Array (1 .. Stream_Element_Offset (Output_Size)) :=
+        [others => 0];
+   begin
+      if Iterations = 0 or else Output_Size = 0 then
+         Pass_Data := [others => 0];
+         return Result;
+      end if;
+      case Hash_Kind is
+         when PBKDF1_MD5 =>
+            Result :=
+              CryptoLib.Macs.PBKDF1_MD5
+                (Pass_Data, Salt_Data, Positive (Iterations), Output_Size);
+
+         when PBKDF1_SHA1 =>
+            Result :=
+              CryptoLib.Macs.PBKDF1_SHA1
+                (Pass_Data, Salt_Data, Positive (Iterations), Output_Size);
+      end case;
+      Pass_Data := [others => 0];
+      return Result;
+   exception
+      when others =>
+         return [1 .. Stream_Element_Offset (Output_Size) => 0];
+   end PBKDF1;
+
+   function PKCS12_KDF_SHA1
+     (Passphrase  : String;
+      Salt_Data   : Stream_Element_Array;
+      Iterations  : Natural;
+      Id_Byte     : Stream_Element;
+      Output_Size : Natural) return Stream_Element_Array
+   is
+      Pass_Data : Stream_Element_Array := String_To_Bytes (Passphrase);
+      Result    :
+        Stream_Element_Array (1 .. Stream_Element_Offset (Output_Size)) :=
+        [others => 0];
+   begin
+      if Iterations = 0 or else Output_Size = 0 then
+         Pass_Data := [others => 0];
+         return Result;
+      end if;
+      Result :=
+        CryptoLib.Macs.PKCS12_KDF_SHA1
+          (Pass_Data, Salt_Data, Positive (Iterations), Id_Byte, Output_Size);
+      Pass_Data := [others => 0];
+      return Result;
+   exception
+      when others =>
+         return [1 .. Stream_Element_Offset (Output_Size) => 0];
+   end PKCS12_KDF_SHA1;
+
+   function Scrypt_SHA256
+     (Passphrase  : String;
+      Salt_Data   : Stream_Element_Array;
+      N_Value     : Natural;
+      R_Value     : Natural;
+      P_Value     : Natural;
+      Output_Size : Natural) return Stream_Element_Array
+   is
+      Pass_Data : Stream_Element_Array := String_To_Bytes (Passphrase);
+      Result    :
+        Stream_Element_Array (1 .. Stream_Element_Offset (Output_Size)) :=
+        [others => 0];
+   begin
+      if N_Value = 0
+        or else R_Value = 0
+        or else P_Value = 0
+        or else Output_Size = 0
+      then
+         Pass_Data := [others => 0];
+         return Result;
+      end if;
+      Result :=
+        CryptoLib.Macs.Scrypt_SHA256
+          (Pass_Data,
+           Salt_Data,
+           Positive (N_Value),
+           Positive (R_Value),
+           Positive (P_Value),
+           Output_Size);
+      Pass_Data := [others => 0];
+      return Result;
+   exception
+      when others =>
+         return [1 .. Stream_Element_Offset (Output_Size) => 0];
+   end Scrypt_SHA256;
+
    function Decrypt_PKCS8_Encrypted_Binary
      (Data       : Stream_Element_Array;
       Passphrase : String;
       Plaintext  : out Packet_Buffer) return Status
    is
+      PBES1_MD5_DES_CBC_OID                   :
+        constant Stream_Element_Array (1 .. 11) :=
+          [16#06#,
+           16#09#,
+           16#2A#,
+           16#86#,
+           16#48#,
+           16#86#,
+           16#F7#,
+           16#0D#,
+           16#01#,
+           16#05#,
+           16#03#];
+      PBES1_SHA1_DES_CBC_OID                  :
+        constant Stream_Element_Array (1 .. 11) :=
+          [16#06#,
+           16#09#,
+           16#2A#,
+           16#86#,
+           16#48#,
+           16#86#,
+           16#F7#,
+           16#0D#,
+           16#01#,
+           16#05#,
+           16#0A#];
+      PKCS12_SHA1_3DES_CBC_OID                :
+        constant Stream_Element_Array (1 .. 12) :=
+          [16#06#,
+           16#0A#,
+           16#2A#,
+           16#86#,
+           16#48#,
+           16#86#,
+           16#F7#,
+           16#0D#,
+           16#01#,
+           16#0C#,
+           16#01#,
+           16#03#];
+      PKCS12_SHA1_2DES_CBC_OID                :
+        constant Stream_Element_Array (1 .. 12) :=
+          [16#06#,
+           16#0A#,
+           16#2A#,
+           16#86#,
+           16#48#,
+           16#86#,
+           16#F7#,
+           16#0D#,
+           16#01#,
+           16#0C#,
+           16#01#,
+           16#04#];
+      PKCS12_SHA1_RC2_40_CBC_OID              :
+        constant Stream_Element_Array (1 .. 12) :=
+          [16#06#,
+           16#0A#,
+           16#2A#,
+           16#86#,
+           16#48#,
+           16#86#,
+           16#F7#,
+           16#0D#,
+           16#01#,
+           16#0C#,
+           16#01#,
+           16#06#];
+      PKCS12_SHA1_RC2_128_CBC_OID             :
+        constant Stream_Element_Array (1 .. 12) :=
+          [16#06#,
+           16#0A#,
+           16#2A#,
+           16#86#,
+           16#48#,
+           16#86#,
+           16#F7#,
+           16#0D#,
+           16#01#,
+           16#0C#,
+           16#01#,
+           16#05#];
       PBES2_OID                               :
         constant Stream_Element_Array (1 .. 11) :=
           [16#06#,
@@ -3277,6 +3241,19 @@ package body SSH_Lib.Identity_Files is
            16#01#,
            16#05#,
            16#0C#];
+      SCRYPT_OID                              :
+        constant Stream_Element_Array (1 .. 11) :=
+          [16#06#,
+           16#09#,
+           16#2B#,
+           16#06#,
+           16#01#,
+           16#04#,
+           16#01#,
+           16#DA#,
+           16#47#,
+           16#04#,
+           16#0B#];
       HMAC_SHA1_OID                           :
         constant Stream_Element_Array (1 .. 10) :=
           [16#06#,
@@ -3301,6 +3278,18 @@ package body SSH_Lib.Identity_Files is
            16#0D#,
            16#02#,
            16#09#];
+      HMAC_SHA384_OID                         :
+        constant Stream_Element_Array (1 .. 10) :=
+          [16#06#,
+           16#08#,
+           16#2A#,
+           16#86#,
+           16#48#,
+           16#86#,
+           16#F7#,
+           16#0D#,
+           16#02#,
+           16#0A#];
       HMAC_SHA512_OID                         :
         constant Stream_Element_Array (1 .. 10) :=
           [16#06#,
@@ -3364,6 +3353,21 @@ package body SSH_Lib.Identity_Files is
            16#0D#,
            16#03#,
            16#07#];
+      DES_CBC_OID                             :
+        constant Stream_Element_Array (1 .. 7) :=
+          [16#06#, 16#05#, 16#2B#, 16#0E#, 16#03#, 16#02#, 16#07#];
+      RC2_CBC_OID                             :
+        constant Stream_Element_Array (1 .. 10) :=
+          [16#06#,
+           16#08#,
+           16#2A#,
+           16#86#,
+           16#48#,
+           16#86#,
+           16#F7#,
+           16#0D#,
+           16#03#,
+           16#02#];
       Seq_First, Seq_Last                     : Stream_Element_Offset;
       Alg_First, Alg_Last                     : Stream_Element_Offset;
       Params_First, Params_Last               : Stream_Element_Offset;
@@ -3383,6 +3387,10 @@ package body SSH_Lib.Identity_Files is
       Key_Length                              : Natural := 0;
       Block_Length                            : Natural := 16;
       Prf_Kind                                : PBKDF2_PRF := PBKDF2_HMAC_SHA1;
+      Use_Scrypt                              : Boolean := False;
+      Scrypt_N                                : Natural := 0;
+      Scrypt_R                                : Natural := 0;
+      Scrypt_P                                : Natural := 0;
       Algorithm_Name                          : Unbounded_String;
       Status_Value                            : Status;
    begin
@@ -3408,7 +3416,230 @@ package body SSH_Lib.Identity_Files is
          return Authentication_Failed;
       end if;
 
-      if not Bytes_Equal (Data, Alg_First, PBES2_OID) then
+      if Bytes_Equal (Data, Alg_First, PBES1_MD5_DES_CBC_OID)
+        or else Bytes_Equal (Data, Alg_First, PBES1_SHA1_DES_CBC_OID)
+      then
+         declare
+            PBES1_Params_Cursor : Stream_Element_Offset :=
+              Alg_First
+              + (if Bytes_Equal (Data, Alg_First, PBES1_MD5_DES_CBC_OID)
+                 then Stream_Element_Offset (PBES1_MD5_DES_CBC_OID'Length)
+                 else Stream_Element_Offset
+                   (PBES1_SHA1_DES_CBC_OID'Length));
+            Hash_Kind           : constant PBKDF1_Hash :=
+              (if Bytes_Equal (Data, Alg_First, PBES1_MD5_DES_CBC_OID)
+               then PBKDF1_MD5
+               else PBKDF1_SHA1);
+            PBES1_Params_First  : Stream_Element_Offset;
+            PBES1_Params_Last   : Stream_Element_Offset;
+         begin
+            Status_Value :=
+              Decode_DER_Header
+                (Data,
+                 PBES1_Params_Cursor,
+                 16#30#,
+                 PBES1_Params_First,
+                 PBES1_Params_Last);
+            if Status_Value /= Ok or else PBES1_Params_Last /= Alg_Last then
+               Clear (Cipher_Buffer);
+               return Authentication_Failed;
+            end if;
+
+            PBES1_Params_Cursor := PBES1_Params_First;
+            Status_Value :=
+              DER_Octet_String (Data, PBES1_Params_Cursor, Salt_Buffer);
+            if Status_Value /= Ok then
+               Clear (Cipher_Buffer);
+               Clear (Salt_Buffer);
+               return Status_Value;
+            end if;
+            Status_Value :=
+              DER_Integer_Natural (Data, PBES1_Params_Cursor, Iterations);
+            if Status_Value /= Ok
+              or else PBES1_Params_Cursor /= PBES1_Params_Last + 1
+            then
+               Clear (Cipher_Buffer);
+               Clear (Salt_Buffer);
+               return Authentication_Failed;
+            end if;
+            if Iterations = 0
+              or else Iterations > 2_000_000
+              or else Length (Salt_Buffer) /= 8
+            then
+               Clear (Cipher_Buffer);
+               Clear (Salt_Buffer);
+               return Unsupported_Feature;
+            end if;
+
+            declare
+               Salt_Data      : constant Stream_Element_Array :=
+                 To_Array (Salt_Buffer);
+               Cipher_Data    : constant Stream_Element_Array :=
+                 To_Array (Cipher_Buffer);
+               Derived_Data   : Stream_Element_Array :=
+                 PBKDF1 (Passphrase, Salt_Data, Iterations, 16, Hash_Kind);
+               Key_Data       : Stream_Element_Array (1 .. 8) :=
+                 Derived_Data (1 .. 8);
+               IV_Data        : Stream_Element_Array (1 .. 8) :=
+                 Derived_Data (9 .. 16);
+               Decrypted_Data : Stream_Element_Array (Cipher_Data'Range) :=
+                 [others => 0];
+            begin
+               Status_Value :=
+                 CryptoLib.Ciphers.Decrypt_CBC_Raw
+                   ("des-cbc",
+                    Key_Data,
+                    IV_Data,
+                    Cipher_Data,
+                    Decrypted_Data);
+               Derived_Data := [others => 0];
+               Key_Data := [others => 0];
+               IV_Data := [others => 0];
+               Clear (Salt_Buffer);
+               Clear (Cipher_Buffer);
+               if Status_Value /= Ok then
+                  Decrypted_Data := [others => 0];
+                  return Status_Value;
+               end if;
+               Status_Value := PKCS7_Unpad (Decrypted_Data, Plaintext, 8);
+               Decrypted_Data := [others => 0];
+               return Status_Value;
+            end;
+         end;
+      elsif Bytes_Equal (Data, Alg_First, PKCS12_SHA1_3DES_CBC_OID)
+        or else Bytes_Equal (Data, Alg_First, PKCS12_SHA1_2DES_CBC_OID)
+        or else Bytes_Equal (Data, Alg_First, PKCS12_SHA1_RC2_40_CBC_OID)
+        or else Bytes_Equal (Data, Alg_First, PKCS12_SHA1_RC2_128_CBC_OID)
+      then
+         declare
+            PKCS12_Params_Cursor : Stream_Element_Offset :=
+              Alg_First
+              + (if Bytes_Equal (Data, Alg_First, PKCS12_SHA1_3DES_CBC_OID)
+                 then Stream_Element_Offset
+                   (PKCS12_SHA1_3DES_CBC_OID'Length)
+                 elsif Bytes_Equal (Data, Alg_First, PKCS12_SHA1_2DES_CBC_OID)
+                 then Stream_Element_Offset
+                   (PKCS12_SHA1_2DES_CBC_OID'Length)
+                 elsif Bytes_Equal
+                   (Data, Alg_First, PKCS12_SHA1_RC2_40_CBC_OID)
+                 then Stream_Element_Offset
+                   (PKCS12_SHA1_RC2_40_CBC_OID'Length)
+                 else Stream_Element_Offset
+                   (PKCS12_SHA1_RC2_128_CBC_OID'Length));
+            Raw_Key_Length       : constant Natural :=
+              (if Bytes_Equal (Data, Alg_First, PKCS12_SHA1_3DES_CBC_OID)
+               then 24
+               elsif Bytes_Equal (Data, Alg_First, PKCS12_SHA1_2DES_CBC_OID)
+               then 16
+               elsif Bytes_Equal (Data, Alg_First, PKCS12_SHA1_RC2_40_CBC_OID)
+               then 5
+               else 16);
+            PKCS12_Algorithm     : constant Unbounded_String :=
+              (if Bytes_Equal (Data, Alg_First, PKCS12_SHA1_RC2_40_CBC_OID)
+               then To_Unbounded_String ("rc2-40-cbc")
+               elsif Bytes_Equal
+                 (Data, Alg_First, PKCS12_SHA1_RC2_128_CBC_OID)
+               then To_Unbounded_String ("rc2-128-cbc")
+               else To_Unbounded_String ("3des-cbc"));
+            PKCS12_Key_Length    : constant Natural :=
+              (if Bytes_Equal (Data, Alg_First, PKCS12_SHA1_RC2_40_CBC_OID)
+               then 5
+               elsif Bytes_Equal
+                 (Data, Alg_First, PKCS12_SHA1_RC2_128_CBC_OID)
+               then 16
+               else 24);
+            PKCS12_Params_First  : Stream_Element_Offset;
+            PKCS12_Params_Last   : Stream_Element_Offset;
+         begin
+            Status_Value :=
+              Decode_DER_Header
+                (Data,
+                 PKCS12_Params_Cursor,
+                 16#30#,
+                 PKCS12_Params_First,
+                 PKCS12_Params_Last);
+            if Status_Value /= Ok or else PKCS12_Params_Last /= Alg_Last then
+               Clear (Cipher_Buffer);
+               return Authentication_Failed;
+            end if;
+
+            PKCS12_Params_Cursor := PKCS12_Params_First;
+            Status_Value :=
+              DER_Octet_String (Data, PKCS12_Params_Cursor, Salt_Buffer);
+            if Status_Value /= Ok then
+               Clear (Cipher_Buffer);
+               Clear (Salt_Buffer);
+               return Status_Value;
+            end if;
+            Status_Value :=
+              DER_Integer_Natural (Data, PKCS12_Params_Cursor, Iterations);
+            if Status_Value /= Ok
+              or else PKCS12_Params_Cursor /= PKCS12_Params_Last + 1
+            then
+               Clear (Cipher_Buffer);
+               Clear (Salt_Buffer);
+               return Authentication_Failed;
+            end if;
+            if Iterations = 0
+              or else Iterations > 2_000_000
+              or else Length (Salt_Buffer) /= 8
+            then
+               Clear (Cipher_Buffer);
+               Clear (Salt_Buffer);
+               return Unsupported_Feature;
+            end if;
+
+            declare
+               Salt_Data      : constant Stream_Element_Array :=
+                 To_Array (Salt_Buffer);
+               Cipher_Data    : constant Stream_Element_Array :=
+                 To_Array (Cipher_Buffer);
+               Raw_Key_Data   : Stream_Element_Array :=
+                 PKCS12_KDF_SHA1
+                   (Passphrase,
+                    Salt_Data,
+                    Iterations,
+                    1,
+                    (if To_String (PKCS12_Algorithm) = "rc2-40-cbc"
+                     then 5
+                     else Raw_Key_Length));
+               Key_Data       :
+                 Stream_Element_Array (1 .. Stream_Element_Offset (PKCS12_Key_Length)) :=
+                 [others => 0];
+               IV_Data        : Stream_Element_Array :=
+                 PKCS12_KDF_SHA1 (Passphrase, Salt_Data, Iterations, 2, 8);
+               Decrypted_Data : Stream_Element_Array (Cipher_Data'Range) :=
+                 [others => 0];
+            begin
+               Key_Data (1 .. Stream_Element_Offset (Raw_Key_Data'Length)) :=
+                 Raw_Key_Data;
+               if To_String (PKCS12_Algorithm) = "3des-cbc"
+                 and then Raw_Key_Length = 16
+               then
+                  Key_Data (17 .. 24) := Raw_Key_Data (1 .. 8);
+               end if;
+               Status_Value :=
+                 CryptoLib.Ciphers.Decrypt_CBC_Raw
+                   (To_String (PKCS12_Algorithm),
+                    Key_Data,
+                    IV_Data,
+                    Cipher_Data,
+                    Decrypted_Data);
+               Raw_Key_Data := [others => 0];
+               Key_Data := [others => 0];
+               IV_Data := [others => 0];
+               Clear (Salt_Buffer);
+               Clear (Cipher_Buffer);
+               if Status_Value /= Ok then
+                  Decrypted_Data := [others => 0];
+                  return Status_Value;
+               end if;
+               Status_Value := PKCS7_Unpad (Decrypted_Data, Plaintext, 8);
+               Decrypted_Data := [others => 0];
+               return Status_Value;
+            end;
+         end;
+      elsif not Bytes_Equal (Data, Alg_First, PBES2_OID) then
          Clear (Cipher_Buffer);
          return Unsupported_Feature;
       end if;
@@ -3436,73 +3667,127 @@ package body SSH_Lib.Identity_Files is
          return Authentication_Failed;
       end if;
 
-      if not Bytes_Equal (Data, Kdf_First, PBKDF2_OID) then
-         Clear (Cipher_Buffer);
-         return Unsupported_Feature;
-      end if;
-      Kdf_Cursor := Kdf_First + Stream_Element_Offset (PBKDF2_OID'Length);
-      Status_Value :=
-        Decode_DER_Header
-          (Data, Kdf_Cursor, 16#30#, Kdf_Params_First, Kdf_Params_Last);
-      if Status_Value /= Ok or else Kdf_Params_Last /= Kdf_Last then
-         Clear (Cipher_Buffer);
-         return Authentication_Failed;
-      end if;
-      Kdf_Params_Cursor := Kdf_Params_First;
-      Status_Value := DER_Octet_String (Data, Kdf_Params_Cursor, Salt_Buffer);
-      if Status_Value /= Ok then
-         Clear (Cipher_Buffer);
-         return Status_Value;
-      end if;
-      Status_Value :=
-        DER_Integer_Natural (Data, Kdf_Params_Cursor, Iterations);
-      if Status_Value /= Ok then
-         Clear (Cipher_Buffer);
-         Clear (Salt_Buffer);
-         return Status_Value;
-      end if;
-      if Iterations = 0 or else Iterations > 2_000_000 then
-         Clear (Cipher_Buffer);
-         Clear (Salt_Buffer);
-         return Unsupported_Feature;
-      end if;
-      if Kdf_Params_Cursor <= Kdf_Params_Last
-        and then Data (Kdf_Params_Cursor) = 16#02#
-      then
+      if Bytes_Equal (Data, Kdf_First, PBKDF2_OID) then
+         Kdf_Cursor := Kdf_First + Stream_Element_Offset (PBKDF2_OID'Length);
          Status_Value :=
-           DER_Integer_Natural (Data, Kdf_Params_Cursor, Key_Length);
+           Decode_DER_Header
+             (Data, Kdf_Cursor, 16#30#, Kdf_Params_First, Kdf_Params_Last);
+         if Status_Value /= Ok or else Kdf_Params_Last /= Kdf_Last then
+            Clear (Cipher_Buffer);
+            return Authentication_Failed;
+         end if;
+         Kdf_Params_Cursor := Kdf_Params_First;
+         Status_Value := DER_Octet_String (Data, Kdf_Params_Cursor, Salt_Buffer);
+         if Status_Value /= Ok then
+            Clear (Cipher_Buffer);
+            return Status_Value;
+         end if;
+         Status_Value :=
+           DER_Integer_Natural (Data, Kdf_Params_Cursor, Iterations);
          if Status_Value /= Ok then
             Clear (Cipher_Buffer);
             Clear (Salt_Buffer);
             return Status_Value;
          end if;
-      end if;
-      if Kdf_Params_Cursor <= Kdf_Params_Last then
-         declare
-            Prf_First, Prf_Last : Stream_Element_Offset;
-         begin
+         if Iterations = 0 or else Iterations > 2_000_000 then
+            Clear (Cipher_Buffer);
+            Clear (Salt_Buffer);
+            return Unsupported_Feature;
+         end if;
+         if Kdf_Params_Cursor <= Kdf_Params_Last
+           and then Data (Kdf_Params_Cursor) = 16#02#
+         then
             Status_Value :=
-              Decode_DER_Header
-                (Data, Kdf_Params_Cursor, 16#30#, Prf_First, Prf_Last);
-            if Status_Value /= Ok or else Prf_Last /= Kdf_Params_Last then
+              DER_Integer_Natural (Data, Kdf_Params_Cursor, Key_Length);
+            if Status_Value /= Ok then
                Clear (Cipher_Buffer);
                Clear (Salt_Buffer);
-               return Authentication_Failed;
+               return Status_Value;
             end if;
-            if Bytes_Equal (Data, Prf_First, HMAC_SHA1_OID) then
-               Prf_Kind := PBKDF2_HMAC_SHA1;
-            elsif Bytes_Equal (Data, Prf_First, HMAC_SHA256_OID) then
-               Prf_Kind := PBKDF2_HMAC_SHA256;
-            elsif Bytes_Equal (Data, Prf_First, HMAC_SHA512_OID) then
-               Prf_Kind := PBKDF2_HMAC_SHA512;
-            else
+         end if;
+         if Kdf_Params_Cursor <= Kdf_Params_Last then
+            declare
+               Prf_First, Prf_Last : Stream_Element_Offset;
+            begin
+               Status_Value :=
+                 Decode_DER_Header
+                   (Data, Kdf_Params_Cursor, 16#30#, Prf_First, Prf_Last);
+               if Status_Value /= Ok or else Prf_Last /= Kdf_Params_Last then
+                  Clear (Cipher_Buffer);
+                  Clear (Salt_Buffer);
+                  return Authentication_Failed;
+               end if;
+               if Bytes_Equal (Data, Prf_First, HMAC_SHA1_OID) then
+                  Prf_Kind := PBKDF2_HMAC_SHA1;
+               elsif Bytes_Equal (Data, Prf_First, HMAC_SHA256_OID) then
+                  Prf_Kind := PBKDF2_HMAC_SHA256;
+               elsif Bytes_Equal (Data, Prf_First, HMAC_SHA384_OID) then
+                  Prf_Kind := PBKDF2_HMAC_SHA384;
+               elsif Bytes_Equal (Data, Prf_First, HMAC_SHA512_OID) then
+                  Prf_Kind := PBKDF2_HMAC_SHA512;
+               else
+                  Clear (Cipher_Buffer);
+                  Clear (Salt_Buffer);
+                  return Unsupported_Feature;
+               end if;
+            end;
+         else
+            Prf_Kind := PBKDF2_HMAC_SHA1;
+         end if;
+      elsif Bytes_Equal (Data, Kdf_First, SCRYPT_OID) then
+         Use_Scrypt := True;
+         Kdf_Cursor := Kdf_First + Stream_Element_Offset (SCRYPT_OID'Length);
+         Status_Value :=
+           Decode_DER_Header
+             (Data, Kdf_Cursor, 16#30#, Kdf_Params_First, Kdf_Params_Last);
+         if Status_Value /= Ok or else Kdf_Params_Last /= Kdf_Last then
+            Clear (Cipher_Buffer);
+            return Authentication_Failed;
+         end if;
+         Kdf_Params_Cursor := Kdf_Params_First;
+         Status_Value := DER_Octet_String (Data, Kdf_Params_Cursor, Salt_Buffer);
+         if Status_Value /= Ok then
+            Clear (Cipher_Buffer);
+            return Status_Value;
+         end if;
+         Status_Value := DER_Integer_Natural (Data, Kdf_Params_Cursor, Scrypt_N);
+         if Status_Value = Ok then
+            Status_Value :=
+              DER_Integer_Natural (Data, Kdf_Params_Cursor, Scrypt_R);
+         end if;
+         if Status_Value = Ok then
+            Status_Value :=
+              DER_Integer_Natural (Data, Kdf_Params_Cursor, Scrypt_P);
+         end if;
+         if Status_Value /= Ok then
+            Clear (Cipher_Buffer);
+            Clear (Salt_Buffer);
+            return Status_Value;
+         end if;
+         if Kdf_Params_Cursor <= Kdf_Params_Last then
+            Status_Value :=
+              DER_Integer_Natural (Data, Kdf_Params_Cursor, Key_Length);
+            if Status_Value /= Ok then
                Clear (Cipher_Buffer);
                Clear (Salt_Buffer);
-               return Unsupported_Feature;
+               return Status_Value;
             end if;
-         end;
+         end if;
+         if Kdf_Params_Cursor /= Kdf_Params_Last + 1
+           or else Scrypt_N = 0
+           or else Scrypt_N > 16_384
+           or else Scrypt_R = 0
+           or else Scrypt_R > 32
+           or else Scrypt_P = 0
+           or else Scrypt_P > 32
+         then
+            Clear (Cipher_Buffer);
+            Clear (Salt_Buffer);
+            return Unsupported_Feature;
+         end if;
       else
-         Prf_Kind := PBKDF2_HMAC_SHA1;
+         Clear (Cipher_Buffer);
+         return Unsupported_Feature;
       end if;
 
       Scheme_Cursor := Enc_First;
@@ -3535,35 +3820,111 @@ package body SSH_Lib.Identity_Files is
          Block_Length := 8;
          Scheme_Cursor :=
            Scheme_Cursor + Stream_Element_Offset (DES_EDE3_CBC_OID'Length);
+      elsif Bytes_Equal (Data, Scheme_Cursor, DES_CBC_OID) then
+         Algorithm_Name := To_Unbounded_String ("des-cbc");
+         if Key_Length = 0 then
+            Key_Length := 8;
+         end if;
+         Block_Length := 8;
+         Scheme_Cursor :=
+           Scheme_Cursor + Stream_Element_Offset (DES_CBC_OID'Length);
+      elsif Bytes_Equal (Data, Scheme_Cursor, RC2_CBC_OID) then
+         Algorithm_Name := To_Unbounded_String ("rc2-40-cbc");
+         Block_Length := 8;
+         Scheme_Cursor :=
+           Scheme_Cursor + Stream_Element_Offset (RC2_CBC_OID'Length);
       else
          Clear (Cipher_Buffer);
          Clear (Salt_Buffer);
          return Unsupported_Feature;
       end if;
-      if Key_Length not in 8 | 16 | 24 | 32 then
+      if Key_Length /= 0 and then Key_Length not in 5 | 8 | 16 | 24 | 32 then
          Clear (Cipher_Buffer);
          Clear (Salt_Buffer);
          return Unsupported_Feature;
       end if;
-      Status_Value :=
-        Decode_DER_Header
-          (Data,
-           Scheme_Cursor,
-           16#04#,
-           Scheme_Params_First,
-           Scheme_Params_Last);
-      if Status_Value /= Ok or else Scheme_Params_Last /= Enc_Last then
-         Clear (Cipher_Buffer);
-         Clear (Salt_Buffer);
-         return Authentication_Failed;
+      if To_String (Algorithm_Name) = "rc2-40-cbc" then
+         declare
+            RC2_Params_Cursor : Stream_Element_Offset := Scheme_Cursor;
+            RC2_First         : Stream_Element_Offset;
+            RC2_Last          : Stream_Element_Offset;
+            RC2_Version       : Natural := 0;
+            Expected_Length   : Natural := 0;
+         begin
+            Status_Value :=
+              Decode_DER_Header
+                (Data, RC2_Params_Cursor, 16#30#, RC2_First, RC2_Last);
+            if Status_Value /= Ok or else RC2_Last /= Enc_Last then
+               Clear (Cipher_Buffer);
+               Clear (Salt_Buffer);
+               return Authentication_Failed;
+            end if;
+            RC2_Params_Cursor := RC2_First;
+            Status_Value :=
+              DER_Integer_Natural (Data, RC2_Params_Cursor, RC2_Version);
+            if Status_Value /= Ok then
+               Clear (Cipher_Buffer);
+               Clear (Salt_Buffer);
+               return Unsupported_Feature;
+            end if;
+            case RC2_Version is
+               when 160 =>
+                  Algorithm_Name := To_Unbounded_String ("rc2-40-cbc");
+                  Expected_Length := 5;
+               when 120 =>
+                  Algorithm_Name := To_Unbounded_String ("rc2-64-cbc");
+                  Expected_Length := 8;
+               when 58 =>
+                  Algorithm_Name := To_Unbounded_String ("rc2-128-cbc");
+                  Expected_Length := 16;
+               when others =>
+                  Clear (Cipher_Buffer);
+                  Clear (Salt_Buffer);
+                  return Unsupported_Feature;
+            end case;
+            if Key_Length = 0 then
+               Key_Length := Expected_Length;
+            elsif Key_Length /= Expected_Length then
+               Clear (Cipher_Buffer);
+               Clear (Salt_Buffer);
+               return Unsupported_Feature;
+            end if;
+            Status_Value :=
+              DER_Octet_String (Data, RC2_Params_Cursor, IV_Buffer);
+            if Status_Value /= Ok or else RC2_Params_Cursor /= RC2_Last + 1 then
+               Clear (Cipher_Buffer);
+               Clear (Salt_Buffer);
+               Clear (IV_Buffer);
+               return Authentication_Failed;
+            end if;
+         end;
+      else
+         Status_Value :=
+           Decode_DER_Header
+             (Data,
+              Scheme_Cursor,
+              16#04#,
+              Scheme_Params_First,
+              Scheme_Params_Last);
+         if Status_Value /= Ok or else Scheme_Params_Last /= Enc_Last then
+            Clear (Cipher_Buffer);
+            Clear (Salt_Buffer);
+            return Authentication_Failed;
+         end if;
+         Status_Value :=
+           Set (IV_Buffer, Data (Scheme_Params_First .. Scheme_Params_Last));
       end if;
-      Status_Value :=
-        Set (IV_Buffer, Data (Scheme_Params_First .. Scheme_Params_Last));
       if Status_Value /= Ok or else Length (IV_Buffer) /= Block_Length then
          Clear (Cipher_Buffer);
          Clear (Salt_Buffer);
          Clear (IV_Buffer);
          return Authentication_Failed;
+      end if;
+      if Key_Length not in 5 | 8 | 16 | 24 | 32 then
+         Clear (Cipher_Buffer);
+         Clear (Salt_Buffer);
+         Clear (IV_Buffer);
+         return Unsupported_Feature;
       end if;
 
       declare
@@ -3573,12 +3934,26 @@ package body SSH_Lib.Identity_Files is
            To_Array (IV_Buffer);
          Cipher_Data    : constant Stream_Element_Array :=
            To_Array (Cipher_Buffer);
-         Key_Data       : Stream_Element_Array :=
-           PBKDF2_HMAC
-             (Passphrase, Salt_Data, Iterations, Key_Length, Prf_Kind);
+         Key_Data       :
+           Stream_Element_Array (1 .. Stream_Element_Offset (Key_Length)) :=
+           [others => 0];
          Decrypted_Data : Stream_Element_Array (Cipher_Data'Range) :=
            [others => 0];
       begin
+         if Use_Scrypt then
+            Key_Data :=
+              Scrypt_SHA256
+                (Passphrase,
+                 Salt_Data,
+                 Scrypt_N,
+                 Scrypt_R,
+                 Scrypt_P,
+                 Key_Length);
+         else
+            Key_Data :=
+              PBKDF2_HMAC
+                (Passphrase, Salt_Data, Iterations, Key_Length, Prf_Kind);
+         end if;
          Status_Value :=
            CryptoLib.Ciphers.Decrypt_CBC_Raw
              (To_String (Algorithm_Name),
@@ -3687,11 +4062,18 @@ package body SSH_Lib.Identity_Files is
       Clear (Binary_Buffer);
       if Status_Value /= Ok then
          Clear (Plain_Buffer);
+         if Status_Value = Internal_Error then
+            return Authentication_Failed;
+         end if;
          return Status_Value;
       end if;
       Status_Value :=
         Parse_PKCS8_Private_Key_Binary (To_Array (Plain_Buffer), Item);
       Clear (Plain_Buffer);
+      if Status_Value = Internal_Error then
+         Clear (Item);
+         return Authentication_Failed;
+      end if;
       return Status_Value;
    exception
       when others =>
@@ -3711,6 +4093,7 @@ package body SSH_Lib.Identity_Files is
       Cursor             : Stream_Element_Offset;
       Alg_Cursor         : Stream_Element_Offset;
       Version_Buffer     : Packet_Buffer;
+      EC_Algorithm_Name  : Unbounded_String;
       Status_Value       : Status;
       RSA_Encryption_OID : constant Stream_Element_Array (1 .. 11) :=
         [1  => 16#06#,
@@ -3745,6 +4128,10 @@ package body SSH_Lib.Identity_Files is
          16#03#,
          16#01#,
          16#07#];
+      P384_OID           : constant Stream_Element_Array (1 .. 7) :=
+        [16#06#, 16#05#, 16#2B#, 16#81#, 16#04#, 16#00#, 16#22#];
+      P521_OID           : constant Stream_Element_Array (1 .. 7) :=
+        [16#06#, 16#05#, 16#2B#, 16#81#, 16#04#, 16#00#, 16#23#];
 
       function Finish (Result : Status) return Status is
       begin
@@ -3817,8 +4204,24 @@ package body SSH_Lib.Identity_Files is
          Alg_Cursor :=
            Alg_Cursor + Stream_Element_Offset (EC_Public_Key_OID'Length);
          if Alg_Cursor + Stream_Element_Offset (P256_OID'Length) - 1
-           /= Alg_Last
-           or else not Bytes_Equal (Data, Alg_Cursor, P256_OID)
+              = Alg_Last
+           and then Bytes_Equal (Data, Alg_Cursor, P256_OID)
+         then
+            EC_Algorithm_Name := To_Unbounded_String ("ecdsa-sha2-nistp256");
+         elsif Alg_Cursor + Stream_Element_Offset (P384_OID'Length) - 1
+              = Alg_Last
+           and then Bytes_Equal (Data, Alg_Cursor, P384_OID)
+         then
+            EC_Algorithm_Name := To_Unbounded_String ("ecdsa-sha2-nistp384");
+         elsif Alg_Cursor + Stream_Element_Offset (P521_OID'Length) - 1
+              = Alg_Last
+           and then Bytes_Equal (Data, Alg_Cursor, P521_OID)
+         then
+            EC_Algorithm_Name := To_Unbounded_String ("ecdsa-sha2-nistp521");
+         else
+            return Finish (Unsupported_Feature);
+         end if;
+         if Length (EC_Algorithm_Name) = 0
          then
             return Finish (Unsupported_Feature);
          end if;
@@ -3834,7 +4237,10 @@ package body SSH_Lib.Identity_Files is
             return Finish (Status_Value);
          end if;
          Status_Value :=
-           Parse_SEC1_EC_P256_PEM_Binary (Data (Key_First .. Key_Last), Item);
+           Parse_SEC1_EC_PEM_Binary
+             (Data (Key_First .. Key_Last),
+              Item,
+              To_String (EC_Algorithm_Name));
          if Status_Value /= Ok then
             return Finish (Status_Value);
          end if;

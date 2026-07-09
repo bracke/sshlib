@@ -1,6 +1,7 @@
 with Ada.Command_Line;
-with Ada.Directories;
 with Ada.Text_IO;
+
+with Project_Tools.Files;
 
 procedure Check_Release_Artifacts is
    Failure_Count : Natural := 0;
@@ -11,10 +12,12 @@ procedure Check_Release_Artifacts is
       Failure_Count := Failure_Count + 1;
    end Fail;
 
+   --  Delegates to the shared project_tools helper; Files.Exists matches the
+   --  previous Ada.Directories.Exists any-entry semantics.
    function Exists_Executable (Path : String) return Boolean is
    begin
-      return Ada.Directories.Exists (Path)
-        or else Ada.Directories.Exists (Path & ".exe");
+      return Project_Tools.Files.Exists (Path)
+        or else Project_Tools.Files.Exists (Path & ".exe");
    end Exists_Executable;
 
    procedure Require_Executable (Path : String) is

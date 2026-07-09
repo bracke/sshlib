@@ -8,6 +8,23 @@ Pass 507 adds `Prompt_Credential_Password`, an opt-in console prompt helper buil
 Pass 506 adds `Execute_Credential_Helper`, an explicit bounded Git credential-helper execution boundary that sends one helper-format request, reads one bounded helper response, applies a timeout, and parses username/password fields.
 
 Pass 505 adds bounded repository model summaries through `Read_Porcelain_Index_Worktree_Model` and `Summarize_Repository_Database`, exposing index/worktree counts, HEAD/branch state, ref inventories, object inventories, pack-index counts, and missing-ref-target detection.
+Pass 506 adds config-driven exec setup through `SSH_Lib.Config_Apply.Open_Configured_Exec`, which applies resolved `SetEnv` and `SendEnv` requests before opening the exec request and honors `RemoteCommand` as the configured command override. `SendEnv` wildcard patterns now expand over the bounded `SSH_Lib.Platform.Environment` listed environment hook while exact names still use `Getenv`.
+Pass 507 adds deterministic ControlMaster helpers: `Control_Master_Mode_Of` classifies resolved `ControlMaster` policy values, and `Expand_Control_Path` expands validated OpenSSH-style `ControlPath` tokens including `%C` without executing shell or filesystem helpers.
+Pass 508 adds `Control_Persist_Seconds`, a bounded parser for OpenSSH-style `ControlPersist` values such as `10m`, `1h30m`, `yes`, and `no`.
+Pass 509 adds `Expand_Local_Command`, a data-only `LocalCommand` helper that honors `PermitLocalCommand`, expands bounded OpenSSH-style tokens, and leaves any local execution to explicit caller policy.
+Pass 510 adds `Expand_Known_Hosts_Command`, a data-only `KnownHostsCommand` helper that expands bounded OpenSSH-style host, reason, key type, key blob, and fingerprint tokens without executing the command.
+Pass 510 adds bounded `RequestTTY` and `SessionType` classifiers for config-apply callers that need deterministic OpenSSH-style session policy without stringly typed branching.
+Pass 511 adds config-driven subsystem setup through `SSH_Lib.Config_Apply.Open_Configured_Subsystem`, which applies resolved `SetEnv` and `SendEnv` requests before the subsystem request, uses `RemoteCommand` as the configured subsystem name when present, and honors `SessionType none`.
+Pass 512 adds config-driven shell setup through `Open_Configured_Shell`, mapping resolved `RequestTTY` policy to shell or PTY-shell channel setup after configured environment requests.
+Pass 513 extends config-driven exec setup so `RequestTTY yes` and `RequestTTY force` send a PTY request before the configured exec command.
+Pass 514 hardens `Plan_Control_Master` so `auto` and `autoask` reuse an existing `ControlPath` only after a mux alive-check over the Unix-domain control socket succeeds; stale regular files and non-mux sockets now plan a new master.
+Pass 515 adds `SSH_Lib.Mux`, a bounded OpenSSH-style control mux layer with real `length + type + body` framing, version-4 hello exchange, ext-info/proxy opcodes, typed passenger new-session and forwarding payload helpers, Unix control client connect/send/receive helpers, Unix `SCM_RIGHTS` descriptor passing for passenger fds, OpenSSH-sequenced stdin/stdout/stderr fd helpers, master listener/accept lifecycle, a hello-negotiating control-client dispatcher with backend handler handoff and validated backend responses, bounded control-master serve loop, an owning single-client serve overload for mux proxy handoff, `Sessions.Open` reuse of verified non-ask masters through mux proxy mode, caller-approved ask/autoask ControlMaster actions through `Control_Master_Approval_Callback`, alive/terminate/stop-listening routing decisions, alive pid responses, typed session-opened/remote-port/exit/TTY-failure/ext-info/proxy responses, reason-bearing failure responses, and deterministic `ControlPersist` idle policy.
+Pass 516 adds `SSH_Lib.Config_Apply.Start_Planned_Control_Master`, which turns a planned `ControlMaster` start action into a caller-owned mux listener, gates ask/autoask starts through `Control_Master_Approval_Callback`, records caller pid/persist metadata, and makes `Close_Master` unlink owned control socket paths.
+
+Toolchain policy: ssh_lib must be built and validated with Alire GNAT 15 only.
+The root, tests, and tools crates require `gnat_native = "^15"`. Confirm with
+`alr exec -- gnatls --version`, and do not run plain system `gnat*`,
+`gnatmake`, `gnatls`, `gnatprove`, or `gprbuild` in this workspace.
 
 Pass 504 adds bounded porcelain status and fetch/push policy helpers: `Evaluate_Porcelain_Status`, `Decide_Fetch_Policy`, and `Decide_Push_Policy`.
 
@@ -293,7 +310,7 @@ Added the source-level OpenSSH hybrid/PQ transport wrapper for ML-KEM768/X25519 
 
 SSH_Lib is an Ada 2022 SSH client library focused on the transport needs of `version`: authenticated encrypted sessions, remote exec channels for Git upload/receive commands, and binary-safe byte streams.
 
-The library is intentionally narrow. It does not implement SSH server mode, SFTP server mode, C bindings, or local `ssh`/`git` subprocess fallback. The exceptions to the subprocess policy are explicit OpenSSH-style `ProxyCommand`, which is parsed as config data and used only by `Sessions.Open` as a caller-configured SSH transport, and explicit Git credential-helper execution through `Execute_Credential_Helper`. OpenSSH `ControlMaster`, `ControlPath`, `ControlPersist`, `LocalForward`, `RemoteForward`, `DynamicForward`, `SendEnv`, and `SetEnv` config directives are parsed into session options; `SSH_Lib.Config_Apply` applies configured local/dynamic/remote forwarding and channel environment requests through explicit caller-owned services/channels. `SSH_Lib.Security_Keys` exposes a direct security-key signer boundary for hardware-backed SK userauth requests without ssh-agent. `SSH_Lib.Channels.Open_Shell` opens non-PTY shell channels; `SSH_Lib.Channels.Open_PTY_Shell` opens a shell after an RFC 4254 `pty-req` using caller-provided terminal type, dimensions, and optional terminal modes, `SSH_Lib.Channels.Resize_PTY` sends `window-change` resize requests, `SSH_Lib.Channels.Set_Environment` exposes explicit RFC 4254 `env` requests for caller-ordered environment setup, `Open_Exec_With_Environment` opens an exec channel after accepted env requests, `Request_X11_Forwarding` exposes explicit RFC 4254 `x11-req` setup, `Accept_X11` accepts server-opened `x11` channels, and `Valid_X11_MIT_Magic_Cookie` / `X11_MIT_Magic_Cookies_Match` provide bounded MIT-MAGIC-COOKIE-1 policy helpers. Callers can use `Read_Some`, `Read_Stderr`, and `Write` for the byte streams. `SSH_Lib.Git` builds remote Git exec commands and exposes bounded pkt-line frame parsing/encoding and cursor iteration, local `.git` initialization, Git-compatible loose object store/read/delete/listing, validated packfile and pack-index store/read/delete/generation/listing, bounded DIRC index read/write/entry/path helpers, validated repository-relative worktree file read/write/delete/probe helpers, staged-path object reads, and bounded staged-blob checkout helpers, recursive repository tree traversal from root trees, commits, refs, HEAD, branch names, and tag names with pathspec filtering, non-delta, resolved-delta, and validated resolved-delta packed-object reads, loose-first resolved, validated resolved, or non-delta object reads with caller-specified or listed-pack fallback, direct, symbolic, packed, and atomic direct ref write/read/delete plus bounded ref resolution, HEAD attach/detach/resolve convenience, branch and lightweight tag-ref write/read/delete/existence convenience, reflog append/read-last helpers, bounded repository config single/multi reads, writes, appends, and key deletion, remote URL/fetch-refspec/push-refspec and branch upstream config helpers, credential-helper execution, console credential prompting, credential store read/write/delete, and existence probing, ref advertisement and protocol-v2 `ls-refs` response parsing, protocol-v2 capability advertisement validation, capability-token parsing and list scanning, upload-pack negotiation line encoding and request validation, upload-pack fetch request composition, receive-pack update/request validation, bounded fetch/push workflow state machines and policy decisions, bounded porcelain status and repository database summaries, protocol-v2 command request composition and validation, ACK/NAK negotiation reply parsing and stream validation, side-band demultiplexing and stream validation, receive-pack status-report line parsing, pack header/object-entry header, tree-entry, commit-object, and annotated-tag construction, tree-entry parsing, pack object-at-offset inflation with next-offset reporting, pack object-sequence validation, pack object-kind inventory, zlib object-data inflation with consumed-length reporting, repository-level bounded delta-chain resolution, caller-supplied delta and delta-chain application, complete v2 pack-index structural validation, bounded pack delta dependency-graph validation, pack/index SHA-1 checksum verification, pack-index object lookup, pack-index offset/pack, CRC/pack, and object-id/pack consistency validation for non-delta, immediate-delta, and bounded delta-chain entries, bounded pack delta-base validation, pack-index layout/header/fanout/object-name/order/fanout-consistency/CRC/offset/large-offset/count/checksum metadata, and delta-base metadata parsing, object-id validation, and ref-name/refspec validation/classification helpers without interpreting progress text. `SSH_Lib.Git_Transport` can prepare remote Git commands and run one bounded upload-pack or receive-pack service exchange over an authenticated session. ProxyJump is implemented internally over SSH `direct-tcpip`; `SSH_Lib.Channels.Open_Direct_TCPIP` also exposes that channel primitive, and `SSH_Lib.Forwarding` provides synchronous local listener/accepted-connection lifecycles, a dynamic/SOCKS listener and one-connection SOCKS accept helper, callback-based local/dynamic background accept services with optional accepted-connection caps, managed local/dynamic worker-pool services with bounded worker and accepted-connection caps, X11 `DISPLAY` parsing and local X server connection helpers, SOCKS5 no-auth CONNECT parsing, bounded `Pump_Once` byte movement, and `Pump_Bounded` alternating pump policy for local, dynamic, and X11 forwarding. `SSH_Lib.Sessions.Request_Remote_Forward` and `Cancel_Remote_Forward` expose RFC 4254 `tcpip-forward` request/cancel primitives, and `SSH_Lib.Channels.Accept_Forwarded_TCPIP` accepts server-opened `forwarded-tcpip` channels for caller-managed remote forwarding. SCP upload is available through `SSH_Lib.SCP` for byte arrays and streamed local files, with high-level method selection in `SSH_Lib.File_Transfer`; SFTP has subsystem, v3-v6 negotiation, persistent clients, upload/download, recursive tree operations, directory listing, stat/lstat, permissions and richer v4+ attributes, mkdir/rmdir/remove/rename, symlink/readlink, resume, lock/text-seek, and modeled extension helpers.
+The library is intentionally narrow. It does not implement SSH server mode, SFTP server mode, or C bindings. The explicit subprocess boundaries are OpenSSH-style `ProxyCommand`, which is parsed as config data and used only by `Sessions.Open` as a caller-configured SSH transport, Git credential-helper execution through `Execute_Credential_Helper`, and caller-invoked `SSH_Lib.Git_Transport.Run_Service_With_Local_Git` / `Run_Service_With_Local_SSH` fallback helpers for one bounded upload-pack or receive-pack exchange. OpenSSH `ControlMaster`, `ControlPath`, `ControlPersist`, `LocalForward`, `RemoteForward`, `DynamicForward`, `SendEnv`, and `SetEnv` config directives are parsed into session options; `Sessions.Open` can reuse verified non-ask control masters through mux proxy mode and routes ask/autoask decisions through `Control_Master_Approval_Callback`, `SSH_Lib.Config_Apply` can start planned caller-owned control masters and applies configured local/dynamic/remote forwarding and channel environment requests through explicit caller-owned services/channels, and `SSH_Lib.Mux` exposes bounded control mux framing, version-4 hello exchange, typed new-session and forwarding payload helpers, ext-info/proxy opcodes, client/master Unix socket lifecycles with owned control-path unlinking on close, bounded Unix descriptor passing and OpenSSH-sequenced stdio fd helpers for passenger fds, validated backend-handoff request classification, hello-negotiating control-client processing, callback dispatch for passenger session/forward/proxy backends with validated backend responses, a bounded control-master serve loop, an owning single-client serve overload for mux proxy handoff, alive/terminate/stop-listening routing, alive pid, session-opened, remote-port, exit-message, TTY-failure, ext-info, proxy, and failure-reason responses, and deterministic persist-idle policy. `SSH_Lib.Security_Keys` exposes a direct security-key signer boundary for hardware-backed SK userauth requests without ssh-agent. `SSH_Lib.Channels.Open_Shell` opens non-PTY shell channels; `SSH_Lib.Channels.Open_PTY_Shell` opens a shell after an RFC 4254 `pty-req` using caller-provided terminal type, dimensions, and optional terminal modes, `SSH_Lib.Channels.Resize_PTY` sends `window-change` resize requests, `SSH_Lib.Channels.Set_Environment` exposes explicit RFC 4254 `env` requests for caller-ordered environment setup, `Open_Exec_With_Environment`, `Open_Subsystem_With_Environment`, `Open_Shell_With_Environment`, and `Open_PTY_Shell_With_Environment` open channels after accepted env requests, `SSH_Lib.Config_Apply.Open_Configured_Exec`, `Open_Configured_Subsystem`, and `Open_Configured_Shell` apply resolved config environment and `SessionType`/`RequestTTY` policy, `Request_X11_Forwarding` exposes explicit RFC 4254 `x11-req` setup, `Accept_X11` accepts server-opened X11 channels, and `Valid_X11_MIT_Magic_Cookie` / `X11_MIT_Magic_Cookies_Match` provide bounded MIT-MAGIC-COOKIE-1 policy helpers. Callers can use `Read_Some`, `Read_Stderr`, and `Write` for the byte streams. `SSH_Lib.Git` builds remote Git exec commands and exposes bounded pkt-line frame parsing/encoding and cursor iteration, local `.git` initialization, Git-compatible loose object store/read/delete/listing, validated packfile and pack-index store/read/delete/generation/listing, bounded DIRC index read/write/entry/path helpers, validated repository-relative worktree file read/write/delete/probe helpers, staged-path object reads, and bounded staged-blob checkout helpers, recursive repository tree traversal from root trees, commits, refs, HEAD, branch names, and tag names with pathspec filtering, non-delta, resolved-delta, and validated resolved-delta packed-object reads, loose-first resolved, validated resolved, or non-delta object reads with caller-specified or listed-pack fallback, direct, symbolic, packed, and atomic direct ref write/read/delete plus bounded ref resolution, HEAD attach/detach/resolve convenience, branch and lightweight tag-ref write/read/delete/existence convenience, reflog append/read-last helpers, bounded repository config single/multi reads, writes, appends, and key deletion, remote URL/fetch-refspec/push-refspec and branch upstream config helpers, credential-helper execution, console credential prompting, credential store read/write/delete, and existence probing, ref advertisement and protocol-v2 `ls-refs` response parsing, protocol-v2 capability advertisement validation, capability-token parsing and list scanning, upload-pack negotiation line encoding and request validation, upload-pack fetch request composition, receive-pack update/request validation, bounded fetch/push workflow state machines and policy decisions, bounded porcelain status and repository database summaries, protocol-v2 command request composition and validation, ACK/NAK negotiation reply parsing and stream validation, side-band demultiplexing and stream validation, receive-pack status-report line parsing, pack header/object-entry header, tree-entry, commit-object, and annotated-tag construction, tree-entry parsing, pack object-at-offset inflation with next-offset reporting, pack object-sequence validation, pack object-kind inventory, zlib object-data inflation with consumed-length reporting, repository-level bounded delta-chain resolution, caller-supplied delta and delta-chain application, complete v2 pack-index structural validation, bounded pack delta dependency-graph validation, pack/index SHA-1 checksum verification, pack-index object lookup, pack-index offset/pack, CRC/pack, and object-id/pack consistency validation for non-delta, immediate-delta, and bounded delta-chain entries, bounded pack delta-base validation, pack-index layout/header/fanout/object-name/order/fanout-consistency/CRC/offset/large-offset/count/checksum metadata, and delta-base metadata parsing, object-id validation, and ref-name/refspec validation/classification helpers without interpreting progress text. `SSH_Lib.Git_Transport` can prepare remote Git commands, run one bounded upload-pack or receive-pack service exchange over an authenticated session, or run the same bounded exchange through explicit local `git`/`ssh` subprocess fallback helpers. ProxyJump is implemented internally over SSH `direct-tcpip`; `SSH_Lib.Channels.Open_Direct_TCPIP` also exposes that channel primitive, and `SSH_Lib.Forwarding` provides synchronous local listener/accepted-connection lifecycles, a dynamic/SOCKS listener and one-connection SOCKS accept helper, callback-based local/dynamic background accept services with optional accepted-connection caps, managed local/dynamic worker-pool services with bounded worker and accepted-connection caps, managed remote-forward services with request, accept, target-connect, bounded pump, and cancel-on-exit lifecycle, X11 `DISPLAY` parsing and local X server connection helpers, SOCKS5 no-auth CONNECT parsing, bounded `Pump_Once` byte movement, and `Pump_Bounded` alternating pump policy for local, dynamic, remote, and X11 forwarding. `SSH_Lib.Sessions.Request_Remote_Forward` and `Cancel_Remote_Forward` remain available as RFC 4254 `tcpip-forward` request/cancel primitives, and `SSH_Lib.Channels.Accept_Forwarded_TCPIP` remains available for custom remote-forward policy. SCP upload is available through `SSH_Lib.SCP` for byte arrays and streamed local files, with high-level method selection in `SSH_Lib.File_Transfer`; SFTP has subsystem, v3-v6 negotiation, persistent clients, upload/download, recursive tree operations, directory listing, stat/lstat, permissions and richer v4+ attributes, mkdir/rmdir/remove/rename, symlink/readlink, resume, lock/text-seek, and modeled extension helpers.
 For minimal index interoperability, `SSH_Lib.Git.Write_Empty_Index` writes a checksum-protected DIRC v2 empty index and `Read_Index_Header` reads and validates bounded index headers.
 `Build_Index_Entry` builds canonical stage-zero index entries that callers can place into a managed index file.
 `Write_Index` writes those caller-provided entries as a checksum-protected DIRC v2 `.git/index`.
@@ -375,15 +392,16 @@ Implemented:
 
 Still not implemented or intentionally out of scope:
 
-- silent TOFU remains unsupported; explicit known_hosts append/accept workflow is available through `SSH_Lib.Known_Hosts.Append_Trusted_Host`
+- TOFU remains disabled by default; explicit known_hosts append/accept workflow is available through `SSH_Lib.Known_Hosts.Append_Trusted_Host`, and `Trust_On_First_Use` can be enabled deliberately for first-use writes
 - SSH server mode and SFTP server/subsystem mode
-- C bindings and local `ssh`/`git` subprocess fallback
-- OpenSSH-style remote-forward worker orchestration remains caller-managed; local and dynamic forwarding can use `Start_Managed_Local_Forward_Service` / `Start_Managed_Dynamic_Forward_Service`, while remote forwarding can use `SSH_Lib.Sessions.Request_Remote_Forward` / `Cancel_Remote_Forward` with `SSH_Lib.Channels.Accept_Forwarded_TCPIP`
-- full OpenSSH config semantics such as multiplexing/control-master behavior and automatic environment request application
+- C bindings
+- full OpenSSH config semantics beyond the implemented control-master, forwarding, environment, session-type, command, and trust helpers
 - optional algorithm coverage is now broad; remaining gaps are live interoperability/build validation, not intentionally unadvertised core algorithm families; coverage is still not OpenSSH-complete and weak legacy families remain rejected
 - live interoperability proof and full GNAT build proof in this environment
 
 The default test suite is local, deterministic, and does not use the user’s real SSH state.
+
+Remote forwarding now has both low-level request/cancel/channel-accept primitives and a managed remote-forward service. `Start_Managed_Remote_Forward_Service` requests `tcpip-forward`, accepts `forwarded-tcpip` channels, connects each accepted channel to the configured target, runs the bounded pump, and cancels the remote forward when the worker exits. `SSH_Lib.Config_Apply.Start_Configured_Remote_Forwards` starts those managed services from resolved `RemoteForward` config data; `Request_Configured_Remote_Forwards` remains available for callers that need custom accept policy.
 
 ### Phase 19 completeness pass 177
 
@@ -415,10 +433,11 @@ Pass 177 adds an explicit known_hosts trust-write helper: `SSH_Lib.Known_Hosts.A
 - `Read_Timeout_MS = 30_000`
 - `Write_Timeout_MS = 30_000`
 - `Verify_Known_Host = True`
+- `Trust_On_First_Use = False`
 - `Use_Agent = True`
 - `Strict_Host_Key = True`
 
-Unknown host keys return `Host_Key_Unknown`. Changed host keys return `Host_Key_Mismatch`. `Verify_Known_Host = False` is an explicit unsafe bypass.
+Unknown host keys return `Host_Key_Unknown` by default. Changed host keys return `Host_Key_Mismatch`. `Trust_On_First_Use = True` appends a newly presented unknown host key to the caller-selected user known_hosts file during session open; mismatches, revoked keys, invalid records, and unsupported records still fail closed. `Verify_Known_Host = False` is an explicit unsafe bypass.
 
 ## Binary stream contract
 
@@ -453,7 +472,7 @@ Repository paths reject NUL, CR, LF, empty paths, and oversized paths. Single qu
 Preferred Ada-native runner:
 
 ```sh
-alr exec -- gprbuild -P tools/tools.gpr
+(cd tools && alr build)
 ../ssh_lib_build/bin/tools/run_release_validation
 ```
 
@@ -496,7 +515,7 @@ alr exec -- gprbuild -P tests/api_stability/api_stability.gpr
 alr exec -- gprbuild -P tests/package_smoke/package_smoke.gpr
 alr exec -- gprbuild -P tests/version_integration/version_integration.gpr
 alr exec -- gprbuild -P examples/examples.gpr
-alr exec -- gprbuild -P tools/tools.gpr
+(cd tools && alr build)
 ../ssh_lib_build/bin/tools/check_public_api
 ../ssh_lib_build/bin/tools/check_package_tree
 ../ssh_lib_build/bin/tools/check_release
@@ -518,7 +537,7 @@ The exact consumption sequence for `version` is documented in `docs/VERSION_INTE
 
 ## Phase 18 status
 
-The crate now includes narrow `SSH_Lib.Git_Transport` preparation and single-service orchestration helpers, bounded fetch/push workflow state machines, version-shaped compile checks, deterministic no-network examples, and integration documentation for Git-over-SSH consumers. The dependency direction remains `version -> SSH_Lib`; SSH_Lib still does not invoke local Git/SSH subprocess fallback; explicit ProxyCommand is supported as a subprocess-backed SSH transport.
+The crate now includes narrow `SSH_Lib.Git_Transport` preparation, session-backed single-service orchestration helpers, explicit local `git`/`ssh` subprocess fallback helpers, bounded fetch/push workflow state machines, version-shaped compile checks, deterministic no-network examples, and integration documentation for Git-over-SSH consumers. The dependency direction remains `version -> SSH_Lib`; session open does not invoke local Git/SSH fallback implicitly, while explicit ProxyCommand is supported as a subprocess-backed SSH transport.
 
 ### Phase 18 completeness pass 3
 
@@ -573,11 +592,10 @@ Implemented:
 
 Still not implemented or intentionally out of scope:
 
-- silent TOFU remains unsupported; explicit known_hosts append/accept workflow is available through `SSH_Lib.Known_Hosts.Append_Trusted_Host`
+- TOFU remains disabled by default; explicit known_hosts append/accept workflow is available through `SSH_Lib.Known_Hosts.Append_Trusted_Host`, and `Trust_On_First_Use` can be enabled deliberately for first-use writes
 - SSH server mode and SFTP server/subsystem mode
-- C bindings and local `ssh`/`git` subprocess fallback
-- OpenSSH-style remote-forward worker orchestration remains caller-managed; local and dynamic forwarding can use `Start_Managed_Local_Forward_Service` / `Start_Managed_Dynamic_Forward_Service`, while remote forwarding can use `SSH_Lib.Sessions.Request_Remote_Forward` / `Cancel_Remote_Forward` with `SSH_Lib.Channels.Accept_Forwarded_TCPIP`
-- full OpenSSH config semantics such as multiplexing/control-master behavior and automatic environment request application
+- C bindings
+- full OpenSSH config semantics beyond the implemented control-master, forwarding, environment, session-type, command, and trust helpers
 - optional algorithm coverage is now broad; remaining gaps are live interoperability/build validation, not intentionally unadvertised core algorithm families; coverage is still not OpenSSH-complete and weak legacy families remain rejected
 - live interoperability proof and full GNAT build proof in this environment
 
@@ -586,7 +604,7 @@ Security summary:
 - Host-key verification is enabled by default.
 - Unknown hosts are rejected by default.
 - Changed host keys are rejected by default.
-- The library never invokes local ssh/git/shell commands.
+- Sessions.Open never invokes local ssh/git fallback implicitly; local Git/SSH fallback is available only through explicit Git_Transport APIs.
 - Git protocol bytes remain opaque binary data.
 
 ### Phase 19 completeness pass
@@ -666,7 +684,7 @@ Git command quoting security is now covered by `SSH_Lib.Tests.Fixtures.Command_Q
 
 ### Phase 19 completeness pass 18
 
-Adds fixture-backed malformed agent and identity-file authentication coverage. The new `test_auth_malformed_inputs` runner and integrated `Assert_Malformed_Agent_And_Identity_Fixtures` fixture prove that malformed identity lists, malformed signature responses, oversized agent responses, wrong signature algorithms, malformed OpenSSH keys, encrypted identity envelopes with missing/wrong passphrases or unsupported algorithms, unsupported private-key algorithms, public/private key mismatches, and malformed legacy PEM identities are rejected through deterministic status values while valid OpenSSH, PKCS#1 RSA PEM, PKCS#8 RSA, and supported encrypted OpenSSH bcrypt AES/3DES, legacy AES/DES/3DES-CBC MD5, and PKCS#8 AES/3DES-CBC PBES2/PBKDF2 identity files are parsed for RSA SHA-2 signing without exposing key material.
+Adds fixture-backed malformed agent and identity-file authentication coverage. The new `test_auth_malformed_inputs` runner and integrated `Assert_Malformed_Agent_And_Identity_Fixtures` fixture prove that malformed identity lists, malformed signature responses, oversized agent responses, wrong signature algorithms, malformed OpenSSH keys, encrypted identity envelopes with missing/wrong passphrases or unsupported algorithms, unsupported private-key algorithms, public/private key mismatches, and malformed legacy PEM identities are rejected through deterministic status values while valid OpenSSH, PKCS#1 RSA PEM, PKCS#8 RSA/EC, and supported encrypted OpenSSH bcrypt AES/3DES, legacy AES/DES/3DES-CBC MD5, and PKCS#8 AES/3DES-CBC PBES2/PBKDF2 identity files are parsed for identity-file signing without exposing key material.
 
 
 ### Phase 19 completeness pass 19
@@ -790,7 +808,7 @@ Phase 19 pass 58 update: live channel stdin/stdout/EOF/close packet operations n
 
 ## Phase 19 completeness pass 60
 
-Identity-file interoperability now includes PKCS#8 RSA PEM files using the `-----BEGIN PRIVATE KEY-----` armor and bounded encrypted identity-file unwrap paths. SSH_Lib validates the PKCS#8 wrapper, requires the RSA encryption object identifier, extracts the nested PKCS#1 RSA private key, and routes it through the existing RSA SHA-2 signing backend. OpenSSH bcrypt-encrypted keys route through the explicit non-retained identity passphrase path, Ada bcrypt_pbkdf derivation, and AES-CTR or AES-CBC private-section unwrap. Traditional encrypted RSA PEM supports AES-CBC with OpenSSL-compatible MD5 EVP_BytesToKey, and encrypted PKCS#8 supports PBES2/PBKDF2 with HMAC-SHA1, HMAC-SHA256, or HMAC-SHA512 PRFs and AES-CBC encryption schemes.
+Identity-file interoperability now includes PKCS#8 RSA and EC PEM files using the `-----BEGIN PRIVATE KEY-----` armor and bounded encrypted identity-file unwrap paths. SSH_Lib validates the PKCS#8 wrapper, routes RSA payloads through the RSA SHA-2 signing backend, and routes EC payloads through the ECDSA identity backend. OpenSSH bcrypt-encrypted keys route through the explicit non-retained identity passphrase path, Ada bcrypt_pbkdf derivation, and AES-CTR, AES-CBC, or 3DES-CBC private-section unwrap. Traditional encrypted RSA PEM supports AES-128/192/256-CBC, DES-CBC, and DES-EDE3-CBC with CryptoLib MD5 EVP_BytesToKey. Encrypted PKCS#8 supports PBES1 MD5-DES/SHA1-DES, PKCS#12 SHA1-2DES/SHA1-3DES/SHA1-RC2-40/SHA1-RC2-128 PBE, PBES2/scrypt, and PBES2/PBKDF2 with HMAC-SHA1, HMAC-SHA256, HMAC-SHA384, or HMAC-SHA512 PRFs and AES-128/192/256-CBC, DES-CBC, DES-EDE3-CBC, or RC2-40/64/128-CBC encryption schemes.
 
 
 ## Phase 19 completeness pass 61
@@ -1043,9 +1061,13 @@ OpenSSH-format ECDSA identity-file authentication.  The implemented SSH
 algorithm is `ecdsa-sha2-nistp256`, with certificate form
 `ecdsa-sha2-nistp256-cert-v01@openssh.com`.
 
-The implementation remains intentionally bounded to P-256.  P-384/P-521,
-PKCS#8/PEM ECDSA private keys, and FIDO/security-key algorithms remain optional
-future compatibility work.
+The implementation now covers raw OpenSSH ECDSA NIST P-256, P-384, and P-521
+host-key/certificate verification, key exchange, ssh-agent userauth signature
+structure checks, OpenSSH-format identity parsing, and SEC1/PKCS#8 PEM EC
+private-key parsing. Local ECDSA identity-file signing is enabled for P-256,
+P-384, and P-521; P-384/P-521 signing is backed by `CryptoLib.ECDSA` and has
+positive generated-signature verification coverage. FIDO/security-key ECDSA
+remains the OpenSSH standard P-256 `sk-ecdsa-sha2-nistp256@openssh.com` form.
 
 ### Phase 19 pass201 ECDSA hardening
 
@@ -1105,7 +1127,7 @@ ECDSA ssh-agent signature responses are now locally structure-checked before use
 
 ### Phase 19 completeness pass 211
 
-Pass 211 adds native Ada `ecdh-sha2-nistp256` key exchange support. The client now advertises NIST P-256 ECDH after Curve25519 and before finite-field DH fallbacks, validates SEC1 uncompressed P-256 peer points, computes the x-coordinate shared secret, uses the RFC5656 SHA-256 exchange hash shape, and routes the algorithm through initial handshake and rekey paths. P-384/P-521 remain unadvertised until their curve arithmetic is implemented.
+Pass 211 added native Ada `ecdh-sha2-nistp256` key exchange support. Later passes extend the same RFC5656 ECDH path to `ecdh-sha2-nistp384` with SHA-384 and `ecdh-sha2-nistp521` with SHA-512. The client now advertises all three NIST ECDH curves after Curve25519 and before finite-field DH fallbacks, validates SEC1 uncompressed peer points, computes the x-coordinate shared secret, and routes the algorithms through initial handshake and rekey paths.
 
 ### Phase 19 completeness pass 212
 
@@ -1493,7 +1515,7 @@ Phase 19 completeness pass 303 adds non-secret scenario metadata to the archived
 
 ### Phase 19 completeness pass 304 — algorithm documentation drift closure
 
-Pass 304 synchronizes the release-facing algorithm advertisement documentation with `SSH_Lib.Algorithms.Advertised_Name_List`. The documented KEX list now includes the four advertised hybrid/PQ OpenSSH names, and the documented host-key list now includes ECDSA P-256 raw and certificate algorithms. `check_pq_hybrid_state` now guards the security review, test guide, and threat model against reintroducing the stale pre-PQ/pre-ECDSA advertisement lists.
+Pass 304 synchronizes the release-facing algorithm advertisement documentation with `SSH_Lib.Algorithms.Advertised_Name_List`. The documented KEX list now includes the four advertised hybrid/PQ OpenSSH names, and the documented host-key list now includes ECDSA P-256/P-384/P-521 raw and certificate algorithms. `check_pq_hybrid_state` now guards the security review, test guide, and threat model against reintroducing the stale pre-PQ/pre-ECDSA advertisement lists.
 
 
 Phase 19 completeness pass 307 tightens the archived live Git matrix report guard again. `check_live_git_matrix_report` now validates `SSH_LIB_REQUIRED_LIVE_GIT_SCENARIOS` against the known scenario set (`DIRECT`, `AGENT`, `IDENTITY`, `PASSWORD`, `PASSPHRASE`, `PROXYJUMP`, `RECEIVE`, or `ALL`) and requires the archived report to contain the reporter-owned `scenario_list=` line. This prevents arbitrary or misspelled required scenario names from being satisfied by hand-written report fragments.
@@ -1517,6 +1539,13 @@ Phase 19 completeness pass 315 completes the ProxyCommand support pass: subproce
 Phase 19 completeness pass 316 adds archived live ProxyCommand evidence. `test_live_proxycommand_transport` writes `SSH_LIB_LIVE_PROXYCOMMAND_REPORT` as deterministic key-value evidence with `scenario_list=`, per-scenario session/channel metadata, strict host-key metadata, token-expansion metadata, and expected-failure diagnostics. `check_live_proxycommand_report` is optional by default, but `SSH_LIB_REQUIRE_LIVE_PROXYCOMMAND_REPORT=1` requires a passing archived report and `SSH_LIB_REQUIRED_LIVE_PROXYCOMMAND_SCENARIOS` selects `BASIC`, `TOKEN`, `IPV6`, `FAILS_EARLY`, or `ALL`.
 
 The release sequence is guarded by `check_release_sequence`, which verifies that the documented deterministic release commands stay ordered and complete.
+The release toolchain guard is run with `../ssh_lib_build/bin/tools/check_release_toolchain`, and the artifact guard is run with `../ssh_lib_build/bin/tools/check_release_artifacts`. The release runner itself is covered by `check_release_runner`. The manual examples are not part of default release verification.
+
+### Live runtime completion status
+
+The runtime boundary inventory is still explicit: the full live backend remains explicitly fail-closed anywhere required protected transcript, trust, authentication, channel, or release-evidence gates are not complete. Phase 19 completeness pass 36 keeps public identity-file loading documented as part of the identity-file signing path.
+
+Phase 19 completeness pass 40 keeps live runtime completion status visible in the release documentation.
 
 Phase 19 completeness pass 317 completes the ProxyCommand diagnostics and release-evidence policy. `Sessions.Last_Proxy_Command_Diagnostics` exposes non-secret child lifecycle state, the live ProxyCommand `HANGS` scenario proves timeout cleanup with close-attempt/close-complete metadata, and `release_artifacts/live_proxycommand_report.txt` is the default archived report path when `check_live_proxycommand_report` is required without an explicit `SSH_LIB_LIVE_PROXYCOMMAND_REPORT`.
 

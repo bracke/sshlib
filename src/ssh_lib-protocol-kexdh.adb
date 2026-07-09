@@ -424,6 +424,120 @@ package body SSH_Lib.Protocol.Kexdh is
          return Internal_Error;
    end Parse_ECDH_Nistp256_Reply;
 
+   function Validate_ECDH_Point
+     (Curve_Name : String; Public_Point : Stream_Element_Array) return Status is
+   begin
+      if Curve_Name = "nistp256" then
+         return SSH_Lib.ECDSA.Validate_Raw_Point_Nistp256 (Public_Point);
+      elsif Curve_Name = "nistp384" then
+         return SSH_Lib.ECDSA.Validate_Raw_Point_Nistp384 (Public_Point);
+      elsif Curve_Name = "nistp521" then
+         return SSH_Lib.ECDSA.Validate_Raw_Point_Nistp521 (Public_Point);
+      end if;
+      return Unsupported_Feature;
+   exception
+      when others =>
+         return Internal_Error;
+   end Validate_ECDH_Point;
+
+   function Encode_ECDH_Init
+     (Curve_Name        : String;
+      Client_Public_Key : Stream_Element_Array;
+      Payload           : out Packet_Buffer)
+      return Status
+   is
+      Status_Value : Status;
+   begin
+      SSH_Lib.Protocol.Buffers.Clear (Payload);
+
+      Status_Value := Validate_ECDH_Point (Curve_Name, Client_Public_Key);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      Status_Value := Append_Byte (Payload, SSH_MSG_KEX_ECDH_INIT);
+      if Status_Value /= Ok then
+         SSH_Lib.Protocol.Buffers.Clear (Payload);
+         return Status_Value;
+      end if;
+
+      Status_Value := Append
+        (Payload,
+         SSH_Lib.Protocol.Buffers.To_Array
+           (SSH_Lib.Protocol.Numbers.Encode_SSH_String (Client_Public_Key)));
+      if Status_Value /= Ok then
+         SSH_Lib.Protocol.Buffers.Clear (Payload);
+      end if;
+      return Status_Value;
+   exception
+      when others =>
+         SSH_Lib.Protocol.Buffers.Clear (Payload);
+         return Internal_Error;
+   end Encode_ECDH_Init;
+
+   function Parse_ECDH_Reply
+     (Curve_Name : String;
+      Payload    : Stream_Element_Array;
+      Item       : out Reply)
+      return Status
+   is
+      Status_Value : Status;
+   begin
+      Status_Value := Parse_Group14_Reply (Payload, Item);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      declare
+         Server_Public_Array : constant Stream_Element_Array :=
+           SSH_Lib.Protocol.Buffers.To_Array (Item.Server_Public_Value);
+      begin
+         Status_Value := Validate_ECDH_Point (Curve_Name, Server_Public_Array);
+         if Status_Value /= Ok then
+            Clear (Item);
+            return Status_Value;
+         end if;
+      end;
+
+      return Ok;
+   exception
+      when others =>
+         Clear (Item);
+         return Internal_Error;
+   end Parse_ECDH_Reply;
+
+   function Encode_ECDH_Nistp384_Init
+     (Client_Public_Key : Stream_Element_Array;
+      Payload           : out Packet_Buffer)
+      return Status is
+   begin
+      return Encode_ECDH_Init ("nistp384", Client_Public_Key, Payload);
+   end Encode_ECDH_Nistp384_Init;
+
+   function Parse_ECDH_Nistp384_Reply
+     (Payload : Stream_Element_Array;
+      Item    : out Reply)
+      return Status is
+   begin
+      return Parse_ECDH_Reply ("nistp384", Payload, Item);
+   end Parse_ECDH_Nistp384_Reply;
+
+   function Encode_ECDH_Nistp521_Init
+     (Client_Public_Key : Stream_Element_Array;
+      Payload           : out Packet_Buffer)
+      return Status is
+   begin
+      return Encode_ECDH_Init ("nistp521", Client_Public_Key, Payload);
+   end Encode_ECDH_Nistp521_Init;
+
+   function Parse_ECDH_Nistp521_Reply
+     (Payload : Stream_Element_Array;
+      Item    : out Reply)
+      return Status is
+   begin
+      return Parse_ECDH_Reply ("nistp521", Payload, Item);
+   end Parse_ECDH_Nistp521_Reply;
+
    function Encode_Hybrid_PQ_Init
      (Client_Init : Stream_Element_Array;
       Payload     : out Packet_Buffer)

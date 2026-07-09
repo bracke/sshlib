@@ -1,5 +1,6 @@
 with SSH_Lib.ECDSA;
 with CryptoLib.Ed25519;
+with CryptoLib.Secure_Wipe;
 with SSH_Lib.RSA;
 with SSH_Lib.Identity_Files.Signing_Access;
 with SSH_Lib.Protocol.Numbers;
@@ -48,8 +49,11 @@ package body SSH_Lib.Private_Key_Signing is
       end if;
       if Key_Algorithm = "ssh-ed25519" then
          return Public_Key_Algorithm = "ssh-ed25519";
-      elsif Key_Algorithm = "ecdsa-sha2-nistp256" then
-         return Public_Key_Algorithm = "ecdsa-sha2-nistp256";
+      elsif Key_Algorithm = "ecdsa-sha2-nistp256"
+        or else Key_Algorithm = "ecdsa-sha2-nistp384"
+        or else Key_Algorithm = "ecdsa-sha2-nistp521"
+      then
+         return Public_Key_Algorithm = Key_Algorithm;
       elsif Key_Algorithm = "ssh-rsa" then
          return Public_Key_Algorithm = "rsa-sha2-256"
            or else Public_Key_Algorithm = "rsa-sha2-512"
@@ -75,9 +79,14 @@ package body SSH_Lib.Private_Key_Signing is
       if SSH_Lib.Identity_Files.Kind (Key) = SSH_Lib.Identity_Files.Ed25519_Key then
          return SSH_Lib.Identity_Files.Signing_Access.Ed25519_Seed (Key)'Length = 32
            and then SSH_Lib.Identity_Files.Signing_Access.Ed25519_Public (Key)'Length = 32;
-      elsif SSH_Lib.Identity_Files.Kind (Key) = SSH_Lib.Identity_Files.ECDSA_Nistp256_Key then
-         return Public_Key_Algorithm = "ecdsa-sha2-nistp256"
-           and then SSH_Lib.Identity_Files.Signing_Access.ECDSA_Private (Key)'Length > 0;
+      elsif SSH_Lib.Identity_Files.Kind (Key)
+        = SSH_Lib.Identity_Files.ECDSA_Nistp256_Key
+        or else SSH_Lib.Identity_Files.Kind (Key)
+          = SSH_Lib.Identity_Files.ECDSA_Nistp384_Key
+        or else SSH_Lib.Identity_Files.Kind (Key)
+          = SSH_Lib.Identity_Files.ECDSA_Nistp521_Key
+      then
+         return SSH_Lib.Identity_Files.Signing_Access.ECDSA_Private (Key)'Length > 0;
       elsif SSH_Lib.Identity_Files.Kind (Key) = SSH_Lib.Identity_Files.RSA_Key then
          return (Public_Key_Algorithm = "rsa-sha2-256"
                  or else Public_Key_Algorithm = "rsa-sha2-512"
@@ -113,7 +122,7 @@ package body SSH_Lib.Private_Key_Signing is
       Status_Value :=
         CryptoLib.Ed25519.Sign
           (Seed_Data, Public_Data, Payload, Signature_Data);
-      Seed_Data := [others => 0];
+      CryptoLib.Secure_Wipe.Wipe (Seed_Data'Address, Seed_Data'Length);
       if Status_Value /= Ok then
          Signature_Data := [others => 0];
          Clear (Output);
@@ -148,7 +157,7 @@ package body SSH_Lib.Private_Key_Signing is
    exception
       when others =>
          if Seed_Data'Length > 0 then
-            Seed_Data := [others => 0];
+            CryptoLib.Secure_Wipe.Wipe (Seed_Data'Address, Seed_Data'Length);
          end if;
          Clear (Output);
          return Internal_Error;
@@ -328,16 +337,18 @@ package body SSH_Lib.Private_Key_Signing is
          return Internal_Error;
    end Build_RSA_SHA2_256_Signature;
 
-   function Build_ECDSA_Nistp256_Signature
+   function Build_ECDSA_Signature
      (Key     : SSH_Lib.Identity_Files.Identity_Key;
       Payload : Stream_Element_Array;
       Output  : out Packet_Buffer)
       return Status
    is
       Raw_Signature : Packet_Buffer;
+      Algorithm_Name : constant String :=
+        SSH_Lib.Identity_Files.Algorithm_Name (Key);
       Alg_Buffer : constant Packet_Buffer :=
         SSH_Lib.Protocol.Numbers.Encode_SSH_String
-          (String_Data ("ecdsa-sha2-nistp256"));
+          (String_Data (Algorithm_Name));
       Encoded_Signature : Packet_Buffer;
       Status_Value : Status;
    begin
@@ -347,10 +358,25 @@ package body SSH_Lib.Private_Key_Signing is
          Clear (Output);
          return Status_Value;
       end if;
-      Status_Value := SSH_Lib.ECDSA.Sign_Nistp256
-        (SSH_Lib.Identity_Files.Signing_Access.ECDSA_Private (Key),
-         Payload,
-         Raw_Signature);
+      if Algorithm_Name = "ecdsa-sha2-nistp256" then
+         Status_Value := SSH_Lib.ECDSA.Sign_Nistp256
+           (SSH_Lib.Identity_Files.Signing_Access.ECDSA_Private (Key),
+            Payload,
+            Raw_Signature);
+      elsif Algorithm_Name = "ecdsa-sha2-nistp384" then
+         Status_Value := SSH_Lib.ECDSA.Sign_Nistp384
+           (SSH_Lib.Identity_Files.Signing_Access.ECDSA_Private (Key),
+            Payload,
+            Raw_Signature);
+      elsif Algorithm_Name = "ecdsa-sha2-nistp521" then
+         Status_Value := SSH_Lib.ECDSA.Sign_Nistp521
+           (SSH_Lib.Identity_Files.Signing_Access.ECDSA_Private (Key),
+            Payload,
+            Raw_Signature);
+      else
+         Clear (Output);
+         return Unsupported_Feature;
+      end if;
       if Status_Value /= Ok then
          Clear (Raw_Signature);
          Clear (Output);
@@ -368,7 +394,7 @@ package body SSH_Lib.Private_Key_Signing is
       when others =>
          Clear (Output);
          return Internal_Error;
-   end Build_ECDSA_Nistp256_Signature;
+   end Build_ECDSA_Signature;
 
    function Sign_Userauth
      (Key                  : SSH_Lib.Identity_Files.Identity_Key;
@@ -390,8 +416,11 @@ package body SSH_Lib.Private_Key_Signing is
       end if;
       if Public_Key_Algorithm = "ssh-ed25519" then
          return Build_Ed25519_Signature (Key, Payload, Signature_Blob);
-      elsif Public_Key_Algorithm = "ecdsa-sha2-nistp256" then
-         return Build_ECDSA_Nistp256_Signature (Key, Payload, Signature_Blob);
+      elsif Public_Key_Algorithm = "ecdsa-sha2-nistp256"
+        or else Public_Key_Algorithm = "ecdsa-sha2-nistp384"
+        or else Public_Key_Algorithm = "ecdsa-sha2-nistp521"
+      then
+         return Build_ECDSA_Signature (Key, Payload, Signature_Blob);
       elsif Public_Key_Algorithm = "rsa-sha2-256" then
          return Build_RSA_SHA2_256_Signature (Key, Payload, Signature_Blob);
       elsif Public_Key_Algorithm = "rsa-sha2-512" then

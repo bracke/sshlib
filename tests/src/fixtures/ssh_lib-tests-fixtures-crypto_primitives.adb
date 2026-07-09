@@ -1,5 +1,6 @@
 with Ada.Streams;
 with Ada.Text_IO;
+with CryptoLib.Buffers;
 with CryptoLib.Ciphers;
 with CryptoLib.Curve25519;
 with CryptoLib.Diffie_Hellman;
@@ -10,7 +11,6 @@ with CryptoLib.Random;
 with CryptoLib.MLKEM768;
 with CryptoLib.MLKEM768_Core;
 with CryptoLib.SNTRUP761;
-with CryptoLib.SNTRUP761_Core;
 with SSH_Lib.Signatures;
 with CryptoLib.Errors;
 with SSH_Lib.Protocol.Buffers;
@@ -346,6 +346,33 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
       end if;
    end Check;
 
+   function Hex_Nibble (Ch : Character) return Natural is
+   begin
+      if Ch in '0' .. '9' then
+         return Character'Pos (Ch) - Character'Pos ('0');
+      elsif Ch in 'A' .. 'F' then
+         return Character'Pos (Ch) - Character'Pos ('A') + 10;
+      elsif Ch in 'a' .. 'f' then
+         return Character'Pos (Ch) - Character'Pos ('a') + 10;
+      end if;
+      raise Program_Error;
+   end Hex_Nibble;
+
+   function Hex_To_Bytes (Text : String) return Stream_Element_Array is
+      Result_Value : Stream_Element_Array (1 .. Text'Length / 2);
+      Cursor       : Natural := Text'First;
+   begin
+      Check (Text'Length mod 2 = 0, "hex fixture has complete bytes");
+      for Index_Value in Result_Value'Range loop
+         Result_Value (Index_Value) :=
+           Stream_Element
+             (Hex_Nibble (Text (Cursor)) * 16
+              + Hex_Nibble (Text (Cursor + 1)));
+         Cursor := Cursor + 2;
+      end loop;
+      return Result_Value;
+   end Hex_To_Bytes;
+
    procedure Assert_Curve25519_RFC7748_Vectors is
       Alice_Private : constant CryptoLib.Curve25519.Public_Key :=
         [1  => 16#77#, 2  => 16#07#, 3  => 16#6D#, 4  => 16#0A#,
@@ -427,14 +454,24 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
 
    procedure Assert_Group14_Diffie_Hellman is
       Source_A : CryptoLib.Random.Random_Source;
+      Source_B : CryptoLib.Random.Random_Source;
       Private_A : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Private_B : SSH_Lib.Protocol.Buffers.Packet_Buffer;
       Public_A  : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Public_B  : SSH_Lib.Protocol.Buffers.Packet_Buffer;
       Shared_AB : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Shared_BA : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Group1_Private : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Group1_Public  : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+      Group1_Shared  : SSH_Lib.Protocol.Buffers.Packet_Buffer;
       Status_Value : CryptoLib.Errors.Status;
       Pattern_A : constant Stream_Element_Array (1 .. 8) :=
         [16#11#, 16#23#, 16#35#, 16#47#, 16#59#, 16#6B#, 16#7D#, 16#8F#];
+      Pattern_B : constant Stream_Element_Array (1 .. 8) :=
+        [16#A1#, 16#B2#, 16#C3#, 16#D4#, 16#E5#, 16#F6#, 16#07#, 16#18#];
    begin
       CryptoLib.Random.Initialize_Deterministic (Source_A, Pattern_A);
+      CryptoLib.Random.Initialize_Deterministic (Source_B, Pattern_B);
 
       Status_Value := CryptoLib.Diffie_Hellman.Generate_Group14_Keypair
         (Source_A, Private_A, Public_A);
@@ -445,13 +482,51 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
              and then SSH_Lib.Protocol.Buffers.Length (Public_A) > 0,
              "group14 key generation emits private scalar and public mpint");
 
+      Status_Value := CryptoLib.Diffie_Hellman.Generate_Group14_Keypair
+        (Source_B, Private_B, Public_B);
+      SSH_Lib.Tests.Assertions.Check_Status
+        (Status_Value, CryptoLib.Errors.Ok,
+         "crypto primitives", "group14 second DH key generation succeeds");
+
       Status_Value := CryptoLib.Diffie_Hellman.Compute_Group14_Shared_Secret
-        ([1 => 1], [1 => 2], Shared_AB);
+        (SSH_Lib.Protocol.Buffers.To_Array (Private_A),
+         SSH_Lib.Protocol.Buffers.To_Array (Public_B),
+         Shared_AB);
       SSH_Lib.Tests.Assertions.Check_Status
         (Status_Value, CryptoLib.Errors.Ok,
          "crypto primitives", "group14 shared secret computes");
       Check (SSH_Lib.Protocol.Buffers.Length (Shared_AB) > 0,
              "group14 shared secret emits mpint output");
+
+      Status_Value := CryptoLib.Diffie_Hellman.Compute_Group14_Shared_Secret
+        (SSH_Lib.Protocol.Buffers.To_Array (Private_B),
+         SSH_Lib.Protocol.Buffers.To_Array (Public_A),
+         Shared_BA);
+      SSH_Lib.Tests.Assertions.Check_Status
+        (Status_Value, CryptoLib.Errors.Ok,
+         "crypto primitives", "group14 reverse shared secret computes");
+      Check (SSH_Lib.Protocol.Buffers.To_Array (Shared_AB)
+             = SSH_Lib.Protocol.Buffers.To_Array (Shared_BA),
+             "group14 shared secrets match both directions");
+
+      Status_Value := CryptoLib.Diffie_Hellman.Generate_Group1_Keypair
+        (Source_A, Group1_Private, Group1_Public);
+      SSH_Lib.Tests.Assertions.Check_Status
+        (Status_Value, CryptoLib.Errors.Ok,
+         "crypto primitives", "group1 DH key generation succeeds");
+      Check (SSH_Lib.Protocol.Buffers.Length (Group1_Private) = 256
+             and then SSH_Lib.Protocol.Buffers.Length (Group1_Public) > 0,
+             "group1 key generation emits private scalar and public mpint");
+
+      Status_Value := CryptoLib.Diffie_Hellman.Compute_Group1_Shared_Secret
+        (SSH_Lib.Protocol.Buffers.To_Array (Group1_Private),
+         SSH_Lib.Protocol.Buffers.To_Array (Group1_Public),
+         Group1_Shared);
+      SSH_Lib.Tests.Assertions.Check_Status
+        (Status_Value, CryptoLib.Errors.Ok,
+         "crypto primitives", "group1 shared secret computes");
+      Check (SSH_Lib.Protocol.Buffers.Length (Group1_Shared) > 0,
+             "group1 shared secret emits mpint output");
    end Assert_Group14_Diffie_Hellman;
 
 
@@ -502,6 +577,129 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
       Check (Shared_AB = Shared_BA and then Shared_AB /= [Shared_AB'Range => 0],
              "NIST P-256 ECDH shared secrets match and are nonzero");
    end Assert_ECDH_Nistp256_Diffie_Hellman;
+
+   procedure Assert_ECDH_Nistp384_Nistp521_Basepoints is
+      Private_P384 : constant Stream_Element_Array (1 .. 48) :=
+        [1 .. 47 => 0, 48 => 1];
+      Base_P384 : constant Stream_Element_Array :=
+        Hex_To_Bytes
+          ("04"
+           & "AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7"
+           & "3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F");
+      Public_Blob_P384 : constant Stream_Element_Array :=
+        Hex_To_Bytes
+          ("0000001365636473612D736861322D6E69737470333834"
+           & "000000086E69737470333834"
+           & "00000061"
+           & "04"
+           & "AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7"
+           & "3617DE4A96262C6F5D9E98BF9292DC29F8F41DBD289A147CE9DA3113B5F0B8C00A60B1CE1D7E819D7A431D7C90EA0E5F");
+      Expected_P384_X : constant Stream_Element_Array :=
+        Hex_To_Bytes
+          ("AA87CA22BE8B05378EB1C71EF320AD746E1D3B628BA79B9859F741E082542A385502F25DBF55296C3A545E3872760AB7");
+      Shared_P384 : Stream_Element_Array (1 .. 48) := [others => 16#AA#];
+      Signature_P384 : CryptoLib.Buffers.Packet_Buffer;
+
+      Private_P521 : constant Stream_Element_Array (1 .. 66) :=
+        [1 .. 65 => 0, 66 => 1];
+      Base_P521 : constant Stream_Element_Array :=
+        Hex_To_Bytes
+          ("04"
+           & "00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F"
+           & "828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C"
+           & "1856A429BF97E7E31C2E5BD66"
+           & "011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817"
+           & "AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A"
+           & "272C24088BE94769FD16650");
+      Public_Blob_P521 : constant Stream_Element_Array :=
+        Hex_To_Bytes
+          ("0000001365636473612D736861322D6E69737470353231"
+           & "000000086E69737470353231"
+           & "00000085"
+           & "04"
+           & "00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F"
+           & "828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C"
+           & "1856A429BF97E7E31C2E5BD66"
+           & "011839296A789A3BC0045C8A5FB42C7D1BD998F54449579B446817"
+           & "AFBD17273E662C97EE72995EF42640C550B9013FAD0761353C7086A"
+           & "272C24088BE94769FD16650");
+      Expected_P521_X : constant Stream_Element_Array :=
+        Hex_To_Bytes
+          ("00C6858E06B70404E9CD9E3ECB662395B4429C648139053FB521F"
+           & "828AF606B4D3DBAA14B5E77EFE75928FE1DC127A2FFA8DE3348B3C"
+           & "1856A429BF97E7E31C2E5BD66");
+      Shared_P521 : Stream_Element_Array (1 .. 66) := [others => 16#55#];
+      Signature_P521 : CryptoLib.Buffers.Packet_Buffer;
+      Short_Point : constant Stream_Element_Array (1 .. 2) := [16#04#, 0];
+   begin
+      Check (Base_P384'Length = 97, "NIST P-384 base point fixture length");
+      SSH_Lib.Tests.Assertions.Check_Status
+        (SSH_Lib.ECDSA.Validate_Raw_Point_Nistp384 (Base_P384),
+         CryptoLib.Errors.Ok,
+         "crypto primitives", "NIST P-384 base point validates");
+      SSH_Lib.Tests.Assertions.Check_Status
+        (SSH_Lib.ECDSA.Compute_ECDH_Nistp384_Shared_Secret
+           (Private_P384, Base_P384, Shared_P384),
+         CryptoLib.Errors.Ok,
+         "crypto primitives", "NIST P-384 scalar-one ECDH computes");
+      Check (Shared_P384 = Expected_P384_X,
+             "NIST P-384 scalar-one ECDH returns base X coordinate");
+      SSH_Lib.Tests.Assertions.Check_Status
+        (SSH_Lib.ECDSA.Public_Matches_Private_Nistp384
+           (Public_Blob_P384, [1 => 1]),
+         CryptoLib.Errors.Ok,
+         "crypto primitives", "NIST P-384 public key matches scalar one");
+      SSH_Lib.Tests.Assertions.Check_Status
+        (SSH_Lib.ECDSA.Sign_Nistp384
+           ([1 => 1], ECDSA_Message, Signature_P384),
+         CryptoLib.Errors.Ok,
+         "crypto primitives", "NIST P-384 local signing succeeds");
+      SSH_Lib.Tests.Assertions.Check_Status
+        (SSH_Lib.ECDSA.Verify_Nistp384
+           (Public_Blob_P384,
+            CryptoLib.Buffers.To_Array (Signature_P384),
+            ECDSA_Message),
+         CryptoLib.Errors.Ok,
+         "crypto primitives", "NIST P-384 generated signature verifies");
+      SSH_Lib.Tests.Assertions.Check_Status
+        (SSH_Lib.ECDSA.Validate_Raw_Point_Nistp384 (Short_Point),
+         CryptoLib.Errors.Handshake_Failed,
+         "crypto primitives", "NIST P-384 short point is rejected");
+
+      Check (Base_P521'Length = 133, "NIST P-521 base point fixture length");
+      SSH_Lib.Tests.Assertions.Check_Status
+        (SSH_Lib.ECDSA.Validate_Raw_Point_Nistp521 (Base_P521),
+         CryptoLib.Errors.Ok,
+         "crypto primitives", "NIST P-521 base point validates");
+      SSH_Lib.Tests.Assertions.Check_Status
+        (SSH_Lib.ECDSA.Compute_ECDH_Nistp521_Shared_Secret
+           (Private_P521, Base_P521, Shared_P521),
+         CryptoLib.Errors.Ok,
+         "crypto primitives", "NIST P-521 scalar-one ECDH computes");
+      Check (Shared_P521 = Expected_P521_X,
+             "NIST P-521 scalar-one ECDH returns base X coordinate");
+      SSH_Lib.Tests.Assertions.Check_Status
+        (SSH_Lib.ECDSA.Public_Matches_Private_Nistp521
+           (Public_Blob_P521, [1 => 1]),
+         CryptoLib.Errors.Ok,
+         "crypto primitives", "NIST P-521 public key matches scalar one");
+      SSH_Lib.Tests.Assertions.Check_Status
+        (SSH_Lib.ECDSA.Sign_Nistp521
+           ([1 => 1], ECDSA_Message, Signature_P521),
+         CryptoLib.Errors.Ok,
+         "crypto primitives", "NIST P-521 local signing succeeds");
+      SSH_Lib.Tests.Assertions.Check_Status
+        (SSH_Lib.ECDSA.Verify_Nistp521
+           (Public_Blob_P521,
+            CryptoLib.Buffers.To_Array (Signature_P521),
+            ECDSA_Message),
+         CryptoLib.Errors.Ok,
+         "crypto primitives", "NIST P-521 generated signature verifies");
+      SSH_Lib.Tests.Assertions.Check_Status
+        (SSH_Lib.ECDSA.Validate_Raw_Point_Nistp521 (Short_Point),
+         CryptoLib.Errors.Handshake_Failed,
+         "crypto primitives", "NIST P-521 short point is rejected");
+   end Assert_ECDH_Nistp384_Nistp521_Basepoints;
 
    procedure Assert_RSA_SHA2_256_Verification is
       Mutated_Signature : Stream_Element_Array := RSA_Signature;
@@ -857,10 +1055,42 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
             "crypto primitives", "3DES-CBC raw decrypt succeeds for encrypted key files");
          Check (DES3_Output = DES3_Plaintext,
                 "3DES-CBC raw decrypt restores OpenSSL known-vector plaintext");
+
+         CryptoLib.Ciphers.Reset (Cipher_Item);
+         Status_Value := CryptoLib.Ciphers.Initialize
+           (Cipher_Item, "3des-cbc", CryptoLib.Ciphers.Client_To_Server,
+            DES3_Key, DES3_IV);
+         SSH_Lib.Tests.Assertions.Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "crypto primitives", "3DES-CBC transport encrypt state initializes");
+         DES3_Output := [others => 0];
+         Status_Value := CryptoLib.Ciphers.Encrypt
+           (Cipher_Item, DES3_Plaintext, DES3_Output);
+         SSH_Lib.Tests.Assertions.Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "crypto primitives", "3DES-CBC transport encrypt succeeds");
+         Check (DES3_Output = DES3_Ciphertext,
+                "3DES-CBC transport encrypt matches OpenSSL known-vector ciphertext");
+
+         CryptoLib.Ciphers.Reset (Cipher_Item);
+         Status_Value := CryptoLib.Ciphers.Initialize
+           (Cipher_Item, "3des-cbc", CryptoLib.Ciphers.Server_To_Client,
+            DES3_Key, DES3_IV);
+         SSH_Lib.Tests.Assertions.Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "crypto primitives", "3DES-CBC transport decrypt state initializes");
+         DES3_Output := [others => 0];
+         Status_Value := CryptoLib.Ciphers.Decrypt
+           (Cipher_Item, DES3_Ciphertext, DES3_Output);
+         SSH_Lib.Tests.Assertions.Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "crypto primitives", "3DES-CBC transport decrypt succeeds");
+         Check (DES3_Output = DES3_Plaintext,
+                "3DES-CBC transport decrypt restores known-vector plaintext");
       end;
 
       Status_Value := CryptoLib.Ciphers.Initialize
-        (Cipher_Item, "3des-cbc", CryptoLib.Ciphers.Client_To_Server,
+        (Cipher_Item, "blowfish-cbc", CryptoLib.Ciphers.Client_To_Server,
          Key_Data, IV_Data);
       SSH_Lib.Tests.Assertions.Check_Status
         (Status_Value, CryptoLib.Errors.Unsupported_Feature,
@@ -986,59 +1216,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
              "ML-KEM-768 CCA invalid ciphertext uses z fallback KDF input");
    end Assert_MLKEM768_CCA_KEM;
 
-   procedure Assert_SNTRUP761_Core_Arithmetic is
-      use CryptoLib.SNTRUP761_Core;
-      Zero_Small      : constant Small_Poly := [others => 0];
-      X_Poly          : Small_Poly := [others => 0];
-      High_Poly       : Small_Poly := [others => 0];
-      One_Poly        : Small_Poly := [others => 0];
-      Product         : Modq_Poly;
-      Encoded         : Stream_Element_Array (1 .. 1142);
-      Roundtrip       : Modq_Poly;
-      Seed            : Seed_32 := [others => 0];
-      Fixed_Small     : Small_Poly;
-      Sum_Value       : Modq_Poly;
-      Difference_Value : Modq_Poly;
-   begin
-      X_Poly (1) := 1;
-      Product := Ring_Multiply_Reference (X_Poly, X_Poly);
-      Check (Product (2) = 1,
-             "SNTRUP761 reference ring multiply maps x*x to x^2");
-      Check (Product (0) = 0 and then Product (1) = 0,
-             "SNTRUP761 reference ring multiply leaves unrelated low terms zero");
-
-      High_Poly (760) := 1;
-      X_Poly := [others => 0];
-      X_Poly (1) := 1;
-      Product := Ring_Multiply_Reference (High_Poly, X_Poly);
-      Check (Product (0) = 1 and then Product (1) = 1,
-             "SNTRUP761 ring reducer maps x^761 to x+1");
-
-      Encoded := Encode_Modq_12 (Product);
-      Roundtrip := Decode_Modq_12 (Encoded);
-      Check (Roundtrip (0) = Product (0) and then Roundtrip (1) = Product (1),
-             "SNTRUP761 q-polynomial 12-bit reference encoding round-trips");
-
-      One_Poly (0) := 1;
-      Sum_Value := Add (Product, Lift (One_Poly));
-      Difference_Value := Subtract (Sum_Value, Lift (One_Poly));
-      Check (Difference_Value (0) = Product (0),
-             "SNTRUP761 add/subtract helpers preserve q-ring value");
-
-      Seed (1) := 16#53#;
-      Fixed_Small := Fixed_Weight_From_Seed (Seed);
-      Check (Count_Nonzero (Fixed_Small) = W_Value,
-             "SNTRUP761 fixed-weight sampler produces exactly w non-zero coefficients");
-      Check (Count_Nonzero (Zero_Small) = 0,
-             "SNTRUP761 non-zero counter handles zero small polynomial");
-      Check (Encode_Rounded_Public (Product)'Length = 1158,
-             "SNTRUP761 rounded public-key encoder uses OpenSSH byte length");
-      Check (Encode_Rounded_Ciphertext (Product)'Length = 1039,
-             "SNTRUP761 rounded ciphertext encoder uses OpenSSH byte length");
-      Check (Is_Invertible_Mod_Q_Reference (Fixed_Small),
-             "SNTRUP761 fixed-weight sampler produces invertibility-eligible polynomial");
-   end Assert_SNTRUP761_Core_Arithmetic;
-
    procedure Assert_SNTRUP761_KEM_Boundary is
       use CryptoLib.SNTRUP761;
       Pattern         : Stream_Element_Array (1 .. 96) := [others => 0];
@@ -1098,13 +1275,13 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
       Assert_Curve25519_RFC7748_Vectors;
       Assert_Group14_Diffie_Hellman;
       Assert_ECDH_Nistp256_Diffie_Hellman;
+      Assert_ECDH_Nistp384_Nistp521_Basepoints;
       Assert_RSA_SHA2_256_Verification;
       Assert_RSA_SHA2_512_Verification;
       Assert_Ed25519_Verification;
       Assert_ECDSA_Nistp256_Verification;
       Assert_MLKEM768_Core_Arithmetic;
       Assert_MLKEM768_CCA_KEM;
-      Assert_SNTRUP761_Core_Arithmetic;
       Assert_SNTRUP761_KEM_Boundary;
    end Assert_Crypto_Primitives;
 end SSH_Lib.Tests.Fixtures.Crypto_Primitives;

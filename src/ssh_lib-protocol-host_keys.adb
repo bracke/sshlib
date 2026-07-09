@@ -158,6 +158,122 @@ package body SSH_Lib.Protocol.Host_Keys is
           (Item, "ecdsa-sha2-nistp256", Blob);
    end Parse_ECDSA_Nistp256;
 
+   function Parse_ECDSA_Nistp521
+     (Blob   : Stream_Element_Array;
+      Cursor : Stream_Element_Offset;
+      Item   : out SSH_Lib.Keys.Public_Key) return Status
+   is
+      Curve_Buffer : Packet_Buffer;
+      Key_Buffer   : Packet_Buffer;
+      After_Curve  : Stream_Element_Offset;
+      After_Key    : Stream_Element_Offset;
+      Status_Value : Status;
+   begin
+      Status_Value :=
+        SSH_Lib.Protocol.Numbers.Decode_SSH_String
+          (Blob, Cursor, Curve_Buffer, After_Curve);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      Status_Value :=
+        SSH_Lib.Protocol.Numbers.Decode_SSH_String
+          (Blob, After_Curve, Key_Buffer, After_Key);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      if After_Key /= Blob'Last + 1 then
+         return Handshake_Failed;
+      end if;
+      declare
+         Curve_Data : constant Stream_Element_Array := To_Array (Curve_Buffer);
+         Key_Data   : constant Stream_Element_Array := To_Array (Key_Buffer);
+      begin
+         if Curve_Data'Length /= 8
+           or else
+             Curve_Data
+             /= [1 => Character'Pos ('n'),
+                 2 => Character'Pos ('i'),
+                 3 => Character'Pos ('s'),
+                 4 => Character'Pos ('t'),
+                 5 => Character'Pos ('p'),
+                 6 => Character'Pos ('5'),
+                 7 => Character'Pos ('2'),
+                 8 => Character'Pos ('1')]
+         then
+            return Handshake_Failed;
+         end if;
+         if Key_Data'Length /= 133 or else Key_Data (Key_Data'First) /= 16#04#
+         then
+            return Handshake_Failed;
+         end if;
+      end;
+      Status_Value := SSH_Lib.ECDSA.Validate_Public_Nistp521 (Blob);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      return
+        SSH_Lib.Keys.Internal.Set_Public_Key
+          (Item, "ecdsa-sha2-nistp521", Blob);
+   end Parse_ECDSA_Nistp521;
+
+   function Parse_ECDSA_Nistp384
+     (Blob   : Stream_Element_Array;
+      Cursor : Stream_Element_Offset;
+      Item   : out SSH_Lib.Keys.Public_Key) return Status
+   is
+      Curve_Buffer : Packet_Buffer;
+      Key_Buffer   : Packet_Buffer;
+      After_Curve  : Stream_Element_Offset;
+      After_Key    : Stream_Element_Offset;
+      Status_Value : Status;
+   begin
+      Status_Value :=
+        SSH_Lib.Protocol.Numbers.Decode_SSH_String
+          (Blob, Cursor, Curve_Buffer, After_Curve);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      Status_Value :=
+        SSH_Lib.Protocol.Numbers.Decode_SSH_String
+          (Blob, After_Curve, Key_Buffer, After_Key);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      if After_Key /= Blob'Last + 1 then
+         return Handshake_Failed;
+      end if;
+      declare
+         Curve_Data : constant Stream_Element_Array := To_Array (Curve_Buffer);
+         Key_Data   : constant Stream_Element_Array := To_Array (Key_Buffer);
+      begin
+         if Curve_Data'Length /= 8
+           or else
+             Curve_Data
+             /= [1 => Character'Pos ('n'),
+                 2 => Character'Pos ('i'),
+                 3 => Character'Pos ('s'),
+                 4 => Character'Pos ('t'),
+                 5 => Character'Pos ('p'),
+                 6 => Character'Pos ('3'),
+                 7 => Character'Pos ('8'),
+                 8 => Character'Pos ('4')]
+         then
+            return Handshake_Failed;
+         end if;
+         if Key_Data'Length /= 97 or else Key_Data (Key_Data'First) /= 16#04#
+         then
+            return Handshake_Failed;
+         end if;
+      end;
+      Status_Value := SSH_Lib.ECDSA.Validate_Public_Nistp384 (Blob);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      return
+        SSH_Lib.Keys.Internal.Set_Public_Key
+          (Item, "ecdsa-sha2-nistp384", Blob);
+   end Parse_ECDSA_Nistp384;
+
    function Application_String_Is_Safe
      (Data : Stream_Element_Array) return Boolean
    is
@@ -408,6 +524,16 @@ package body SSH_Lib.Protocol.Host_Keys is
             return Handshake_Failed;
          end if;
          return Parse_ECDSA_Nistp256 (Blob, Cursor, Item);
+      elsif To_String (Algorithm_Text) = "ecdsa-sha2-nistp384" then
+         if Negotiated_Algorithm /= "ecdsa-sha2-nistp384" then
+            return Handshake_Failed;
+         end if;
+         return Parse_ECDSA_Nistp384 (Blob, Cursor, Item);
+      elsif To_String (Algorithm_Text) = "ecdsa-sha2-nistp521" then
+         if Negotiated_Algorithm /= "ecdsa-sha2-nistp521" then
+            return Handshake_Failed;
+         end if;
+         return Parse_ECDSA_Nistp521 (Blob, Cursor, Item);
       elsif To_String (Algorithm_Text) = "sk-ssh-ed25519@openssh.com" then
          if Negotiated_Algorithm /= "sk-ssh-ed25519@openssh.com" then
             return Handshake_Failed;

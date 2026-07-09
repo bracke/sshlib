@@ -16,6 +16,17 @@ Phase 19 completeness pass 293: bundled ML-KEM ACVP JSON prompt/expectedResults 
 
 The default test suite is local, deterministic, and does not use the user’s real SSH state. It must not require public internet, real user SSH files, real `SSH_AUTH_SOCK`, real private keys, C fixtures, or real Git servers.
 
+ssh_lib requires the Alire GNAT 15 toolchain. The root, tests, and tools crates
+depend on `gnat_native = "^15"`. Confirm the active compiler with:
+
+```sh
+alr exec -- gnatls --version
+```
+
+Do not run plain system `gnat*`, `gnatmake`, `gnatls`, `gnatprove`, or
+`gprbuild` for validation in this workspace; use `alr exec -- ...` so PATH
+cannot select a different compiler.
+
 ## Test organization
 
 Suites are organized around:
@@ -39,7 +50,7 @@ Suites are organized around:
 The preferred Ada-native release verification entry point is:
 
 ```sh
-alr exec -- gprbuild -P ./tools/tools.gpr
+(cd tools && alr build)
 ../ssh_lib_build/bin/tools/run_release_validation
 ```
 
@@ -64,6 +75,7 @@ alr build
 cd tests && alr exec -- gprbuild -P tests.gpr
 ../ssh_lib_build/bin/tests/main
 cd tests && alr exec -- gprbuild -P security/security_tests.gpr
+alr exec -- gprbuild -P tests/security/security_tests.gpr
 ../ssh_lib_build/bin/tests_security/test_host_key_negative
 ../ssh_lib_build/bin/tests_security/test_algorithm_negative
 ../ssh_lib_build/bin/tests_security/test_algorithm_security
@@ -105,13 +117,17 @@ alr exec -- gprbuild -P tests/version_integration/version_integration.gpr
 alr exec -- gprbuild -P examples/examples.gpr
 # Optional only; may contact a user-supplied public SSH server.
 # alr exec -- gprbuild -P examples/manual_examples.gpr
-alr exec -- gprbuild -P tools/tools.gpr
+(cd tools && alr build)
 ../ssh_lib_build/bin/tools/check_release_toolchain
 ../ssh_lib_build/bin/tools/check_release_artifacts
 ../ssh_lib_build/bin/tools/check_release_sequence
 ../ssh_lib_build/bin/tools/check_release_runner
 ../ssh_lib_build/bin/tools/check_public_api
 ../ssh_lib_build/bin/tools/check_package_tree
+# In a source checkout, check_package_tree skips VCS/build artifacts such as
+# .git, bin, obj, and transient tmp/log files. Set
+# SSH_LIB_PACKAGE_TREE_STRICT=1 when running it against a prepared package tree
+# to require those artifacts to be absent.
 ../ssh_lib_build/bin/tools/check_release
 ../ssh_lib_build/bin/tools/check_compile_preflight
 ../ssh_lib_build/bin/tools/check_phase17_regressions
@@ -264,13 +280,13 @@ These guards are intentionally non-networked and deterministic. They do not invo
 
 ## Phase 19 completeness pass 35 - cipher primitive implementation
 
-Implemented native Ada chacha20-poly1305 AEAD, AES-GCM, plus AES-CTR and AES-CBC transport cipher support for `aes128-ctr`, `aes192-ctr`, `aes256-ctr`, `aes128-cbc`, `aes192-cbc`, and `aes256-cbc`, updated cipher advertisement to `chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc`, initialized directional cipher state during NEWKEYS from derived keys/IVs, and added deterministic AES-CTR and AES-CBC known-vector coverage. Unsupported legacy cipher names still fail closed with `Unsupported_Feature`.
+Implemented native Ada chacha20-poly1305 AEAD, AES-GCM, plus AES-CTR and AES-CBC transport cipher support for `aes128-ctr`, `aes192-ctr`, `aes256-ctr`, `aes128-cbc`, `aes192-cbc`, `aes256-cbc`, and `3des-cbc`, updated cipher advertisement to `chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc`, initialized directional cipher state during NEWKEYS from derived keys/IVs, and added deterministic AES-CTR, AES-CBC, and 3DES-CBC coverage. Unsupported legacy cipher names still fail closed with `Unsupported_Feature`.
 
 ## Phase 19 completeness pass 37
 
 Pass 159 adds `diffie-hellman-group14-sha1` as a bounded compatibility fallback using the existing group14 finite-field primitive, SHA-1 exchange hash, SHA-1 session-key derivation, and the same strict host-key verification path; it is ordered after `diffie-hellman-group14-sha256` and before the extension marker.
 
-The implemented algorithm advertisement is now consistent with the available primitives, RFC 8308 extension negotiation, and the current hybrid/PQ readiness gate. The client advertises `mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256,diffie-hellman-group-exchange-sha1,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group14-sha256,diffie-hellman-group14-sha1,ext-info-c`, where `ext-info-c` is an extension marker and not a selectable KEX algorithm. It also advertises `ssh-ed25519-cert-v01@openssh.com,ecdsa-sha2-nistp256-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,ssh-rsa-cert-v01@openssh.com,ssh-ed25519,ecdsa-sha2-nistp256,rsa-sha2-512,rsa-sha2-256,ssh-rsa`, `chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc`, `umac-128-etm@openssh.com,umac-64-etm@openssh.com,umac-128@openssh.com,umac-64@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,hmac-sha1-etm@openssh.com,hmac-sha1,hmac-sha1-96-etm@openssh.com,hmac-sha1-96`, and compression `zlib@openssh.com,zlib,none`. The deterministic algorithm-security fixtures assert that selectable implemented algorithms negotiate successfully, `ext-info-c` is never selected, and unsupported alternatives remain rejected.
+The implemented algorithm advertisement is now consistent with the available primitives, RFC 8308 extension negotiation, and the current hybrid/PQ readiness gate. The client advertises `mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512,curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group14-sha256,diffie-hellman-group-exchange-sha256,diffie-hellman-group-exchange-sha1,diffie-hellman-group14-sha1,ext-info-c,kex-strict-c-v00@openssh.com`, where `ext-info-c` is an extension marker and not a selectable KEX algorithm. It also advertises `ssh-ed25519-cert-v01@openssh.com,ecdsa-sha2-nistp256-cert-v01@openssh.com,ecdsa-sha2-nistp384-cert-v01@openssh.com,ecdsa-sha2-nistp521-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,ssh-rsa-cert-v01@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com,sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,sk-ssh-ed25519@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com,ssh-rsa`, `chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc`, `umac-128-etm@openssh.com,umac-64-etm@openssh.com,umac-128@openssh.com,umac-64@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,hmac-sha1-etm@openssh.com,hmac-sha1,hmac-sha1-96-etm@openssh.com,hmac-sha1-96`, and compression `zlib@openssh.com,zlib,none`. The deterministic algorithm-security fixtures assert that selectable implemented algorithms negotiate successfully, `ext-info-c` is never selected, and unsupported alternatives remain rejected.
 
 
 ### Phase 19 completeness pass 40
@@ -516,7 +532,7 @@ Phase 19 completeness pass 303 adds non-secret scenario metadata to the archived
 
 ### Phase 19 completeness pass 304 — algorithm documentation drift closure
 
-Pass 304 synchronizes the release-facing algorithm advertisement documentation with `SSH_Lib.Algorithms.Advertised_Name_List`. The documented KEX list now includes the four advertised hybrid/PQ OpenSSH names, and the documented host-key list now includes ECDSA P-256 raw and certificate algorithms. `check_pq_hybrid_state` now guards the security review, test guide, and threat model against reintroducing the stale pre-PQ/pre-ECDSA advertisement lists.
+Pass 304 synchronizes the release-facing algorithm advertisement documentation with `SSH_Lib.Algorithms.Advertised_Name_List`. The documented KEX list now includes the four advertised hybrid/PQ OpenSSH names, and the documented host-key list now includes ECDSA P-256/P-384/P-521 raw and certificate algorithms. `check_pq_hybrid_state` now guards the security review, test guide, and threat model against reintroducing the stale pre-PQ/pre-ECDSA advertisement lists.
 
 
 Phase 19 completeness pass 307 tightens the archived live Git matrix report guard again. `check_live_git_matrix_report` now validates `SSH_LIB_REQUIRED_LIVE_GIT_SCENARIOS` against the known scenario set (`DIRECT`, `AGENT`, `IDENTITY`, `PASSWORD`, `PASSPHRASE`, `PROXYJUMP`, `RECEIVE`, or `ALL`) and requires the archived report to contain the reporter-owned `scenario_list=` line. This prevents arbitrary or misspelled required scenario names from being satisfied by hand-written report fragments.

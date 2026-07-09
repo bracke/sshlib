@@ -1,3 +1,5 @@
+--  @summary SSH transport-layer message-number constants (the RFC 4253/8308
+--  SSH_MSG_* type bytes for disconnect, kex, service, and ext-info messages).
 package SSH_Lib.Protocol.Messages is
    pragma Pure;
 

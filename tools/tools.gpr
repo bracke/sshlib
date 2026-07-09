@@ -1,4 +1,5 @@
-with "../SSH_Lib.gpr";
+with "SSH_Lib.gpr";
+with "project_tools.gpr";
 
 project Tools is
    for Source_Dirs use (".");

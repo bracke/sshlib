@@ -2,11 +2,13 @@ with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Strings.Fixed;
 with Ada.Strings.Maps.Constants;
+with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+
+with Project_Tools.Files;
 
 procedure Check_Sensitive_Logging is
    use Ada.Strings.Fixed;
-   use type Ada.Directories.File_Kind;
 
    Failure_Count : Natural := 0;
 
@@ -197,36 +199,19 @@ procedure Check_Sensitive_Logging is
    end Scan_File;
 
    procedure Scan_Tree (Directory_Path : String) is
-      Search_Item : Ada.Directories.Search_Type;
-      Entry_Item : Ada.Directories.Directory_Entry_Type;
    begin
-      if not Ada.Directories.Exists (Directory_Path) then
-         return;
-      end if;
-
-      Ada.Directories.Start_Search
-        (Search    => Search_Item,
-         Directory => Directory_Path,
-         Pattern   => "*",
-         Filter    => [Ada.Directories.Ordinary_File => True,
-                       Ada.Directories.Directory => True,
-                       Ada.Directories.Special_File => False]);
-      while Ada.Directories.More_Entries (Search_Item) loop
-         Ada.Directories.Get_Next_Entry (Search_Item, Entry_Item);
+      --  Recursive file walk via the shared project_tools helper, applying the
+      --  same Ada-source filter; the file set, order, and output are unchanged.
+      for Path_Item of Project_Tools.Files.List_Tree (Directory_Path) loop
          declare
-            Path_Text : constant String := Ada.Directories.Full_Name (Entry_Item);
-            Name_Text : constant String := Ada.Directories.Simple_Name (Entry_Item);
+            Path_Text : constant String :=
+              Ada.Strings.Unbounded.To_String (Path_Item);
          begin
-            if Ada.Directories.Kind (Entry_Item) = Ada.Directories.Directory then
-               if Name_Text /= "." and then Name_Text /= ".." then
-                  Scan_Tree (Path_Text);
-               end if;
-            elsif Is_Ada_Source (Name_Text) then
+            if Is_Ada_Source (Ada.Directories.Simple_Name (Path_Text)) then
                Scan_File (Path_Text);
             end if;
          end;
       end loop;
-      Ada.Directories.End_Search (Search_Item);
    exception
       when others =>
          Fail ("unable to scan directory: " & Directory_Path);

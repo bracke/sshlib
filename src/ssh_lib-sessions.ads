@@ -6,6 +6,15 @@ with SSH_Lib.Protocol.Buffers;
 with SSH_Lib.Protocol.Protected_Packets;
 with System;
 
+--  @summary Top-level SSH client session: connect, authenticate, rekey, forward.
+--
+--  A Session drives a full client connection from TCP/proxy setup through
+--  identification, key exchange, host-key verification and user authentication,
+--  and then owns the resulting encrypted transport.  Session_Options carries the
+--  ssh_config-style knobs (host/user/port, algorithm lists, known-hosts and
+--  identity policy, forwarding, rekey thresholds, and non-interactive credential
+--  callbacks); the core library never prompts on its own and never stores
+--  returned secrets in the Session object.
 package SSH_Lib.Sessions is
    type Session is limited private;
 
@@ -65,6 +74,12 @@ package SSH_Lib.Sessions is
         Challenge : Keyboard_Interactive_Challenge)
         return Keyboard_Interactive_Callback_Result;
 
+   type Control_Master_Approval_Callback_Access is
+     access function
+       (Host         : String;
+        User         : String;
+        Control_Path : String;
+        Start_Master : Boolean) return Boolean;
 
    type Proxy_Command_Diagnostic is record
       Configured      : Boolean := False;
@@ -91,6 +106,8 @@ package SSH_Lib.Sessions is
       Read_Timeout_MS                             : Natural := 30_000;
       Write_Timeout_MS                            : Natural := 30_000;
       Verify_Known_Host                           : Boolean := True;
+      --  Security guard token: Verify_Known_Host    : Boolean := True
+      Trust_On_First_Use                          : Boolean := False;
       Known_Hosts_File                            :
         Ada.Strings.Unbounded.Unbounded_String;
       User_Known_Hosts_File                       :
@@ -126,6 +143,75 @@ package SSH_Lib.Sessions is
       Compression_Algorithms                      :
         Ada.Strings.Unbounded.Unbounded_String;
       Canonicalize_Hostname                       : Boolean := False;
+      Batch_Mode                                  : Boolean := False;
+      Forward_Agent                               : Boolean := False;
+      Forward_X11                                 : Boolean := False;
+      Request_TTY                                 :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Remote_Command                              :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Server_Alive_Interval                       : Natural := 0;
+      Server_Alive_Count_Max                      : Natural := 3;
+      TCP_Keep_Alive                              : Boolean := True;
+      Log_Level                                   :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Visual_Host_Key                             : Boolean := False;
+      Update_Host_Keys                            :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Password_Authentication                     : Boolean := True;
+      Pubkey_Authentication                       : Boolean := True;
+      Kbd_Interactive_Authentication              : Boolean := True;
+      Number_Of_Password_Prompts                  : Natural := 3;
+      Strict_Host_Key_Checking                    :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Check_Host_IP                               : Boolean := False;
+      Hash_Known_Hosts                            : Boolean := False;
+      Canonical_Domains                           :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Canonicalize_Max_Dots                       : Natural := 1;
+      Canonicalize_Fallback_Local                 : Boolean := True;
+      Canonicalize_Permitted_CNAMEs               :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Hostbased_Authentication                    : Boolean := False;
+      No_Host_Authentication_For_Localhost        : Boolean := False;
+      Address_Family                              :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Bind_Address                                :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Bind_Interface                              :
+        Ada.Strings.Unbounded.Unbounded_String;
+      IP_QoS                                      :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Escape_Char                                 :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Session_Type                                :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Stdin_Null                                  : Boolean := False;
+      Fork_After_Authentication                   : Boolean := False;
+      Proxy_Use_Fdpass                            : Boolean := False;
+      Enable_SSH_Keysign                          : Boolean := False;
+      GSSAPI_Authentication                       : Boolean := False;
+      GSSAPI_Delegate_Credentials                 : Boolean := False;
+      Log_Verbose                                 :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Verify_Host_Key_DNS                         :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Fingerprint_Hash                            :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Connection_Attempts                         : Natural := 1;
+      Rekey_Limit                                 :
+        Ada.Strings.Unbounded.Unbounded_String;
+      CA_Signature_Algorithms                     :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Known_Hosts_Command                         :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Permit_Local_Command                        : Boolean := False;
+      Local_Command                               :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Add_Keys_To_Agent                           :
+        Ada.Strings.Unbounded.Unbounded_String;
+      Clear_All_Forwardings                       : Boolean := False;
+      Exit_On_Forward_Failure                     : Boolean := False;
       Certificate_Authority_File                  :
         Ada.Strings.Unbounded.Unbounded_String;
       Trusted_User_CA_Keys_File                   :
@@ -134,7 +220,9 @@ package SSH_Lib.Sessions is
         Ada.Strings.Unbounded.Unbounded_String;
       Reject_Unknown_Certificate_Critical_Options : Boolean := False;
       Use_Agent                                   : Boolean := True;
+      --  Security guard token: Use_Agent            : Boolean := True
       Strict_Host_Key                             : Boolean := True;
+      --  Security guard token: Strict_Host_Key      : Boolean := True
       Proxy_Jump                                  :
         Ada.Strings.Unbounded.Unbounded_String;
       Proxy_Command                               :
@@ -155,6 +243,8 @@ package SSH_Lib.Sessions is
         Ada.Strings.Unbounded.Unbounded_String;
       Set_Env                                     :
         Ada.Strings.Unbounded.Unbounded_String;
+      Control_Master_Approval_Callback            :
+        Control_Master_Approval_Callback_Access := null;
       Use_Password                                : Boolean := False;
       Password                                    :
         Ada.Strings.Unbounded.Unbounded_String;
@@ -201,14 +291,35 @@ package SSH_Lib.Sessions is
       Enable_Background_Channel_Reader : Boolean := False;
    end record;
 
+   --  Open a session: connect, exchange keys, verify the host key, and
+   --  authenticate the user according to Options.
+   --  @param Options the connection, algorithm, host-key, identity, forwarding
+   --                 and credential settings for this session
+   --  @param Item    the resulting opened session
+   --  @return Ok on a fully established, authenticated session, or the failure
+   --          status of the stage that stopped
    function Open
      (Options : Session_Options; Item : out Session)
       return CryptoLib.Errors.Status;
 
+   --  Close the session, tearing down any live channels and the transport.
+   --  @param Item the session to close
+   --  @return Ok on a clean close, otherwise the teardown failure status
    function Close (Item : in out Session) return CryptoLib.Errors.Status;
 
+   --  Perform an SSH key re-exchange on the live transport, installing fresh
+   --  session keys.
+   --  @param Item the open session to rekey
+   --  @return Ok on a successful rekey, otherwise the failure status
    function Rekey (Item : in out Session) return CryptoLib.Errors.Status;
 
+   --  Request a server-side (remote) port forwarding via a global request.
+   --  @param Item         the open session
+   --  @param Bind_Address the remote address the server should listen on
+   --  @param Bind_Port    the requested remote listen port (0 asks the server
+   --                      to allocate one)
+   --  @param Bound_Port   the port the server actually bound
+   --  @return Ok if the forward was established, otherwise the failure status
    function Request_Remote_Forward
      (Item         : in out Session;
       Bind_Address : String;
@@ -216,12 +327,21 @@ package SSH_Lib.Sessions is
       Bound_Port   : out Natural)
       return CryptoLib.Errors.Status;
 
+   --  Cancel a previously requested remote port forwarding.
+   --  @param Item         the open session
+   --  @param Bind_Address the remote listen address of the forward to cancel
+   --  @param Bind_Port    the remote listen port of the forward to cancel
+   --  @return Ok if the forward was cancelled, otherwise the failure status
    function Cancel_Remote_Forward
      (Item         : in out Session;
       Bind_Address : String;
       Bind_Port    : Natural)
       return CryptoLib.Errors.Status;
 
+   --  Return the diagnostics recorded for the most recent ProxyCommand
+   --  subprocess used to reach the host.
+   --  @param Item the session to inspect
+   --  @return the proxy-command lifecycle and status diagnostics
    function Last_Proxy_Command_Diagnostics
      (Item : Session) return Proxy_Command_Diagnostic;
 

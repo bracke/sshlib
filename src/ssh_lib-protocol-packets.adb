@@ -62,15 +62,18 @@ package body SSH_Lib.Protocol.Packets is
    end Effective_Block_Size;
 
    function Padding_Length_For
-     (Payload_Length : Natural;
-      Block_Size     : Natural)
+     (Payload_Length     : Natural;
+      Block_Size         : Natural;
+      Count_Length_Field : Boolean := True)
       return Natural
    is
       Base_Length : constant Natural := 1 + Payload_Length;
+      Header_Bytes : constant Natural := (if Count_Length_Field then 4 else 0);
       Padding_Length : Natural := Minimum_Padding_Size;
       Effective_Size  : constant Natural := Effective_Block_Size (Block_Size);
    begin
-      while (4 + Base_Length + Padding_Length) mod Effective_Size /= 0 loop
+      while (Header_Bytes + Base_Length + Padding_Length) mod Effective_Size /= 0
+      loop
          Padding_Length := Padding_Length + 1;
       end loop;
       return Padding_Length;
@@ -82,12 +85,14 @@ package body SSH_Lib.Protocol.Packets is
       Packet            : out Packet_Buffer;
       Use_Test_Padding  : Boolean := False;
       Test_Padding_Byte : Stream_Element := 0;
-      Block_Size        : Natural := Cleartext_Block_Size)
+      Block_Size        : Natural := Cleartext_Block_Size;
+      Count_Length_Field : Boolean := True)
       return Status
    is
       Padding_Length : Natural;
       Packet_Length : Natural;
       Effective_Size : constant Natural := Effective_Block_Size (Block_Size);
+      Header_Bytes   : constant Natural := (if Count_Length_Field then 4 else 0);
       Status_Value : Status;
    begin
       Clear (Packet);
@@ -96,14 +101,15 @@ package body SSH_Lib.Protocol.Packets is
          return Handshake_Failed;
       end if;
 
-      Padding_Length := Padding_Length_For (Payload'Length, Effective_Size);
+      Padding_Length :=
+        Padding_Length_For (Payload'Length, Effective_Size, Count_Length_Field);
       Packet_Length := 1 + Payload'Length + Padding_Length;
 
       if Packet_Length > Maximum_Packet_Length then
          return Handshake_Failed;
       end if;
 
-      if (4 + Packet_Length) mod Effective_Size /= 0 then
+      if (Header_Bytes + Packet_Length) mod Effective_Size /= 0 then
          return Internal_Error;
       end if;
 
@@ -167,7 +173,8 @@ package body SSH_Lib.Protocol.Packets is
      (Item    : in out Protocol_State;
       Packet  : Stream_Element_Array;
       Payload : out Packet_Buffer;
-      Block_Size : Natural := Cleartext_Block_Size)
+      Block_Size : Natural := Cleartext_Block_Size;
+      Count_Length_Field : Boolean := True)
       return Status
    is
       Packet_Length_Value : Unsigned_32;
@@ -177,6 +184,7 @@ package body SSH_Lib.Protocol.Packets is
       Packet_End : Stream_Element_Offset;
       Payload_End : Stream_Element_Offset;
       Effective_Size : constant Natural := Effective_Block_Size (Block_Size);
+      Header_Bytes   : constant Natural := (if Count_Length_Field then 4 else 0);
       Status_Value : Status;
    begin
       Clear (Payload);
@@ -206,7 +214,8 @@ package body SSH_Lib.Protocol.Packets is
          return Handshake_Failed;
       end if;
 
-      if (Natural (Packet_Length_Value) + 4) mod Effective_Size /= 0 then
+      if (Natural (Packet_Length_Value) + Header_Bytes) mod Effective_Size /= 0
+      then
          return Handshake_Failed;
       end if;
 

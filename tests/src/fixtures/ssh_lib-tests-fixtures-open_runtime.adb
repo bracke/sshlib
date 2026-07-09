@@ -51,6 +51,35 @@ package body SSH_Lib.Tests.Fixtures.Open_Runtime is
       end if;
    end Check;
 
+   Approval_Callback_Calls : Natural := 0;
+   Approval_Callback_Start : Boolean := False;
+
+   function Approve_Control_Master
+     (Host         : String;
+      User         : String;
+      Control_Path : String;
+      Start_Master : Boolean) return Boolean
+   is
+      pragma Unreferenced (Host, User, Control_Path);
+   begin
+      Approval_Callback_Calls := Approval_Callback_Calls + 1;
+      Approval_Callback_Start := Start_Master;
+      return True;
+   end Approve_Control_Master;
+
+   function Deny_Control_Master
+     (Host         : String;
+      User         : String;
+      Control_Path : String;
+      Start_Master : Boolean) return Boolean
+   is
+      pragma Unreferenced (Host, User, Control_Path);
+   begin
+      Approval_Callback_Calls := Approval_Callback_Calls + 1;
+      Approval_Callback_Start := Start_Master;
+      return False;
+   end Deny_Control_Master;
+
    function Buffer_Contains_Text
      (Buffer_Item : SSH_Lib.Protocol.Buffers.Packet_Buffer;
       Needle      : String)
@@ -181,6 +210,50 @@ package body SSH_Lib.Tests.Fixtures.Open_Runtime is
          Check
            (SSH_Lib.Sessions.Test_Support.Is_Open_For_Test (None_Session),
             "Proxy_Command none does not enter subprocess transport");
+      end;
+
+      declare
+         Ask_Path    : constant String :=
+           SSH_Lib.Tests.Fixtures.Temp_Paths.Path
+             ("phase19_control_master_open_ask.sock");
+         Ask_Options : SSH_Lib.Sessions.Session_Options := Local_Options;
+         Ask_Session : SSH_Lib.Sessions.Session;
+         Ask_Status  : CryptoLib.Errors.Status;
+      begin
+         Ask_Options.Control_Master := To_Unbounded_String ("autoask");
+         Ask_Options.Control_Path := To_Unbounded_String (Ask_Path);
+         Ask_Options.Control_Persist := To_Unbounded_String ("10m");
+         Ask_Status := SSH_Lib.Sessions.Open (Ask_Options, Ask_Session);
+         SSH_Lib.Tests.Assertions.Check_Status
+           (Ask_Status, CryptoLib.Errors.Cancelled,
+            "public open runtime",
+            "ControlMaster autoask without callback cancels");
+
+         Approval_Callback_Calls := 0;
+         Approval_Callback_Start := False;
+         Ask_Options.Control_Master_Approval_Callback :=
+           Deny_Control_Master'Unrestricted_Access;
+         Ask_Status := SSH_Lib.Sessions.Open (Ask_Options, Ask_Session);
+         SSH_Lib.Tests.Assertions.Check_Status
+           (Ask_Status, CryptoLib.Errors.Cancelled,
+            "public open runtime",
+            "ControlMaster autoask denied by callback cancels");
+         Check
+           (Approval_Callback_Calls = 1 and then Approval_Callback_Start,
+            "ControlMaster autoask denial records start-master approval request");
+
+         Approval_Callback_Calls := 0;
+         Approval_Callback_Start := False;
+         Ask_Options.Control_Master_Approval_Callback :=
+           Approve_Control_Master'Unrestricted_Access;
+         Ask_Status := SSH_Lib.Sessions.Open (Ask_Options, Ask_Session);
+         SSH_Lib.Tests.Assertions.Check_Status
+           (Ask_Status, CryptoLib.Errors.Ok,
+            "public open runtime",
+            "ControlMaster autoask approval allows local runtime fallback");
+         Check
+           (Approval_Callback_Calls = 1 and then Approval_Callback_Start,
+            "ControlMaster autoask approval records start-master request");
       end;
 
       Status_Value := SSH_Lib.Sessions.Open (Options, Session_Item);
@@ -750,12 +823,12 @@ package body SSH_Lib.Tests.Fixtures.Open_Runtime is
       Options.Host_Key_Algorithms := To_Unbounded_String ("sk-ssh-ed25519-cert-v01@openssh.com");
       Status_Value := SSH_Lib.Sessions.Open (Options, Session_Item);
       SSH_Lib.Tests.Assertions.Check_Status
-        (Status_Value, CryptoLib.Errors.Unsupported_Feature,
+        (Status_Value, CryptoLib.Errors.Ok,
          "public open runtime",
-         "open rejects unsupported-only HostKeyAlgorithms before runtime gates");
+         "open accepts SK-only HostKeyAlgorithms before runtime gates");
       Check
-        (not SSH_Lib.Sessions.Test_Support.Is_Open_For_Test (Session_Item),
-         "unsupported-only HostKeyAlgorithms leaves session closed");
+        (SSH_Lib.Sessions.Test_Support.Is_Open_For_Test (Session_Item),
+         "SK-only HostKeyAlgorithms publishes an open state");
 
       Options := Local_Options;
       Options.Host_Key_Algorithms := To_Unbounded_String
@@ -764,13 +837,13 @@ package body SSH_Lib.Tests.Fixtures.Open_Runtime is
       SSH_Lib.Tests.Assertions.Check_Status
         (Status_Value, CryptoLib.Errors.Ok,
          "public open runtime",
-         "mixed HostKeyAlgorithms remains usable when an implemented algorithm is present");
+         "mixed HostKeyAlgorithms remains usable when SK and raw algorithms are present");
       Check
         (SSH_Lib.Sessions.Test_Support.Is_Open_For_Test (Session_Item),
          "mixed HostKeyAlgorithms publishes an open state");
 
       Options := Local_Options;
-      Options.Kex_Algorithms := To_Unbounded_String ("diffie-hellman-group1-sha1");
+      Options.Kex_Algorithms := To_Unbounded_String ("diffie-hellman-group15-sha512");
       Status_Value := SSH_Lib.Sessions.Open (Options, Session_Item);
       SSH_Lib.Tests.Assertions.Check_Status
         (Status_Value, CryptoLib.Errors.Unsupported_Feature,
@@ -781,7 +854,7 @@ package body SSH_Lib.Tests.Fixtures.Open_Runtime is
          "unsupported-only KexAlgorithms leaves session closed");
 
       Options := Local_Options;
-      Options.Cipher_Algorithms := To_Unbounded_String ("3des-cbc");
+      Options.Cipher_Algorithms := To_Unbounded_String ("blowfish-cbc");
       Status_Value := SSH_Lib.Sessions.Open (Options, Session_Item);
       SSH_Lib.Tests.Assertions.Check_Status
         (Status_Value, CryptoLib.Errors.Unsupported_Feature,
@@ -792,7 +865,7 @@ package body SSH_Lib.Tests.Fixtures.Open_Runtime is
          "unsupported-only Ciphers leaves session closed");
 
       Options := Local_Options;
-      Options.Mac_Algorithms := To_Unbounded_String ("hmac-md5");
+      Options.Mac_Algorithms := To_Unbounded_String ("hmac-ripemd160");
       Status_Value := SSH_Lib.Sessions.Open (Options, Session_Item);
       SSH_Lib.Tests.Assertions.Check_Status
         (Status_Value, CryptoLib.Errors.Unsupported_Feature,

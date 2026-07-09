@@ -34,6 +34,19 @@ package body SSH_Lib.Derive is
    end Digest_To_Array;
 
    function Digest_To_Array
+     (Digest_Value : CryptoLib.Hashes.SHA384_Digest)
+      return Stream_Element_Array
+   is
+      Result : Stream_Element_Array (1 .. 48);
+   begin
+      for Index_Value in Digest_Value'Range loop
+         Result (Stream_Element_Offset (Index_Value)) :=
+           Digest_Value (Index_Value);
+      end loop;
+      return Result;
+   end Digest_To_Array;
+
+   function Digest_To_Array
      (Digest_Value : CryptoLib.Hashes.SHA512_Digest)
       return Stream_Element_Array
    is
@@ -90,6 +103,31 @@ package body SSH_Lib.Derive is
         and then
           Append (Work_Item, To_Array (Magnitude)) = CryptoLib.Errors.Ok;
    end Append_Mpint;
+
+   --  SSH "string" encoding (uint32 length + raw bytes).  Post-quantum hybrid
+   --  key exchange feeds the shared secret K into the exchange hash and the key
+   --  derivation as a string (K = string(SHA256/512 combiner output)), not as
+   --  an mpint, so it must not gain a leading zero byte.
+   function Append_String_Value
+     (Work_Item : in out Packet_Buffer; Payload : Stream_Element_Array)
+      return Boolean
+   is
+   begin
+      return
+        Append
+          (Work_Item,
+           SSH_Lib.Protocol.Numbers.Encode_Uint32
+             (Interfaces.Unsigned_32 (Payload'Length)))
+        = CryptoLib.Errors.Ok
+        and then Append (Work_Item, Payload) = CryptoLib.Errors.Ok;
+   end Append_String_Value;
+
+   function Append_Shared_Secret
+     (Work_Item : in out Packet_Buffer;
+      Payload   : Stream_Element_Array;
+      As_String : Boolean) return Boolean
+   is (if As_String then Append_String_Value (Work_Item, Payload)
+       else Append_Mpint (Work_Item, Payload));
 
    function One_Digest_SHA1
      (Shared_Secret      : Stream_Element_Array;
@@ -184,14 +222,15 @@ package body SSH_Lib.Derive is
       Session_Identifier : CryptoLib.Hashes.SHA256_Digest;
       Label_Value        : Character;
       Prior_Key_Data     : Stream_Element_Array;
-      Is_First_Block     : Boolean) return CryptoLib.Hashes.SHA256_Digest
+      Is_First_Block     : Boolean;
+      As_String          : Boolean) return CryptoLib.Hashes.SHA256_Digest
    is
       Work_Item  : Packet_Buffer;
       Label_Byte : constant Stream_Element_Array (1 .. 1) :=
         [1 => Stream_Element (Character'Pos (Label_Value))];
    begin
       Clear (Work_Item);
-      if not Append_Mpint (Work_Item, Shared_Secret) then
+      if not Append_Shared_Secret (Work_Item, Shared_Secret, As_String) then
          return [others => 0];
       end if;
       if Append (Work_Item, Digest_To_Array (Exchange_Hash))
@@ -221,7 +260,8 @@ package body SSH_Lib.Derive is
       Exchange_Hash      : CryptoLib.Hashes.SHA256_Digest;
       Session_Identifier : CryptoLib.Hashes.SHA256_Digest;
       Label_Value        : Character;
-      Requested_Length   : Natural) return Packet_Buffer
+      Requested_Length   : Natural;
+      As_String          : Boolean := False) return Packet_Buffer
    is
       Result_Item  : Packet_Buffer;
       Digest_Value : CryptoLib.Hashes.SHA256_Digest;
@@ -238,6 +278,96 @@ package body SSH_Lib.Derive is
          Need_Count := Requested_Length - Length (Result_Item);
          Digest_Value :=
            One_Digest
+             (Shared_Secret,
+              Exchange_Hash,
+              Session_Identifier,
+              Label_Value,
+              To_Array (Result_Item),
+              Length (Result_Item) = 0,
+              As_String);
+         Digest_Data := Digest_To_Array (Digest_Value);
+         if Need_Count < Digest_Data'Length then
+            Take_Count := Need_Count;
+         else
+            Take_Count := Digest_Data'Length;
+         end if;
+         if Append
+              (Result_Item,
+               Digest_Data (1 .. Stream_Element_Offset (Take_Count)))
+           /= CryptoLib.Errors.Ok
+         then
+            Clear (Result_Item);
+            return Result_Item;
+         end if;
+      end loop;
+
+      return Result_Item;
+   exception
+      when others =>
+         Clear (Result_Item);
+         return Result_Item;
+   end Derive_SHA256;
+
+   function One_Digest_SHA384
+     (Shared_Secret      : Stream_Element_Array;
+      Exchange_Hash      : CryptoLib.Hashes.SHA384_Digest;
+      Session_Identifier : CryptoLib.Hashes.SHA384_Digest;
+      Label_Value        : Character;
+      Prior_Key_Data     : Stream_Element_Array;
+      Is_First_Block     : Boolean) return CryptoLib.Hashes.SHA384_Digest
+   is
+      Work_Item  : Packet_Buffer;
+      Label_Byte : constant Stream_Element_Array (1 .. 1) :=
+        [1 => Stream_Element (Character'Pos (Label_Value))];
+   begin
+      Clear (Work_Item);
+      if not Append_Mpint (Work_Item, Shared_Secret) then
+         return [others => 0];
+      end if;
+      if Append (Work_Item, Digest_To_Array (Exchange_Hash))
+        /= CryptoLib.Errors.Ok
+      then
+         return [others => 0];
+      end if;
+      if Is_First_Block then
+         if Append (Work_Item, Label_Byte) /= CryptoLib.Errors.Ok then
+            return [others => 0];
+         end if;
+         if Append (Work_Item, Digest_To_Array (Session_Identifier))
+           /= CryptoLib.Errors.Ok
+         then
+            return [others => 0];
+         end if;
+      else
+         if Append (Work_Item, Prior_Key_Data) /= CryptoLib.Errors.Ok then
+            return [others => 0];
+         end if;
+      end if;
+      return CryptoLib.Hashes.SHA384 (To_Array (Work_Item));
+   end One_Digest_SHA384;
+
+   function Derive_SHA384
+     (Shared_Secret      : Stream_Element_Array;
+      Exchange_Hash      : CryptoLib.Hashes.SHA384_Digest;
+      Session_Identifier : CryptoLib.Hashes.SHA384_Digest;
+      Label_Value        : Character;
+      Requested_Length   : Natural) return Packet_Buffer
+   is
+      Result_Item  : Packet_Buffer;
+      Digest_Value : CryptoLib.Hashes.SHA384_Digest;
+      Digest_Data  : Stream_Element_Array (1 .. 48);
+      Need_Count   : Natural;
+      Take_Count   : Natural;
+   begin
+      Clear (Result_Item);
+      if Requested_Length = 0 then
+         return Result_Item;
+      end if;
+
+      while Length (Result_Item) < Requested_Length loop
+         Need_Count := Requested_Length - Length (Result_Item);
+         Digest_Value :=
+           One_Digest_SHA384
              (Shared_Secret,
               Exchange_Hash,
               Session_Identifier,
@@ -265,7 +395,7 @@ package body SSH_Lib.Derive is
       when others =>
          Clear (Result_Item);
          return Result_Item;
-   end Derive_SHA256;
+   end Derive_SHA384;
 
    function One_Digest_SHA512
      (Shared_Secret      : Stream_Element_Array;
@@ -273,14 +403,15 @@ package body SSH_Lib.Derive is
       Session_Identifier : CryptoLib.Hashes.SHA512_Digest;
       Label_Value        : Character;
       Prior_Key_Data     : Stream_Element_Array;
-      Is_First_Block     : Boolean) return CryptoLib.Hashes.SHA512_Digest
+      Is_First_Block     : Boolean;
+      As_String          : Boolean) return CryptoLib.Hashes.SHA512_Digest
    is
       Work_Item  : Packet_Buffer;
       Label_Byte : constant Stream_Element_Array (1 .. 1) :=
         [1 => Stream_Element (Character'Pos (Label_Value))];
    begin
       Clear (Work_Item);
-      if not Append_Mpint (Work_Item, Shared_Secret) then
+      if not Append_Shared_Secret (Work_Item, Shared_Secret, As_String) then
          return [others => 0];
       end if;
       if Append (Work_Item, Digest_To_Array (Exchange_Hash))
@@ -310,7 +441,8 @@ package body SSH_Lib.Derive is
       Exchange_Hash      : CryptoLib.Hashes.SHA512_Digest;
       Session_Identifier : CryptoLib.Hashes.SHA512_Digest;
       Label_Value        : Character;
-      Requested_Length   : Natural) return Packet_Buffer
+      Requested_Length   : Natural;
+      As_String          : Boolean := False) return Packet_Buffer
    is
       Result_Item  : Packet_Buffer;
       Digest_Value : CryptoLib.Hashes.SHA512_Digest;
@@ -332,7 +464,8 @@ package body SSH_Lib.Derive is
               Session_Identifier,
               Label_Value,
               To_Array (Result_Item),
-              Length (Result_Item) = 0);
+              Length (Result_Item) = 0,
+              As_String);
          Digest_Data := Digest_To_Array (Digest_Value);
          if Need_Count < Digest_Data'Length then
             Take_Count := Need_Count;

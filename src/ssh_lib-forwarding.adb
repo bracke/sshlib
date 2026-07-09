@@ -8,7 +8,6 @@ package body SSH_Lib.Forwarding is
    use Ada.Streams;
    use Ada.Strings.Unbounded;
    use CryptoLib.Errors;
-   use type Ada.Streams.Stream_Element;
    use type System.Address;
 
    package Session_Address_Conversions is new
@@ -30,6 +29,18 @@ package body SSH_Lib.Forwarding is
    X11_Max_Display_Number : constant Natural := 65_535 - X11_TCP_Base_Port;
    X11_Max_Screen_Number : constant Natural := 65_535;
 
+   function Managed_Remote_Target_Host
+     (Service : Managed_Forward_Service) return String;
+
+   function Managed_Remote_Bind_Host
+     (Service : Managed_Forward_Service) return String;
+
+   function Open_TCP_Connection
+     (Host       : String;
+      Port       : Natural;
+      Connection : out Local_Forward_Connection)
+      return Status;
+
    procedure Reset_Managed_Service_Runtime
      (Service : in out Managed_Forward_Service) is
    begin
@@ -44,6 +55,13 @@ package body SSH_Lib.Forwarding is
       Service.Max_Accepted_Count := 0;
       Service.Max_Pump_Iterations_Value := 64;
       Service.Max_Chunk_Size_Value := 4096;
+      Service.Remote_Bind_Host_Text := [others => Character'Val (0)];
+      Service.Remote_Bind_Host_Length := 0;
+      Service.Remote_Bind_Port_Value := 0;
+      Service.Remote_Bound_Port_Value := 0;
+      Service.Remote_Target_Host_Text := [others => Character'Val (0)];
+      Service.Remote_Target_Host_Length := 0;
+      Service.Remote_Target_Port_Value := 0;
       Service.Workers := [others => null];
    exception
       when others =>
@@ -145,6 +163,9 @@ package body SSH_Lib.Forwarding is
                         Service_Ptr.Dynamic_Handler
                           (Connection, Channel, Target, Status_Value);
                      end if;
+
+                  when Remote_Forward_Service =>
+                     Status_Value := Invalid_Command;
                end case;
 
                if Status_Value /= Ok then
@@ -244,6 +265,27 @@ package body SSH_Lib.Forwarding is
                           Connection,
                           Channel,
                           Target);
+
+                  when Remote_Forward_Service =>
+                     Status_Value :=
+                       SSH_Lib.Channels.Accept_Forwarded_TCPIP
+                         (Session_Ptr.all,
+                          Channel);
+                     if Status_Value = Ok then
+                        Status_Value :=
+                          Open_TCP_Connection
+                            (Managed_Remote_Target_Host (Service_Ptr.all),
+                             Service_Ptr.Remote_Target_Port_Value,
+                             Connection);
+                        if Status_Value /= Ok then
+                           declare
+                              Ignored_Channel_Close : constant Status :=
+                                SSH_Lib.Channels.Close (Channel);
+                           begin
+                              null;
+                           end;
+                        end if;
+                     end if;
                end case;
 
                if Status_Value /= Ok then
@@ -292,6 +334,20 @@ package body SSH_Lib.Forwarding is
                end;
             end;
          end loop;
+
+         if Service_Ptr.Mode = Remote_Forward_Service
+           and then Service_Ptr.Remote_Bound_Port_Value > 0
+         then
+            declare
+               Ignored_Cancel : constant Status :=
+                 SSH_Lib.Sessions.Cancel_Remote_Forward
+                   (Session_Ptr.all,
+                    Managed_Remote_Bind_Host (Service_Ptr.all),
+                    Service_Ptr.Remote_Bound_Port_Value);
+            begin
+               null;
+            end;
+         end if;
       end if;
    exception
       when others =>
@@ -349,6 +405,26 @@ package body SSH_Lib.Forwarding is
       return Listener.Target_Host_Text (1 .. Listener.Target_Host_Length);
    end Listener_Target_Host;
 
+   function Managed_Remote_Target_Host
+     (Service : Managed_Forward_Service) return String is
+   begin
+      if Service.Remote_Target_Host_Length = 0 then
+         return "";
+      end if;
+      return Service.Remote_Target_Host_Text
+        (1 .. Service.Remote_Target_Host_Length);
+   end Managed_Remote_Target_Host;
+
+   function Managed_Remote_Bind_Host
+     (Service : Managed_Forward_Service) return String is
+   begin
+      if Service.Remote_Bind_Host_Length = 0 then
+         return "";
+      end if;
+      return Service.Remote_Bind_Host_Text
+        (1 .. Service.Remote_Bind_Host_Length);
+   end Managed_Remote_Bind_Host;
+
    function Port_Status_Allow_Zero
      (Value : Natural) return Status is
    begin
@@ -357,6 +433,62 @@ package body SSH_Lib.Forwarding is
       end if;
       return Ok;
    end Port_Status_Allow_Zero;
+
+   function Open_TCP_Connection
+     (Host       : String;
+      Port       : Natural;
+      Connection : out Local_Forward_Connection)
+      return Status
+   is
+      Address_Value : GNAT.Sockets.Sock_Addr_Type;
+      Status_Value  : Status;
+   begin
+      Reset_Connection (Connection);
+      if not SSH_Lib.Internal.Valid_Host (Host) then
+         return Invalid_Host;
+      end if;
+      Status_Value := SSH_Lib.Internal.Validate_Port (Port);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      declare
+         Host_Entry : constant GNAT.Sockets.Host_Entry_Type :=
+           GNAT.Sockets.Get_Host_By_Name (Host);
+      begin
+         GNAT.Sockets.Create_Socket
+           (Connection.Socket,
+            GNAT.Sockets.Family_Inet,
+            GNAT.Sockets.Socket_Stream);
+         Address_Value.Addr := GNAT.Sockets.Addresses (Host_Entry, 1);
+         Address_Value.Port := GNAT.Sockets.Port_Type (Port);
+         GNAT.Sockets.Connect_Socket (Connection.Socket, Address_Value);
+         Connection.Connected := True;
+      end;
+      return Ok;
+   exception
+      when GNAT.Sockets.Socket_Error =>
+         declare
+            Ignored_Status : constant Status := Close (Connection);
+         begin
+            null;
+         end;
+         return Connection_Failed;
+      when Constraint_Error =>
+         declare
+            Ignored_Status : constant Status := Close (Connection);
+         begin
+            null;
+         end;
+         return Invalid_Host;
+      when others =>
+         declare
+            Ignored_Status : constant Status := Close (Connection);
+         begin
+            null;
+         end;
+         return Internal_Error;
+   end Open_TCP_Connection;
 
    function Socket_Port_To_Natural
      (Value : GNAT.Sockets.Port_Type) return Natural is
@@ -715,7 +847,7 @@ package body SSH_Lib.Forwarding is
       Target  : out SOCKS5_Target)
       return Status
    is
-      Cursor      : Stream_Element_Offset := Request'First;
+      Cursor      : constant Stream_Element_Offset := Request'First;
       Address_Len : Natural;
       Port_Value  : Natural;
    begin
@@ -780,7 +912,7 @@ package body SSH_Lib.Forwarding is
    end Parse_SOCKS5_CONNECT_Request;
 
    function Read_Exact_Local
-     (Connection : in out Local_Forward_Connection;
+     (Connection : Local_Forward_Connection;
       Buffer     : out Stream_Element_Array)
       return Status
    is
@@ -1784,6 +1916,92 @@ package body SSH_Lib.Forwarding is
          return Internal_Error;
    end Start_Managed_Dynamic_Forward_Service;
 
+   function Start_Managed_Remote_Forward_Service
+     (Session             : in out SSH_Lib.Sessions.Session;
+      Bind_Address        : String;
+      Bind_Port           : Natural;
+      Target_Host         : String;
+      Target_Port         : Natural;
+      Service             : in out Managed_Forward_Service;
+      Max_Accepted        : Natural := 0;
+      Max_Pump_Iterations : Natural := 64;
+      Max_Chunk_Size      : Natural := 4096)
+      return Status
+   is
+      Status_Value     : Status;
+      Bound_Port_Value : Natural := 0;
+   begin
+      if Service.Running or else Service.Stop_Requested then
+         return Invalid_Command;
+      elsif not SSH_Lib.Internal.Valid_Host (Bind_Address)
+        or else Bind_Address'Length > 255
+      then
+         return Invalid_Host;
+      elsif not SSH_Lib.Internal.Valid_Host (Target_Host)
+        or else Target_Host'Length > 255
+      then
+         return Invalid_Host;
+      elsif Max_Pump_Iterations = 0
+        or else Max_Chunk_Size = 0
+        or else Max_Chunk_Size > Maximum_Pump_Chunk_Size
+      then
+         return Invalid_Command;
+      end if;
+
+      Status_Value := Port_Status_Allow_Zero (Bind_Port);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+      Status_Value := SSH_Lib.Internal.Validate_Port (Target_Port);
+      if Status_Value /= Ok then
+         return Status_Value;
+      end if;
+
+      Reset_Managed_Service_Runtime (Service);
+      Status_Value :=
+        SSH_Lib.Sessions.Request_Remote_Forward
+          (Session,
+           Bind_Address,
+           Bind_Port,
+           Bound_Port_Value);
+      if Status_Value /= Ok then
+         Service.Last_Status := Status_Value;
+         return Status_Value;
+      end if;
+
+      Service.Mode := Remote_Forward_Service;
+      Service.Remote_Bind_Host_Length := Bind_Address'Length;
+      Service.Remote_Bind_Host_Text (1 .. Bind_Address'Length) := Bind_Address;
+      Service.Remote_Bind_Port_Value := Bind_Port;
+      Service.Remote_Bound_Port_Value := Bound_Port_Value;
+      Service.Remote_Target_Host_Length := Target_Host'Length;
+      Service.Remote_Target_Host_Text (1 .. Target_Host'Length) := Target_Host;
+      Service.Remote_Target_Port_Value := Target_Port;
+      Service.Max_Concurrent_Count := 1;
+      Service.Max_Accepted_Count := Max_Accepted;
+      Service.Max_Pump_Iterations_Value := Max_Pump_Iterations;
+      Service.Max_Chunk_Size_Value := Max_Chunk_Size;
+      Service.Running := True;
+      Service.Workers (1) := new Managed_Forward_Worker;
+      Service.Workers (1).Start (Service'Address, Session'Address);
+      return Ok;
+   exception
+      when others =>
+         if Bound_Port_Value > 0 then
+            declare
+               Ignored_Cancel : constant Status :=
+                 SSH_Lib.Sessions.Cancel_Remote_Forward
+                   (Session, Bind_Address, Bound_Port_Value);
+            begin
+               null;
+            end;
+         end if;
+         Service.Running := False;
+         Service.Stop_Requested := False;
+         Service.Last_Status := Internal_Error;
+         return Internal_Error;
+   end Start_Managed_Remote_Forward_Service;
+
    function Forward_Service_Running (Service : Forward_Service) return Boolean is
    begin
       return Service.Running
@@ -1916,6 +2134,9 @@ package body SSH_Lib.Forwarding is
    function Managed_Forward_Service_Bound_Port
      (Service : Managed_Forward_Service) return Natural is
    begin
+      if Service.Mode = Remote_Forward_Service then
+         return Service.Remote_Bound_Port_Value;
+      end if;
       return Bound_Port (Service.Listener);
    exception
       when others =>
@@ -1934,7 +2155,7 @@ package body SSH_Lib.Forwarding is
    function Stop (Service : in out Forward_Service)
       return Status
    is
-      Stored_Status : Status := Service.Last_Status;
+      Stored_Status : constant Status := Service.Last_Status;
    begin
       Service.Stop_Requested := True;
       declare
@@ -1963,7 +2184,7 @@ package body SSH_Lib.Forwarding is
    function Stop (Service : in out Managed_Forward_Service)
       return Status
    is
-      Stored_Status : Status := Service.Last_Status;
+      Stored_Status : constant Status := Service.Last_Status;
    begin
       Service.Stop_Requested := True;
       declare

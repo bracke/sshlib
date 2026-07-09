@@ -6,9 +6,12 @@ licenses = "MIT"
 authors = ["Bent Bracke"]
 maintainers = ["Bent Bracke <bent@bracke.dk>"]
 maintainers-logins = ["bracke"]
-
+website = "https://github.com/bracke/sshlib"
 tags = ["ssh", "network", "transport"]
 project-files = ["SSH_Lib.gpr"]
+
+[[depends-on]]
+gnat_native = "^15"
 
 [[depends-on]]
 zlib = "*"

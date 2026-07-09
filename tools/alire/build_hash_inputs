@@ -1,0 +1,6 @@
+dependency:project_tools=0.1.0=e3f3a06e9600cea82634637823ae1842b32c03bd80fe9ac57721dd4e6a4c1c49
+dependency:ssh_lib=1.0.0=f1a80e8aed10212932c9964f355b14fa1b95490c651cd41a7e780fbb3b73d8fd
+external:LIBRARY_TYPE=default
+external:SSH_LIB_TOOLS_LIBRARY_TYPE=default
+profile:ssh_lib_tools=DEVELOPMENT
+switches:ssh_lib_tools=-Og,-fdata-sections,-ffunction-sections,-g,-gnatVa,-gnatW8,-gnatw.X,-gnatwa,-gnaty-d,-gnaty3,-gnatyA,-gnatyB,-gnatyI,-gnatyO,-gnatyS,-gnatya,-gnatyb,-gnatyc,-gnatye,-gnatyf,-gnatyh,-gnatyi,-gnatyk,-gnatyl,-gnatym,-gnatyn,-gnatyp,-gnatyr,-gnatyt,-gnatyu,-gnatyx

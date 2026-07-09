@@ -59,6 +59,11 @@ package body SSH_Lib.Public_Key_Blobs is
    begin
       return Name = "ssh-ed25519"
         or else Name = "ecdsa-sha2-nistp256"
+        or else Name = "ecdsa-sha2-nistp384"
+        or else Name = "ecdsa-sha2-nistp521"
+        or else Name = "ecdsa-sha2-nistp256-cert-v01@openssh.com"
+        or else Name = "ecdsa-sha2-nistp384-cert-v01@openssh.com"
+        or else Name = "ecdsa-sha2-nistp521-cert-v01@openssh.com"
         or else Name = "sk-ssh-ed25519@openssh.com"
         or else Name = "sk-ecdsa-sha2-nistp256@openssh.com"
         or else Name = "sk-ssh-ed25519-cert-v01@openssh.com"

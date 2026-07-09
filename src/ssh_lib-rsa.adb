@@ -1,6 +1,8 @@
 with CryptoLib.Hashes;
 with CryptoLib.Constant_Time;
+with CryptoLib.Secure_Wipe;
 with SSH_Lib.Protocol.Numbers;
+with System;
 
 package body SSH_Lib.RSA is
    use Ada.Streams;
@@ -921,6 +923,33 @@ package body SSH_Lib.RSA is
       DMQ1_Bytes     : Natural := 0;
       IQMP_Bytes     : Natural := 0;
       Status_Value   : Status;
+
+      --  Scrub the RSA private primes, CRT exponents/coefficient, and the
+      --  private intermediates.  Plain "X := [others => 0]" is elided at -O3.
+      procedure Scrub_Secrets is
+         use System;
+      begin
+         CryptoLib.Secure_Wipe.Wipe
+           (Prime_P_Big'Address, Prime_P_Big'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe
+           (Prime_Q_Big'Address, Prime_Q_Big'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe
+           (DMP1_Big'Address, DMP1_Big'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe
+           (DMQ1_Big'Address, DMQ1_Big'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe
+           (IQMP_Big'Address, IQMP_Big'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe
+           (Encoded_P_Big'Address, Encoded_P_Big'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe
+           (Encoded_Q_Big'Address, Encoded_Q_Big'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe (M1_Big'Address, M1_Big'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe (M2_Big'Address, M2_Big'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe
+           (Difference_Big'Address, Difference_Big'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe (H_Big'Address, H_Big'Size / Storage_Unit);
+         CryptoLib.Secure_Wipe.Wipe (QH_Big'Address, QH_Big'Size / Storage_Unit);
+      end Scrub_Secrets;
    begin
       CryptoLib.Buffers.Clear (Signature_Bytes);
       Status_Value := Decode_Public_Key (Public_Key_Blob, Key_Item);
@@ -943,6 +972,7 @@ package body SSH_Lib.RSA is
           not Strip_Positive_Mpint
                 (Coefficient_IQMP_Mpint, True, IQMP_Big, IQMP_Bytes)
       then
+         Scrub_Secrets;
          return Authentication_Failed;
       end if;
 
@@ -956,6 +986,7 @@ package body SSH_Lib.RSA is
         or else DMQ1_Bytes > Prime_Q_Bytes
         or else IQMP_Bytes > Prime_P_Bytes
       then
+         Scrub_Secrets;
          return Authentication_Failed;
       end if;
 
@@ -971,6 +1002,7 @@ package body SSH_Lib.RSA is
             if Key_Item.Modulus_Bytes
               < SHA1_Digest_Info_Prefix'Length + 20 + 11
             then
+               Scrub_Secrets;
                return Authentication_Failed;
             end if;
             Encoded_Message :=
@@ -979,6 +1011,7 @@ package body SSH_Lib.RSA is
             if Key_Item.Modulus_Bytes
               < SHA256_Digest_Info_Prefix'Length + 32 + 11
             then
+               Scrub_Secrets;
                return Authentication_Failed;
             end if;
             Encoded_Message :=
@@ -987,6 +1020,7 @@ package body SSH_Lib.RSA is
             if Key_Item.Modulus_Bytes
               < SHA512_Digest_Info_Prefix'Length + 64 + 11
             then
+               Scrub_Secrets;
                return Authentication_Failed;
             end if;
             Encoded_Message :=
@@ -1009,23 +1043,12 @@ package body SSH_Lib.RSA is
            CryptoLib.Buffers.Set (Signature_Bytes, Result_Array);
       end;
 
-      Prime_P_Big := [others => 0];
-      Prime_Q_Big := [others => 0];
-      DMP1_Big := [others => 0];
-      DMQ1_Big := [others => 0];
-      IQMP_Big := [others => 0];
-      Encoded_P_Big := [others => 0];
-      Encoded_Q_Big := [others => 0];
-      M1_Big := [others => 0];
-      M2_Big := [others => 0];
-      Difference_Big := [others => 0];
-      H_Big := [others => 0];
-      QH_Big := [others => 0];
-      Signature_Big := [others => 0];
+      Scrub_Secrets;
       return Status_Value;
    exception
       when others =>
          CryptoLib.Buffers.Clear (Signature_Bytes);
+         Scrub_Secrets;
          return Internal_Error;
    end Sign_CRT;
 

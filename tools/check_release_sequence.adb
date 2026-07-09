@@ -1,15 +1,14 @@
 with Ada.Command_Line;
 with Ada.Directories;
-with Ada.Strings.Fixed;
 with Ada.Text_IO;
+
+with Project_Tools.Files;
 
 procedure Check_Release_Sequence is
    --  Phase 19 release sequence guard.
    --  This guard does not spawn commands. It verifies that the documented
    --  deterministic release command sequence is complete, ordered, and keeps
    --  manual/public-network examples outside the default automated path.
-
-   use Ada.Strings.Fixed;
 
    Failure_Count : Natural := 0;
    Last_Line     : Natural := 0;
@@ -20,32 +19,12 @@ procedure Check_Release_Sequence is
       Failure_Count := Failure_Count + 1;
    end Fail;
 
+   --  Delegates to the shared project_tools helpers; File_Exists preserves the
+   --  previous "missing file => not present" behaviour (rather than raising).
    function File_Contains (Path : String; Needle : String) return Boolean is
-      File_Item : Ada.Text_IO.File_Type;
    begin
-      if not Ada.Directories.Exists (Path) then
-         return False;
-      end if;
-
-      Ada.Text_IO.Open (File_Item, Ada.Text_IO.In_File, Path);
-      while not Ada.Text_IO.End_Of_File (File_Item) loop
-         declare
-            Line_Text : constant String := Ada.Text_IO.Get_Line (File_Item);
-         begin
-            if Index (Line_Text, Needle) /= 0 then
-               Ada.Text_IO.Close (File_Item);
-               return True;
-            end if;
-         end;
-      end loop;
-      Ada.Text_IO.Close (File_Item);
-      return False;
-   exception
-      when others =>
-         if Ada.Text_IO.Is_Open (File_Item) then
-            Ada.Text_IO.Close (File_Item);
-         end if;
-         return False;
+      return Project_Tools.Files.File_Exists (Path)
+        and then Project_Tools.Files.File_Contains (Path, Needle);
    end File_Contains;
 
    function Active_Text (Line_Text : String) return String is

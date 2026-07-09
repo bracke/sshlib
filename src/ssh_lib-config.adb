@@ -3,12 +3,14 @@ with Ada.Containers;
 with Ada.Directories; use Ada.Directories;
 with Ada.Strings.Fixed;
 with Ada.Text_IO;
+with Interfaces;
 with SSH_Lib.Algorithms;
 with SSH_Lib.Platform.Paths;
 
 package body SSH_Lib.Config is
 
    use type Ada.Containers.Count_Type;
+   use type Interfaces.Unsigned_64;
    use Ada.Strings.Unbounded;
    use CryptoLib.Errors;
 
@@ -61,6 +63,54 @@ package body SSH_Lib.Config is
       Macs_Set                                 : Boolean := False;
       Compression_Set                          : Boolean := False;
       Canonicalize_Hostname_Set                : Boolean := False;
+      Batch_Mode_Set                           : Boolean := False;
+      Forward_Agent_Set                        : Boolean := False;
+      Forward_X11_Set                          : Boolean := False;
+      Request_TTY_Set                          : Boolean := False;
+      Remote_Command_Set                       : Boolean := False;
+      Server_Alive_Interval_Set                : Boolean := False;
+      Server_Alive_Count_Max_Set               : Boolean := False;
+      TCP_Keep_Alive_Set                       : Boolean := False;
+      Log_Level_Set                            : Boolean := False;
+      Visual_Host_Key_Set                      : Boolean := False;
+      Update_Host_Keys_Set                     : Boolean := False;
+      Password_Authentication_Set              : Boolean := False;
+      Pubkey_Authentication_Set                : Boolean := False;
+      Kbd_Interactive_Authentication_Set       : Boolean := False;
+      Number_Of_Password_Prompts_Set           : Boolean := False;
+      Strict_Host_Key_Checking_Set             : Boolean := False;
+      Check_Host_IP_Set                        : Boolean := False;
+      Hash_Known_Hosts_Set                     : Boolean := False;
+      Canonical_Domains_Set                    : Boolean := False;
+      Canonicalize_Max_Dots_Set                : Boolean := False;
+      Canonicalize_Fallback_Local_Set          : Boolean := False;
+      Canonicalize_Permitted_CNAMEs_Set        : Boolean := False;
+      Hostbased_Authentication_Set             : Boolean := False;
+      No_Host_Authentication_For_Localhost_Set : Boolean := False;
+      Address_Family_Set                       : Boolean := False;
+      Bind_Address_Set                         : Boolean := False;
+      Bind_Interface_Set                       : Boolean := False;
+      IP_QoS_Set                               : Boolean := False;
+      Escape_Char_Set                          : Boolean := False;
+      Session_Type_Set                         : Boolean := False;
+      Stdin_Null_Set                           : Boolean := False;
+      Fork_After_Authentication_Set            : Boolean := False;
+      Proxy_Use_Fdpass_Set                     : Boolean := False;
+      Enable_SSH_Keysign_Set                   : Boolean := False;
+      GSSAPI_Authentication_Set                : Boolean := False;
+      GSSAPI_Delegate_Credentials_Set          : Boolean := False;
+      Log_Verbose_Set                          : Boolean := False;
+      Verify_Host_Key_DNS_Set                  : Boolean := False;
+      Fingerprint_Hash_Set                     : Boolean := False;
+      Connection_Attempts_Set                  : Boolean := False;
+      Rekey_Limit_Set                          : Boolean := False;
+      CA_Signature_Algorithms_Set              : Boolean := False;
+      Known_Hosts_Command_Set                  : Boolean := False;
+      Permit_Local_Command_Set                 : Boolean := False;
+      Local_Command_Set                        : Boolean := False;
+      Add_Keys_To_Agent_Set                    : Boolean := False;
+      Clear_All_Forwardings_Set                : Boolean := False;
+      Exit_On_Forward_Failure_Set              : Boolean := False;
       Certificate_Authority_File_Set           : Boolean := False;
       Trusted_User_CA_Keys_Set                 : Boolean := False;
       Allowed_Cert_Critical_Options_Set        : Boolean := False;
@@ -194,7 +244,10 @@ package body SSH_Lib.Config is
       end if;
 
       for Ch of Value loop
-         if not (Ch in 'A' .. 'Z' or else Ch in 'a' .. 'z') then
+         if not (Ch in 'A' .. 'Z'
+                 or else Ch in 'a' .. 'z'
+                 or else Ch in '0' .. '9')
+         then
             return False;
          end if;
       end loop;
@@ -297,6 +350,191 @@ package body SSH_Lib.Config is
          return Boolean_Value (Value, Item);
       end if;
    end Canonicalize_Hostname_Value;
+
+   function Natural_Value (Value : String; Item : out Natural) return Boolean
+   is
+      Accumulator : Natural := 0;
+   begin
+      Item := 0;
+      if Value'Length = 0 then
+         return False;
+      end if;
+      for Ch of Value loop
+         if Ch not in '0' .. '9' then
+            return False;
+         end if;
+         Accumulator :=
+           Accumulator * 10 + (Character'Pos (Ch) - Character'Pos ('0'));
+      end loop;
+      Item := Accumulator;
+      return True;
+   exception
+      when others =>
+         Item := 0;
+         return False;
+   end Natural_Value;
+
+   function Duration_Seconds_Value
+     (Value : String; Item : out Natural) return Boolean
+   is
+      Accumulator : Natural := 0;
+      Total       : Natural := 0;
+
+      procedure Add_Component (Multiplier : Natural) is
+      begin
+         Total := Total + Accumulator * Multiplier;
+         Accumulator := 0;
+      end Add_Component;
+   begin
+      Item := 0;
+      if Value'Length = 0 then
+         return False;
+      end if;
+
+      for Ch of Value loop
+         if Ch in '0' .. '9' then
+            Accumulator :=
+              Accumulator * 10 + (Character'Pos (Ch) - Character'Pos ('0'));
+         elsif Ch = 's' or else Ch = 'S' then
+            Add_Component (1);
+         elsif Ch = 'm' or else Ch = 'M' then
+            Add_Component (60);
+         elsif Ch = 'h' or else Ch = 'H' then
+            Add_Component (3_600);
+         elsif Ch = 'd' or else Ch = 'D' then
+            Add_Component (86_400);
+         else
+            return False;
+         end if;
+      end loop;
+
+      if Accumulator > 0 then
+         Total := Total + Accumulator;
+      end if;
+
+      Item := Total;
+      return True;
+   exception
+      when others =>
+         Item := 0;
+         return False;
+   end Duration_Seconds_Value;
+
+   function Byte_Count_Value
+     (Value : String; Item : out Interfaces.Unsigned_64) return Boolean
+   is
+      Accumulator : Interfaces.Unsigned_64 := 0;
+      Multiplier  : Interfaces.Unsigned_64 := 1;
+      Last_Index  : Natural := Value'Last;
+   begin
+      Item := 0;
+      if Value'Length = 0 then
+         return False;
+      end if;
+
+      declare
+         Suffix : constant Character :=
+           Ada.Characters.Handling.To_Lower (Value (Value'Last));
+      begin
+         if Suffix = 'k' then
+            Multiplier := 1_024;
+            Last_Index := Value'Last - 1;
+         elsif Suffix = 'm' then
+            Multiplier := 1_048_576;
+            Last_Index := Value'Last - 1;
+         elsif Suffix = 'g' then
+            Multiplier := 1_073_741_824;
+            Last_Index := Value'Last - 1;
+         elsif Suffix = 't' then
+            Multiplier := 1_099_511_627_776;
+            Last_Index := Value'Last - 1;
+         end if;
+      end;
+
+      if Last_Index < Value'First then
+         return False;
+      end if;
+
+      for Index in Value'First .. Last_Index loop
+         if Value (Index) not in '0' .. '9' then
+            return False;
+         end if;
+         Accumulator :=
+           Accumulator * 10
+           + Interfaces.Unsigned_64
+               (Character'Pos (Value (Index)) - Character'Pos ('0'));
+      end loop;
+
+      Item := Accumulator * Multiplier;
+      return True;
+   exception
+      when others =>
+         Item := 0;
+         return False;
+   end Byte_Count_Value;
+
+   function Rekey_Limit_Value
+     (Value   : String;
+      Bytes   : out Interfaces.Unsigned_64;
+      Seconds : out Natural) return Boolean
+   is
+      Trimmed    : constant String :=
+        Ada.Strings.Fixed.Trim (Value, Ada.Strings.Both);
+      Lower      : constant String :=
+        Ada.Characters.Handling.To_Lower (Trimmed);
+      Split_Pos  : Natural := 0;
+      First_Text : Unbounded_String;
+      Rest_Text  : Unbounded_String;
+   begin
+      Bytes := 0;
+      Seconds := 0;
+
+      if Lower = "none" then
+         return True;
+      elsif Lower = "default" then
+         Bytes := 1_073_741_824;
+         Seconds := 3_600;
+         return True;
+      elsif Trimmed'Length = 0 then
+         return False;
+      end if;
+
+      for Index in Trimmed'Range loop
+         if Trimmed (Index) = ' ' or else Trimmed (Index) = Character'Val (9)
+         then
+            Split_Pos := Index;
+            exit;
+         end if;
+      end loop;
+
+      if Split_Pos = 0 then
+         First_Text := To_Unbounded_String (Trimmed);
+      else
+         First_Text :=
+           To_Unbounded_String (Trimmed (Trimmed'First .. Split_Pos - 1));
+         Rest_Text :=
+           To_Unbounded_String
+             (Ada.Strings.Fixed.Trim
+                (Trimmed (Split_Pos + 1 .. Trimmed'Last), Ada.Strings.Both));
+      end if;
+
+      if not Byte_Count_Value (To_String (First_Text), Bytes) then
+         return False;
+      end if;
+
+      if Length (Rest_Text) > 0
+        and then not Duration_Seconds_Value (To_String (Rest_Text), Seconds)
+      then
+         return False;
+      end if;
+
+      return True;
+   exception
+      when others =>
+         Bytes := 0;
+         Seconds := 0;
+         return False;
+   end Rekey_Limit_Value;
 
    function Is_Valid_Config_Name_List (Value : String) return Boolean is
    begin
@@ -590,6 +828,7 @@ package body SSH_Lib.Config is
 
          when Pubkey_Accepted_Algorithms_Directive
             | Host_Key_Algorithms_Directive
+            | CA_Signature_Algorithms_Directive
             | Kex_Algorithms_Directive
             | Ciphers_Directive
             | Macs_Directive                                 =>
@@ -620,6 +859,169 @@ package body SSH_Lib.Config is
                Item.Status := CryptoLib.Errors.Internal_Error;
             end if;
 
+         when Batch_Mode_Directive
+            | Forward_Agent_Directive
+            | Forward_X11_Directive
+            | Password_Authentication_Directive
+            | Pubkey_Authentication_Directive
+            | Kbd_Interactive_Authentication_Directive
+            | Check_Host_IP_Directive
+            | Hash_Known_Hosts_Directive
+            | Canonicalize_Fallback_Local_Directive
+            | Hostbased_Authentication_Directive
+            | No_Host_Authentication_For_Localhost_Directive
+            | TCP_Keep_Alive_Directive
+            | Visual_Host_Key_Directive
+            | Stdin_Null_Directive
+            | Fork_After_Authentication_Directive
+            | Proxy_Use_Fdpass_Directive
+            | Enable_SSH_Keysign_Directive
+            | GSSAPI_Authentication_Directive
+            | GSSAPI_Delegate_Credentials_Directive
+            | Permit_Local_Command_Directive
+            | Clear_All_Forwardings_Directive
+            | Exit_On_Forward_Failure_Directive              =>
+            if not Boolean_Value (Value, Bool_Ignored) then
+               Item.Status := CryptoLib.Errors.Internal_Error;
+            end if;
+
+         when Server_Alive_Interval_Directive
+            | Server_Alive_Count_Max_Directive
+            | Number_Of_Password_Prompts_Directive
+            | Canonicalize_Max_Dots_Directive
+            | Connection_Attempts_Directive                  =>
+            declare
+               Natural_Ignored : Natural := 0;
+            begin
+               if not Natural_Value (Value, Natural_Ignored) then
+                  Item.Status := CryptoLib.Errors.Invalid_Command;
+               end if;
+            end;
+
+         when Request_TTY_Directive                          =>
+            declare
+               Lower_Value : constant String :=
+                 Ada.Characters.Handling.To_Lower (Value);
+            begin
+               if Lower_Value /= "yes"
+                 and then Lower_Value /= "no"
+                 and then Lower_Value /= "force"
+                 and then Lower_Value /= "auto"
+               then
+                  Item.Status := CryptoLib.Errors.Invalid_Command;
+               end if;
+            end;
+
+         when Update_Host_Keys_Directive                     =>
+            declare
+               Lower_Value : constant String :=
+                 Ada.Characters.Handling.To_Lower (Value);
+            begin
+               if Lower_Value /= "yes"
+                 and then Lower_Value /= "no"
+                 and then Lower_Value /= "ask"
+               then
+                  Item.Status := CryptoLib.Errors.Invalid_Command;
+               end if;
+            end;
+
+         when Strict_Host_Key_Checking_Directive             =>
+            declare
+               Lower_Value : constant String :=
+                 Ada.Characters.Handling.To_Lower (Value);
+            begin
+               if Lower_Value /= "yes"
+                 and then Lower_Value /= "no"
+                 and then Lower_Value /= "ask"
+                 and then Lower_Value /= "accept-new"
+                 and then Lower_Value /= "off"
+               then
+                  Item.Status := CryptoLib.Errors.Invalid_Command;
+               end if;
+            end;
+
+         when Verify_Host_Key_DNS_Directive                  =>
+            declare
+               Lower_Value : constant String :=
+                 Ada.Characters.Handling.To_Lower (Value);
+            begin
+               if Lower_Value /= "yes"
+                 and then Lower_Value /= "no"
+                 and then Lower_Value /= "ask"
+               then
+                  Item.Status := CryptoLib.Errors.Invalid_Command;
+               end if;
+            end;
+
+         when Fingerprint_Hash_Directive                     =>
+            declare
+               Lower_Value : constant String :=
+                 Ada.Characters.Handling.To_Lower (Value);
+            begin
+               if Lower_Value /= "sha256"
+                 and then Lower_Value /= "md5"
+               then
+                  Item.Status := CryptoLib.Errors.Invalid_Command;
+               end if;
+            end;
+
+         when Address_Family_Directive                       =>
+            declare
+               Lower_Value : constant String :=
+                 Ada.Characters.Handling.To_Lower (Value);
+            begin
+               if Lower_Value /= "any"
+                 and then Lower_Value /= "inet"
+                 and then Lower_Value /= "inet6"
+               then
+                  Item.Status := CryptoLib.Errors.Invalid_Command;
+               end if;
+            end;
+
+         when Session_Type_Directive                         =>
+            declare
+               Lower_Value : constant String :=
+                 Ada.Characters.Handling.To_Lower (Value);
+            begin
+               if Lower_Value /= "none"
+                 and then Lower_Value /= "subsystem"
+                 and then Lower_Value /= "default"
+               then
+                  Item.Status := CryptoLib.Errors.Invalid_Command;
+               end if;
+            end;
+
+         when Add_Keys_To_Agent_Directive                    =>
+            declare
+               Lower_Value : constant String :=
+                 Ada.Characters.Handling.To_Lower (Value);
+            begin
+               if Lower_Value /= "yes"
+                 and then Lower_Value /= "no"
+                 and then Lower_Value /= "ask"
+                 and then Lower_Value /= "confirm"
+                 and then not Is_Valid_Name_Text (Value)
+               then
+                  Item.Status := CryptoLib.Errors.Invalid_Command;
+               end if;
+            end;
+
+         when Remote_Command_Directive
+            | Local_Command_Directive
+            | Log_Level_Directive
+            | Canonical_Domains_Directive
+            | Canonicalize_Permitted_CNAMEs_Directive
+            | Bind_Address_Directive
+            | Bind_Interface_Directive
+            | IP_QoS_Directive
+            | Escape_Char_Directive
+            | Log_Verbose_Directive
+            | Rekey_Limit_Directive
+            | Known_Hosts_Command_Directive                 =>
+            if not Is_Valid_Name_Text (Value) then
+               Item.Status := CryptoLib.Errors.Invalid_Command;
+            end if;
+
          when Reject_Unknown_Cert_Critical_Options_Directive =>
             if not Boolean_Value (Value, Bool_Ignored) then
                Item.Status := CryptoLib.Errors.Internal_Error;
@@ -637,8 +1039,6 @@ package body SSH_Lib.Config is
 
          when Proxy_Command_Directive                        =>
             if not Is_Valid_Name_Text (Value) then
-               Item.Status := CryptoLib.Errors.Unsupported_Feature;
-            else
                Item.Status := CryptoLib.Errors.Unsupported_Feature;
             end if;
 
@@ -878,6 +1278,62 @@ package body SSH_Lib.Config is
             Make_Directive
               (Set_Env_Directive,
                Strip_Trailing_Comment (Rest_After_First_Token (Line_Text))));
+      elsif To_String (Lower_Keyword) = "remotecommand" then
+         Add_Directive
+           (Config,
+            Current_Block,
+            Make_Directive
+              (Remote_Command_Directive,
+               Strip_Trailing_Comment (Rest_After_First_Token (Line_Text))));
+      elsif To_String (Lower_Keyword) = "localcommand" then
+         Add_Directive
+           (Config,
+            Current_Block,
+            Make_Directive
+              (Local_Command_Directive,
+               Strip_Trailing_Comment (Rest_After_First_Token (Line_Text))));
+      elsif To_String (Lower_Keyword) = "canonicaldomains" then
+         Add_Directive
+           (Config,
+            Current_Block,
+            Make_Directive
+              (Canonical_Domains_Directive,
+               Strip_Trailing_Comment (Rest_After_First_Token (Line_Text))));
+      elsif To_String (Lower_Keyword) = "canonicalizepermittedcnames" then
+         Add_Directive
+           (Config,
+            Current_Block,
+            Make_Directive
+              (Canonicalize_Permitted_CNAMEs_Directive,
+               Strip_Trailing_Comment (Rest_After_First_Token (Line_Text))));
+      elsif To_String (Lower_Keyword) = "ipqos" then
+         Add_Directive
+           (Config,
+            Current_Block,
+            Make_Directive
+              (IP_QoS_Directive,
+               Strip_Trailing_Comment (Rest_After_First_Token (Line_Text))));
+      elsif To_String (Lower_Keyword) = "logverbose" then
+         Add_Directive
+           (Config,
+            Current_Block,
+            Make_Directive
+              (Log_Verbose_Directive,
+               Strip_Trailing_Comment (Rest_After_First_Token (Line_Text))));
+      elsif To_String (Lower_Keyword) = "rekeylimit" then
+         Add_Directive
+           (Config,
+            Current_Block,
+            Make_Directive
+              (Rekey_Limit_Directive,
+               Strip_Trailing_Comment (Rest_After_First_Token (Line_Text))));
+      elsif To_String (Lower_Keyword) = "knownhostscommand" then
+         Add_Directive
+           (Config,
+            Current_Block,
+            Make_Directive
+              (Known_Hosts_Command_Directive,
+               Strip_Trailing_Comment (Rest_After_First_Token (Line_Text))));
       elsif Tokens.Length >= 2
         and then To_String (Lower_Keyword) = "userknownhostsfile"
       then
@@ -1039,6 +1495,228 @@ package body SSH_Lib.Config is
                   Current_Block,
                   Make_Directive
                     (Canonicalize_Hostname_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "batchmode" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Batch_Mode_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "forwardagent" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Forward_Agent_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "forwardx11" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Forward_X11_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "requesttty" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Request_TTY_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "serveraliveinterval" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Server_Alive_Interval_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "serveralivecountmax" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Server_Alive_Count_Max_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "tcpkeepalive" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (TCP_Keep_Alive_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "loglevel" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Log_Level_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "visualhostkey" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Visual_Host_Key_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "updatehostkeys" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Update_Host_Keys_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "passwordauthentication" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Password_Authentication_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "pubkeyauthentication" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Pubkey_Authentication_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "kbdinteractiveauthentication"
+              or else To_String (Lower_Keyword) = "keyboardinteractiveauthentication"
+            then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Kbd_Interactive_Authentication_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "numberofpasswordprompts" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Number_Of_Password_Prompts_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "stricthostkeychecking" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Strict_Host_Key_Checking_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "checkhostip" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Check_Host_IP_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "hashknownhosts" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Hash_Known_Hosts_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "canonicalizemaxdots" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Canonicalize_Max_Dots_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "canonicalizefallbacklocal" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Canonicalize_Fallback_Local_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "hostbasedauthentication" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Hostbased_Authentication_Directive, Value_Text));
+            elsif To_String (Lower_Keyword)
+              = "nohostauthenticationforlocalhost"
+            then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (No_Host_Authentication_For_Localhost_Directive,
+                     Value_Text));
+            elsif To_String (Lower_Keyword) = "addressfamily" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Address_Family_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "bindaddress" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Bind_Address_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "bindinterface" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Bind_Interface_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "escapechar" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Escape_Char_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "sessiontype" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Session_Type_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "stdinnull" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Stdin_Null_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "forkafterauthentication" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Fork_After_Authentication_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "proxyusefdpass" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Proxy_Use_Fdpass_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "enablesshkeysign" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Enable_SSH_Keysign_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "gssapiauthentication" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (GSSAPI_Authentication_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "gssapidelegatecredentials" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (GSSAPI_Delegate_Credentials_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "verifyhostkeydns" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Verify_Host_Key_DNS_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "fingerprinthash" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Fingerprint_Hash_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "connectionattempts" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Connection_Attempts_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "casignaturealgorithms" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (CA_Signature_Algorithms_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "permitlocalcommand" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Permit_Local_Command_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "addkeystoagent" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Add_Keys_To_Agent_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "clearallforwardings" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive (Clear_All_Forwardings_Directive, Value_Text));
+            elsif To_String (Lower_Keyword) = "exitonforwardfailure" then
+               Add_Directive
+                 (Config,
+                  Current_Block,
+                  Make_Directive
+                    (Exit_On_Forward_Failure_Directive, Value_Text));
             elsif To_String (Lower_Keyword) = "certificateauthorityfile" then
                Add_Directive
                  (Config,
@@ -1661,6 +2339,11 @@ package body SSH_Lib.Config is
       return
         "ssh-ed25519,"
         & "ecdsa-sha2-nistp256,"
+        & "ecdsa-sha2-nistp384,"
+        & "ecdsa-sha2-nistp521,"
+        & "ecdsa-sha2-nistp256-cert-v01@openssh.com,"
+        & "ecdsa-sha2-nistp384-cert-v01@openssh.com,"
+        & "ecdsa-sha2-nistp521-cert-v01@openssh.com,"
         & "sk-ssh-ed25519@openssh.com,"
         & "sk-ecdsa-sha2-nistp256@openssh.com,"
         & "sk-ssh-ed25519-cert-v01@openssh.com,"
@@ -1721,6 +2404,9 @@ package body SSH_Lib.Config is
       State   : in out Assignment_State) return CryptoLib.Errors.Status
    is
       Port_Value : Natural;
+      Natural_Value_Item : Natural;
+      Rekey_Bytes_Value : Interfaces.Unsigned_64;
+      Rekey_Seconds_Value : Natural;
       Bool_Value : Boolean;
    begin
       case Item.Kind is
@@ -1941,6 +2627,531 @@ package body SSH_Lib.Config is
                end if;
                Options.Canonicalize_Hostname := Bool_Value;
                State.Canonicalize_Hostname_Set := True;
+            end if;
+
+         when Batch_Mode_Directive                           =>
+            if not State.Batch_Mode_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Batch_Mode := Bool_Value;
+               State.Batch_Mode_Set := True;
+            end if;
+
+         when Forward_Agent_Directive                        =>
+            if not State.Forward_Agent_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Forward_Agent := Bool_Value;
+               State.Forward_Agent_Set := True;
+            end if;
+
+         when Forward_X11_Directive                          =>
+            if not State.Forward_X11_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Forward_X11 := Bool_Value;
+               State.Forward_X11_Set := True;
+            end if;
+
+         when Request_TTY_Directive                          =>
+            if not State.Request_TTY_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Request_TTY := Item.Value;
+               State.Request_TTY_Set := True;
+            end if;
+
+         when Remote_Command_Directive                       =>
+            if not State.Remote_Command_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Remote_Command := Item.Value;
+               State.Remote_Command_Set := True;
+            end if;
+
+         when Server_Alive_Interval_Directive                =>
+            if not State.Server_Alive_Interval_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Natural_Value (To_String (Item.Value), Natural_Value_Item) then
+                  return CryptoLib.Errors.Invalid_Command;
+               end if;
+               Options.Server_Alive_Interval := Natural_Value_Item;
+               State.Server_Alive_Interval_Set := True;
+            end if;
+
+         when Server_Alive_Count_Max_Directive               =>
+            if not State.Server_Alive_Count_Max_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Natural_Value (To_String (Item.Value), Natural_Value_Item) then
+                  return CryptoLib.Errors.Invalid_Command;
+               end if;
+               Options.Server_Alive_Count_Max := Natural_Value_Item;
+               State.Server_Alive_Count_Max_Set := True;
+            end if;
+
+         when TCP_Keep_Alive_Directive                       =>
+            if not State.TCP_Keep_Alive_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.TCP_Keep_Alive := Bool_Value;
+               State.TCP_Keep_Alive_Set := True;
+            end if;
+
+         when Log_Level_Directive                            =>
+            if not State.Log_Level_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Log_Level := Item.Value;
+               State.Log_Level_Set := True;
+            end if;
+
+         when Visual_Host_Key_Directive                      =>
+            if not State.Visual_Host_Key_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Visual_Host_Key := Bool_Value;
+               State.Visual_Host_Key_Set := True;
+            end if;
+
+         when Update_Host_Keys_Directive                     =>
+            if not State.Update_Host_Keys_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Update_Host_Keys := Item.Value;
+               State.Update_Host_Keys_Set := True;
+            end if;
+
+         when Password_Authentication_Directive              =>
+            if not State.Password_Authentication_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Password_Authentication := Bool_Value;
+               State.Password_Authentication_Set := True;
+            end if;
+
+         when Pubkey_Authentication_Directive                =>
+            if not State.Pubkey_Authentication_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Pubkey_Authentication := Bool_Value;
+               State.Pubkey_Authentication_Set := True;
+            end if;
+
+         when Kbd_Interactive_Authentication_Directive       =>
+            if not State.Kbd_Interactive_Authentication_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Kbd_Interactive_Authentication := Bool_Value;
+               State.Kbd_Interactive_Authentication_Set := True;
+            end if;
+
+         when Number_Of_Password_Prompts_Directive           =>
+            if not State.Number_Of_Password_Prompts_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Natural_Value (To_String (Item.Value), Natural_Value_Item) then
+                  return CryptoLib.Errors.Invalid_Command;
+               end if;
+               Options.Number_Of_Password_Prompts := Natural_Value_Item;
+               State.Number_Of_Password_Prompts_Set := True;
+            end if;
+
+         when Strict_Host_Key_Checking_Directive             =>
+            if not State.Strict_Host_Key_Checking_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Strict_Host_Key_Checking := Item.Value;
+               State.Strict_Host_Key_Checking_Set := True;
+            end if;
+
+         when Check_Host_IP_Directive                        =>
+            if not State.Check_Host_IP_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Check_Host_IP := Bool_Value;
+               State.Check_Host_IP_Set := True;
+            end if;
+
+         when Hash_Known_Hosts_Directive                     =>
+            if not State.Hash_Known_Hosts_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Hash_Known_Hosts := Bool_Value;
+               State.Hash_Known_Hosts_Set := True;
+            end if;
+
+         when Canonical_Domains_Directive                    =>
+            if not State.Canonical_Domains_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Canonical_Domains := Item.Value;
+               State.Canonical_Domains_Set := True;
+            end if;
+
+         when Canonicalize_Max_Dots_Directive                =>
+            if not State.Canonicalize_Max_Dots_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Natural_Value (To_String (Item.Value), Natural_Value_Item) then
+                  return CryptoLib.Errors.Invalid_Command;
+               end if;
+               Options.Canonicalize_Max_Dots := Natural_Value_Item;
+               State.Canonicalize_Max_Dots_Set := True;
+            end if;
+
+         when Canonicalize_Fallback_Local_Directive          =>
+            if not State.Canonicalize_Fallback_Local_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Canonicalize_Fallback_Local := Bool_Value;
+               State.Canonicalize_Fallback_Local_Set := True;
+            end if;
+
+         when Canonicalize_Permitted_CNAMEs_Directive        =>
+            if not State.Canonicalize_Permitted_CNAMEs_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Canonicalize_Permitted_CNAMEs := Item.Value;
+               State.Canonicalize_Permitted_CNAMEs_Set := True;
+            end if;
+
+         when Hostbased_Authentication_Directive             =>
+            if not State.Hostbased_Authentication_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Hostbased_Authentication := Bool_Value;
+               State.Hostbased_Authentication_Set := True;
+            end if;
+
+         when No_Host_Authentication_For_Localhost_Directive =>
+            if not State.No_Host_Authentication_For_Localhost_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.No_Host_Authentication_For_Localhost := Bool_Value;
+               State.No_Host_Authentication_For_Localhost_Set := True;
+            end if;
+
+         when Address_Family_Directive                       =>
+            if not State.Address_Family_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Address_Family := Item.Value;
+               State.Address_Family_Set := True;
+            end if;
+
+         when Bind_Address_Directive                         =>
+            if not State.Bind_Address_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Bind_Address := Item.Value;
+               State.Bind_Address_Set := True;
+            end if;
+
+         when Bind_Interface_Directive                       =>
+            if not State.Bind_Interface_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Bind_Interface := Item.Value;
+               State.Bind_Interface_Set := True;
+            end if;
+
+         when IP_QoS_Directive                               =>
+            if not State.IP_QoS_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.IP_QoS := Item.Value;
+               State.IP_QoS_Set := True;
+            end if;
+
+         when Escape_Char_Directive                          =>
+            if not State.Escape_Char_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Escape_Char := Item.Value;
+               State.Escape_Char_Set := True;
+            end if;
+
+         when Session_Type_Directive                         =>
+            if not State.Session_Type_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Session_Type := Item.Value;
+               State.Session_Type_Set := True;
+            end if;
+
+         when Stdin_Null_Directive                           =>
+            if not State.Stdin_Null_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Stdin_Null := Bool_Value;
+               State.Stdin_Null_Set := True;
+            end if;
+
+         when Fork_After_Authentication_Directive            =>
+            if not State.Fork_After_Authentication_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Fork_After_Authentication := Bool_Value;
+               State.Fork_After_Authentication_Set := True;
+            end if;
+
+         when Proxy_Use_Fdpass_Directive                     =>
+            if not State.Proxy_Use_Fdpass_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Proxy_Use_Fdpass := Bool_Value;
+               State.Proxy_Use_Fdpass_Set := True;
+            end if;
+
+         when Enable_SSH_Keysign_Directive                   =>
+            if not State.Enable_SSH_Keysign_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Enable_SSH_Keysign := Bool_Value;
+               State.Enable_SSH_Keysign_Set := True;
+            end if;
+
+         when GSSAPI_Authentication_Directive                =>
+            if not State.GSSAPI_Authentication_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.GSSAPI_Authentication := Bool_Value;
+               State.GSSAPI_Authentication_Set := True;
+            end if;
+
+         when GSSAPI_Delegate_Credentials_Directive          =>
+            if not State.GSSAPI_Delegate_Credentials_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.GSSAPI_Delegate_Credentials := Bool_Value;
+               State.GSSAPI_Delegate_Credentials_Set := True;
+            end if;
+
+         when Log_Verbose_Directive                          =>
+            if not State.Log_Verbose_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Log_Verbose := Item.Value;
+               State.Log_Verbose_Set := True;
+            end if;
+
+         when Verify_Host_Key_DNS_Directive                  =>
+            if not State.Verify_Host_Key_DNS_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Verify_Host_Key_DNS := Item.Value;
+               State.Verify_Host_Key_DNS_Set := True;
+            end if;
+
+         when Fingerprint_Hash_Directive                     =>
+            if not State.Fingerprint_Hash_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Fingerprint_Hash := Item.Value;
+               State.Fingerprint_Hash_Set := True;
+            end if;
+
+         when Connection_Attempts_Directive                  =>
+            if not State.Connection_Attempts_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Natural_Value (To_String (Item.Value), Natural_Value_Item) then
+                  return CryptoLib.Errors.Invalid_Command;
+               end if;
+               Options.Connection_Attempts := Natural_Value_Item;
+               State.Connection_Attempts_Set := True;
+            end if;
+
+         when Rekey_Limit_Directive                          =>
+            if not State.Rekey_Limit_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Rekey_Limit_Value
+                        (To_String (Item.Value),
+                         Rekey_Bytes_Value,
+                         Rekey_Seconds_Value)
+               then
+                  return CryptoLib.Errors.Invalid_Command;
+               end if;
+               Options.Rekey_Limit := Item.Value;
+               Options.Rekey_After_Bytes := Rekey_Bytes_Value;
+               Options.Rekey_After_Seconds := Rekey_Seconds_Value;
+               State.Rekey_Limit_Set := True;
+            end if;
+
+         when CA_Signature_Algorithms_Directive              =>
+            if not State.CA_Signature_Algorithms_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.CA_Signature_Algorithms :=
+                 OpenSSH_Algorithm_List
+                   (SSH_Lib.Algorithms.Server_Host_Key,
+                    To_String (Item.Value));
+               State.CA_Signature_Algorithms_Set := True;
+            end if;
+
+         when Known_Hosts_Command_Directive                  =>
+            if not State.Known_Hosts_Command_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Known_Hosts_Command := Item.Value;
+               State.Known_Hosts_Command_Set := True;
+            end if;
+
+         when Permit_Local_Command_Directive                 =>
+            if not State.Permit_Local_Command_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Permit_Local_Command := Bool_Value;
+               State.Permit_Local_Command_Set := True;
+            end if;
+
+         when Local_Command_Directive                        =>
+            if not State.Local_Command_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Local_Command := Item.Value;
+               State.Local_Command_Set := True;
+            end if;
+
+         when Add_Keys_To_Agent_Directive                    =>
+            if not State.Add_Keys_To_Agent_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               Options.Add_Keys_To_Agent := Item.Value;
+               State.Add_Keys_To_Agent_Set := True;
+            end if;
+
+         when Clear_All_Forwardings_Directive                =>
+            if not State.Clear_All_Forwardings_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Clear_All_Forwardings := Bool_Value;
+               State.Clear_All_Forwardings_Set := True;
+            end if;
+
+         when Exit_On_Forward_Failure_Directive              =>
+            if not State.Exit_On_Forward_Failure_Set then
+               if Item.Status /= CryptoLib.Errors.Ok then
+                  return Item.Status;
+               end if;
+               if not Boolean_Value (To_String (Item.Value), Bool_Value) then
+                  return CryptoLib.Errors.Internal_Error;
+               end if;
+               Options.Exit_On_Forward_Failure := Bool_Value;
+               State.Exit_On_Forward_Failure_Set := True;
             end if;
 
          when Certificate_Authority_File_Directive           =>

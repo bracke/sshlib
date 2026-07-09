@@ -11,6 +11,18 @@ package body SSH_Lib.Protocol.Encrypted_State is
 
    Newkeys_Message : constant Stream_Element := 21;
 
+   --  AEAD ciphers (chacha20-poly1305 and AES-GCM) are not modeled by the
+   --  generic CryptoLib.Ciphers block-cipher interface; their SSH packet
+   --  framing is performed by SSH_Lib.Protocol.Protected_Packets. This
+   --  Kex_State's cipher objects are only ever Initialize-d here and never used
+   --  to transform packet data, so an AEAD selection must not be pushed through
+   --  CryptoLib.Ciphers.Initialize (which fails closed with Unsupported_Feature
+   --  and would abort an otherwise valid handshake).
+   function Is_AEAD_Cipher (Name : String) return Boolean is
+     (Name = "chacha20-poly1305@openssh.com"
+      or else Name = "aes128-gcm@openssh.com"
+      or else Name = "aes256-gcm@openssh.com");
+
    procedure Reset (Item : out Kex_State) is
    begin
       SSH_Lib.Protocol.Kex.Clear (Item.Algorithms_Value);
@@ -108,17 +120,25 @@ package body SSH_Lib.Protocol.Encrypted_State is
          return Handshake_Failed;
       end if;
       declare
-         Cipher_Name : constant String := To_String (Item.Algorithms_Value.Cipher_Client_To_Server);
-         Status_Value : constant Status := CryptoLib.Ciphers.Initialize
-           (Item.Client_To_Server_Cipher,
-            Cipher_Name,
-            CryptoLib.Ciphers.Client_To_Server,
-            SSH_Lib.Protocol.Buffers.To_Array (Item.Keys_Value.Encryption_Key_Client_To_Server),
-            SSH_Lib.Protocol.Buffers.To_Array (Item.Keys_Value.Initial_IV_Client_To_Server));
+         Cipher_Name : constant String :=
+           To_String (Item.Algorithms_Value.Cipher_Client_To_Server);
       begin
-         if Status_Value /= Ok then
-            Item.Outbound_Active_Value := False;
-            return Status_Value;
+         if not Is_AEAD_Cipher (Cipher_Name) then
+            declare
+               Status_Value : constant Status := CryptoLib.Ciphers.Initialize
+                 (Item.Client_To_Server_Cipher,
+                  Cipher_Name,
+                  CryptoLib.Ciphers.Client_To_Server,
+                  SSH_Lib.Protocol.Buffers.To_Array
+                    (Item.Keys_Value.Encryption_Key_Client_To_Server),
+                  SSH_Lib.Protocol.Buffers.To_Array
+                    (Item.Keys_Value.Initial_IV_Client_To_Server));
+            begin
+               if Status_Value /= Ok then
+                  Item.Outbound_Active_Value := False;
+                  return Status_Value;
+               end if;
+            end;
          end if;
       end;
       Item.Newkeys_Sent_Value := True;
@@ -142,17 +162,25 @@ package body SSH_Lib.Protocol.Encrypted_State is
          return Handshake_Failed;
       end if;
       declare
-         Cipher_Name : constant String := To_String (Item.Algorithms_Value.Cipher_Server_To_Client);
-         Status_Value : constant Status := CryptoLib.Ciphers.Initialize
-           (Item.Server_To_Client_Cipher,
-            Cipher_Name,
-            CryptoLib.Ciphers.Server_To_Client,
-            SSH_Lib.Protocol.Buffers.To_Array (Item.Keys_Value.Encryption_Key_Server_To_Client),
-            SSH_Lib.Protocol.Buffers.To_Array (Item.Keys_Value.Initial_IV_Server_To_Client));
+         Cipher_Name : constant String :=
+           To_String (Item.Algorithms_Value.Cipher_Server_To_Client);
       begin
-         if Status_Value /= Ok then
-            Item.Inbound_Active_Value := False;
-            return Status_Value;
+         if not Is_AEAD_Cipher (Cipher_Name) then
+            declare
+               Status_Value : constant Status := CryptoLib.Ciphers.Initialize
+                 (Item.Server_To_Client_Cipher,
+                  Cipher_Name,
+                  CryptoLib.Ciphers.Server_To_Client,
+                  SSH_Lib.Protocol.Buffers.To_Array
+                    (Item.Keys_Value.Encryption_Key_Server_To_Client),
+                  SSH_Lib.Protocol.Buffers.To_Array
+                    (Item.Keys_Value.Initial_IV_Server_To_Client));
+            begin
+               if Status_Value /= Ok then
+                  Item.Inbound_Active_Value := False;
+                  return Status_Value;
+               end if;
+            end;
          end if;
       end;
       Item.Newkeys_Received_Value := True;

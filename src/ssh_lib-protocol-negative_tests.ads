@@ -1,6 +1,15 @@
 with Ada.Streams;
 with CryptoLib.Errors;
 
+--  @summary Catalogue of negative/hostile-input test cases for the SSH
+--  protocol, mapping each case to its expected Status, category, and invariant.
+--
+--  Enumerates the adversarial and edge-case scenarios (bad host keys,
+--  unsupported algorithms, tampered packets, malformed config/identity input,
+--  resource-bound violations, and byte-preservation checks) that the SSH
+--  implementation must reject or handle deterministically.  The query
+--  functions give tests the reference expectation for each case so behaviour
+--  can be asserted uniformly.
 package SSH_Lib.Protocol.Negative_Tests is
    type Negative_Category is
      (Host_Key_Category,
@@ -147,35 +156,64 @@ package SSH_Lib.Protocol.Negative_Tests is
       Agent_Transport_Exception,
       Channel_Dispatch_Exception);
 
+   --  Return the Status a given negative case is expected to produce.
+   --  @param Case_Item the negative case to look up
+   --  @return the reference Status the implementation must return for the case
    function Expected_Status
      (Case_Item : Negative_Case)
       return CryptoLib.Errors.Status;
 
+   --  Return a human-readable label identifying a negative case.
+   --  @param Case_Item the negative case to name
+   --  @return the display label for the case
    function Case_Label (Case_Item : Negative_Case) return String;
 
+   --  Return the category that groups a given negative case.
+   --  @param Case_Item the negative case to classify
+   --  @return the Negative_Category the case belongs to
    function Case_Category
      (Case_Item : Negative_Case)
       return Negative_Category;
 
+   --  Return a human-readable label identifying a negative category.
+   --  @param Category_Item the category to name
+   --  @return the display label for the category
    function Category_Label
      (Category_Item : Negative_Category)
       return String;
 
+   --  Return the security invariant that a given negative case exercises.
+   --  @param Case_Item the negative case to map
+   --  @return the Negative_Invariant asserted by the case
    function Case_Invariant
      (Case_Item : Negative_Case)
       return Negative_Invariant;
 
+   --  Return a human-readable label identifying a negative invariant.
+   --  @param Invariant_Item the invariant to name
+   --  @return the display label for the invariant
    function Invariant_Label
      (Invariant_Item : Negative_Invariant)
       return String;
 
+   --  Return True when the case asserts that valid data is preserved verbatim
+   --  (rather than that a hostile input is rejected).
+   --  @param Case_Item the negative case to test
+   --  @return True for a preservation case, False for a hostile-rejection case
    function Is_Preservation_Case
      (Case_Item : Negative_Case)
       return Boolean;
 
+   --  Return True when the case asserts that a hostile input is rejected
+   --  (the complement of Is_Preservation_Case).
+   --  @param Case_Item the negative case to test
+   --  @return True for a hostile-rejection case, False for a preservation case
    function Is_Hostile_Case
      (Case_Item : Negative_Case)
       return Boolean;
 
+   --  Return the fixed six-byte edge-case set (00, 0A, 0D, 7F, 80, FF) used to
+   --  exercise binary/byte-preservation cases.
+   --  @return the six-element boundary byte array
    function Byte_Set return Ada.Streams.Stream_Element_Array;
 end SSH_Lib.Protocol.Negative_Tests;

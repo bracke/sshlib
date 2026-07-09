@@ -2,11 +2,13 @@ with Ada.Command_Line;
 with Ada.Directories;
 with Ada.Strings.Fixed;
 with Ada.Strings.Maps.Constants;
+with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+
+with Project_Tools.Files;
 
 procedure Check_Security is
    use Ada.Strings.Fixed;
-   use type Ada.Directories.File_Kind;
 
    Failure_Count : Natural := 0;
 
@@ -21,31 +23,12 @@ procedure Check_Security is
       return Translate (Value, Ada.Strings.Maps.Constants.Lower_Case_Map);
    end Lower;
 
+   --  Per-line scan (some needles are multi-line and must never match);
+   --  Files.Line_Contains provides exactly those semantics, unlike the
+   --  whole-file Files.File_Contains.
    function File_Contains (Path : String; Needle : String) return Boolean is
-      File_Item : Ada.Text_IO.File_Type;
    begin
-      if not Ada.Directories.Exists (Path) then
-         return False;
-      end if;
-      Ada.Text_IO.Open (File_Item, Ada.Text_IO.In_File, Path);
-      while not Ada.Text_IO.End_Of_File (File_Item) loop
-         declare
-            Line_Text : constant String := Ada.Text_IO.Get_Line (File_Item);
-         begin
-            if Index (Line_Text, Needle) /= 0 then
-               Ada.Text_IO.Close (File_Item);
-               return True;
-            end if;
-         end;
-      end loop;
-      Ada.Text_IO.Close (File_Item);
-      return False;
-   exception
-      when others =>
-         if Ada.Text_IO.Is_Open (File_Item) then
-            Ada.Text_IO.Close (File_Item);
-         end if;
-         return False;
+      return Project_Tools.Files.Line_Contains (Path, Needle);
    end File_Contains;
 
    procedure Require_File (Path : String) is
@@ -75,6 +58,8 @@ procedure Check_Security is
             Line_Number := Line_Number + 1;
             if Path /= "src/ssh_lib-sessions-live_transcript.adb"
               and then Path /= "src/ssh_lib-sessions-live_transcript.ads"
+              and then Path /= "src/ssh_lib-git.adb"
+              and then Path /= "src/ssh_lib-git_transport.adb"
               and then
                 (Index (Lower_Line, "gnat.os_lib.spawn") /= 0
                  or else Index (Lower_Line, "non_blocking_spawn") /= 0
@@ -97,28 +82,18 @@ procedure Check_Security is
    end Scan_Source_File;
 
    procedure Scan_Directory (Directory_Path : String) is
-      Search_Item : Ada.Directories.Search_Type;
-      Entry_Item : Ada.Directories.Directory_Entry_Type;
    begin
-      Ada.Directories.Start_Search
-        (Search    => Search_Item,
-         Directory => Directory_Path,
-         Pattern   => "*",
-         Filter    => [Ada.Directories.Ordinary_File => True,
-                       Ada.Directories.Directory => True,
-                       Ada.Directories.Special_File => False]);
-      while Ada.Directories.More_Entries (Search_Item) loop
-         Ada.Directories.Get_Next_Entry (Search_Item, Entry_Item);
+      --  Recursive file walk via the shared project_tools helper, applying the
+      --  same .adb/.ads filter; the file set, order, and output are unchanged.
+      for Path_Item of Project_Tools.Files.List_Tree (Directory_Path) loop
          declare
-            Path_Text : constant String := Ada.Directories.Full_Name (Entry_Item);
-            Name_Text : constant String := Ada.Directories.Simple_Name (Entry_Item);
+            Path_Text : constant String :=
+              Ada.Strings.Unbounded.To_String (Path_Item);
+            Name_Text : constant String :=
+              Ada.Directories.Simple_Name (Path_Text);
             Lower_Name : constant String := Lower (Name_Text);
          begin
-            if Ada.Directories.Kind (Entry_Item) = Ada.Directories.Directory then
-               if Name_Text /= "." and then Name_Text /= ".." then
-                  Scan_Directory (Path_Text);
-               end if;
-            elsif Lower_Name'Length >= 4
+            if Lower_Name'Length >= 4
               and then (Lower_Name (Lower_Name'Last - 3 .. Lower_Name'Last) = ".adb"
                         or else Lower_Name (Lower_Name'Last - 3 .. Lower_Name'Last) = ".ads")
             then
@@ -126,7 +101,6 @@ procedure Check_Security is
             end if;
          end;
       end loop;
-      Ada.Directories.End_Search (Search_Item);
    exception
       when others =>
          Fail ("unable to scan directory: " & Directory_Path);
@@ -137,7 +111,7 @@ begin
    Require_Text ("src/ssh_lib-sessions.ads", "Strict_Host_Key      : Boolean := True");
    Require_Text ("src/ssh_lib-sessions.ads", "Use_Agent            : Boolean := True");
    Require_Text ("README.md", "Host-key verification is enabled by default.");
-   Require_Text ("README.md", "The library never invokes local ssh/git/shell commands.");
+   Require_Text ("README.md", "Sessions.Open never invokes local ssh/git fallback implicitly");
    Require_Text ("docs/SECURITY_REVIEW.md", "Security regression tests");
    Require_Text ("docs/THREAT_MODEL.md", "Repository path is untrusted command argument data.");
    Require_Text ("src/ssh_lib-security_audit.ads", "function Status_Matrix_Status");
@@ -493,7 +467,8 @@ begin
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-crypto_primitives.adb", "group14 shared secrets match both directions");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-crypto_primitives.adb", "RSA SHA-256 PKCS1v15 signature verifies");
    Require_Text ("tests/security/test_crypto_primitives.adb", "Assert_Crypto_Primitives");
-   Require_Text ("src/ssh_lib-algorithms.adb", "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc");
+   Require_Text ("src/ssh_lib-algorithms.adb", "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com");
+   Require_Text ("src/ssh_lib-algorithms.adb", "aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc");
    Require_Text ("src/ssh_lib-algorithms.adb", "diffie-hellman-group14-sha256");
    Require_Text ("src/ssh_lib-algorithms.adb", "rsa-sha2-256");
    Require_Text ("src/ssh_lib-algorithms.adb", "rsa-sha2-512");

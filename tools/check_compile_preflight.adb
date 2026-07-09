@@ -4,11 +4,13 @@ with Ada.Directories;
 with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Strings.Maps.Constants;
+with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+
+with Project_Tools.Files;
 
 procedure Check_Compile_Preflight is
    use Ada.Strings.Fixed;
-   use type Ada.Directories.File_Kind;
 
    Failure_Count : Natural := 0;
 
@@ -257,32 +259,12 @@ procedure Check_Compile_Preflight is
       end loop;
    end Check_Keyword_Identifier_Declarations;
 
+   --  Per-line scan (this tool passes MULTI-LINE needles that must never match);
+   --  Files.Line_Contains provides exactly those semantics, unlike the
+   --  whole-file Files.File_Contains.
    function File_Contains (Path : String; Needle : String) return Boolean is
-      File_Item : Ada.Text_IO.File_Type;
    begin
-      if not Ada.Directories.Exists (Path) then
-         return False;
-      end if;
-
-      Ada.Text_IO.Open (File_Item, Ada.Text_IO.In_File, Path);
-      while not Ada.Text_IO.End_Of_File (File_Item) loop
-         declare
-            Line_Text : constant String := Ada.Text_IO.Get_Line (File_Item);
-         begin
-            if Index (Line_Text, Needle) /= 0 then
-               Ada.Text_IO.Close (File_Item);
-               return True;
-            end if;
-         end;
-      end loop;
-      Ada.Text_IO.Close (File_Item);
-      return False;
-   exception
-      when others =>
-         if Ada.Text_IO.Is_Open (File_Item) then
-            Ada.Text_IO.Close (File_Item);
-         end if;
-         return False;
+      return Project_Tools.Files.Line_Contains (Path, Needle);
    end File_Contains;
 
 
@@ -408,45 +390,35 @@ procedure Check_Compile_Preflight is
          Fail ("unable to preflight Ada source: " & Path);
    end Check_Ada_Source;
 
+   Skip_Dirs : constant Project_Tools.Files.Name_List :=
+     [Ada.Strings.Unbounded.To_Unbounded_String ("obj"),
+      Ada.Strings.Unbounded.To_Unbounded_String ("bin"),
+      Ada.Strings.Unbounded.To_Unbounded_String (".git")];
+
    procedure Scan_Ada_Tree (Directory_Path : String) is
-      Search_Item : Ada.Directories.Search_Type;
-      Directory_Item : Ada.Directories.Directory_Entry_Type;
    begin
+      --  A missing root is still an explicit failure; the recursive walk itself
+      --  is delegated to the shared project_tools helper (same skip set and
+      --  file order, so the emitted diagnostics are unchanged).
       if not Ada.Directories.Exists (Directory_Path) then
          Fail ("missing source directory: " & Directory_Path);
          return;
       end if;
 
-      Ada.Directories.Start_Search
-        (Search    => Search_Item,
-         Directory => Directory_Path,
-         Pattern   => "*",
-         Filter    => [Ada.Directories.Ordinary_File => True,
-                       Ada.Directories.Directory => True,
-                       Ada.Directories.Special_File => False]);
-
-      while Ada.Directories.More_Entries (Search_Item) loop
-         Ada.Directories.Get_Next_Entry (Search_Item, Directory_Item);
+      for Path_Item of
+        Project_Tools.Files.List_Tree (Directory_Path, "*", Skip_Dirs)
+      loop
          declare
-            Full_Path : constant String := Ada.Directories.Full_Name (Directory_Item);
-            Name_Text : constant String := Ada.Directories.Simple_Name (Directory_Item);
-            Kind_Value : constant Ada.Directories.File_Kind :=
-              Ada.Directories.Kind (Directory_Item);
+            Full_Path : constant String :=
+              Ada.Strings.Unbounded.To_String (Path_Item);
+            Name_Text : constant String :=
+              Ada.Directories.Simple_Name (Full_Path);
          begin
-            if Kind_Value = Ada.Directories.Directory then
-               if Name_Text /= "." and then Name_Text /= ".."
-                 and then Name_Text /= "obj" and then Name_Text /= "bin"
-                 and then Name_Text /= ".git"
-               then
-                  Scan_Ada_Tree (Full_Path);
-               end if;
-            elsif Is_Ada_Source (Name_Text) then
+            if Is_Ada_Source (Name_Text) then
                Check_Ada_Source (Full_Path);
             end if;
          end;
       end loop;
-
-      Ada.Directories.End_Search (Search_Item);
    exception
       when others =>
          Fail ("unable to scan source directory: " & Directory_Path);
@@ -1732,7 +1704,10 @@ begin
    --  advertisement change.  CBC remains lower priority than CTR.
    Require_Text
      ("src/ssh_lib-algorithms.adb",
-      "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc");
+      "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com");
+   Require_Text
+     ("src/ssh_lib-algorithms.adb",
+      "aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc");
    Require_Text
      ("../cryptolib/src/cryptolib-ciphers.ads",
       "type Cipher_Mode is (CTR_Mode, CBC_Mode)");
