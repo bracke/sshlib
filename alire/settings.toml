@@ -1,2 +1,2 @@
-last_build_profile = "cryptolib=RELEASE,gnat_native=RELEASE,ssh_lib=DEVELOPMENT,zlib=RELEASE"
+last_build_profile = "cryptolib=DEVELOPMENT,gnat_native=DEVELOPMENT,hostkit=DEVELOPMENT,ssh_lib=DEVELOPMENT,zlib=DEVELOPMENT"
 

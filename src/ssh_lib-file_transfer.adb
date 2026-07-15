@@ -1,6 +1,6 @@
+with Hostkit.Fs;
 with Ada.Directories;
 with Ada.Streams.Stream_IO;
-with Interfaces.C.Strings;
 with CryptoLib.Hashes;
 
 package body SSH_Lib.File_Transfer is
@@ -10,7 +10,6 @@ package body SSH_Lib.File_Transfer is
    use type Ada.Streams.Stream_Element_Offset;
    use type Ada.Streams.Stream_Element_Array;
    use type Interfaces.Unsigned_64;
-   use type Interfaces.C.int;
 
    function SFTP_Transfer_Options
      (Pipeline_Depth        : Positive := SSH_Lib.SFTP.Default_Pipeline_Depth;
@@ -130,19 +129,13 @@ package body SSH_Lib.File_Transfer is
          null;
    end Ensure_Local_Parent;
 
+   --  The raw C symlink() this used has no Windows equivalent, so restore would not link
+   --  there. Hostkit.Fs.Create_Link makes a symbolic link on whichever host -- symlink() on
+   --  POSIX, CreateSymbolicLinkW on Windows, where it may be refused without the privilege.
    function Create_Local_Symlink
      (Target_Path : String;
       Link_Path   : String) return CryptoLib.Errors.Status
    is
-      use Interfaces.C.Strings;
-      function C_Symlink
-        (Target : chars_ptr;
-         Link   : chars_ptr) return Interfaces.C.int;
-      pragma Import (C, C_Symlink, "symlink");
-
-      Target_C : chars_ptr := Null_Ptr;
-      Link_C   : chars_ptr := Null_Ptr;
-      Result   : Interfaces.C.int;
    begin
       if Target_Path'Length = 0 or else Link_Path'Length = 0
         or else Contains_NUL (Target_Path) or else Contains_NUL (Link_Path)
@@ -150,24 +143,13 @@ package body SSH_Lib.File_Transfer is
          return CryptoLib.Errors.Invalid_Command;
       end if;
 
-      Target_C := New_String (Target_Path);
-      Link_C := New_String (Link_Path);
-      Result := C_Symlink (Target_C, Link_C);
-      Free (Target_C);
-      Free (Link_C);
-
-      if Result = 0 then
+      if Hostkit.Fs.Create_Link (Target_Path, Link_Path) then
          return CryptoLib.Errors.Ok;
       end if;
+
       return CryptoLib.Errors.Remote_Failure;
    exception
       when others =>
-         if Target_C /= Null_Ptr then
-            Free (Target_C);
-         end if;
-         if Link_C /= Null_Ptr then
-            Free (Link_C);
-         end if;
          return CryptoLib.Errors.Internal_Error;
    end Create_Local_Symlink;
 

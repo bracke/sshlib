@@ -1,5 +1,6 @@
 dependency:aunit=26.0.0=f9a812acc3245faf82cf61aa1ca4a0f6a7905353073f854c8fdbcf5e4cd478af
-dependency:ssh_lib=1.0.0=8f75c502929237acf0e7a10d77a77b1a0414da8e10d66fed25b28afda99246cb
+dependency:hostkit=0.1.0-dev=7988fdcd138307557c77c8c12f9ee8f9d3cd2ff34f04ff525cfaafaeb659a389
+dependency:ssh_lib=1.0.0=026a20e775b9dca3c505a35fc5421a9ebf281ff95399f81b1743c51241b6c615
 external:LIBRARY_TYPE=default
 external:TESTS_LIBRARY_TYPE=default
 profile:tests=DEVELOPMENT

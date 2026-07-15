@@ -1,4 +1,5 @@
 dependency:cryptolib=0.1.0-dev=36a918a2d8bb3458732191c5f111568472ba450c018270bb4e03a2fb5f92b503
+dependency:hostkit=0.1.0-dev=7988fdcd138307557c77c8c12f9ee8f9d3cd2ff34f04ff525cfaafaeb659a389
 dependency:zlib=0.1.0=cfe25f976ea9a02c3db3d9c0009fe4636bf70cbb3d235595867b8a75cffe69fe
 external:LIBRARY_TYPE=default
 external:SSH_LIB_LIBRARY_TYPE=default

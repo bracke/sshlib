@@ -16,7 +16,11 @@ gnat_native = "^15"
 [[depends-on]]
 zlib = "*"
 
+[[depends-on]]
+hostkit = "*"
+
 [[pins]]
+hostkit = { path = "../hostkit" }
 zlib = { path='../zlib' }
 
 [[depends-on]]

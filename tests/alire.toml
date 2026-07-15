@@ -18,7 +18,11 @@ ssh_lib = "*"
 [[depends-on]]
 aunit = "^26.0.0"
 
+[[depends-on]]
+hostkit = "*"
+
 [[pins]]
+hostkit = { path = "../../hostkit" }
 ssh_lib = { path = ".." }
 
 [build-profiles]

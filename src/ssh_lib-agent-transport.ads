@@ -1,14 +1,18 @@
 with Ada.Streams;
-with GNAT.Sockets;
 with CryptoLib.Errors;
+with Hostkit.Local_Channel;
 with SSH_Lib.Protocol.Buffers;
 
---  @summary Unix-socket transport to a running ssh-agent.
+--  @summary Transport to a running ssh-agent.
 --
---  Wraps a connection to the agent's Unix-domain socket and exchanges the
---  length-prefixed agent protocol messages: connect (optionally with a
---  connect timeout), send a request, receive a reply (optionally with a read
---  timeout), and close.  An Agent_Connection is limited and owns its socket.
+--  Wraps a connection to the agent and exchanges the length-prefixed agent protocol
+--  messages: connect (optionally with a connect timeout), send a request, receive a reply
+--  (optionally with a read timeout), and close.  An Agent_Connection is limited and owns its
+--  channel.
+--
+--  What the agent lives on is the host's business, not this package's: a Unix-domain socket
+--  on POSIX, a named pipe on Windows.  That difference is Hostkit.Local_Channel's -- this
+--  package only frames messages onto a byte channel.
 package SSH_Lib.Agent.Transport is
    type Agent_Connection is limited private;
 
@@ -82,6 +86,6 @@ package SSH_Lib.Agent.Transport is
 private
    type Agent_Connection is limited record
       Connected : Boolean := False;
-      Socket    : GNAT.Sockets.Socket_Type;
+      Channel   : Hostkit.Local_Channel.Channel;
    end record;
 end SSH_Lib.Agent.Transport;

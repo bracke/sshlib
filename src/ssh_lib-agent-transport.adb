@@ -6,14 +6,7 @@ package body SSH_Lib.Agent.Transport is
 
    procedure Reset (Item : in out Agent_Connection) is
    begin
-      if Item.Connected then
-         begin
-            GNAT.Sockets.Close_Socket (Item.Socket);
-         exception
-            when others =>
-               null;
-         end;
-      end if;
+      Hostkit.Local_Channel.Close (Item.Channel);
       Item.Connected := False;
    end Reset;
 
@@ -22,23 +15,19 @@ package body SSH_Lib.Agent.Transport is
       Item        : out Agent_Connection)
       return Status
    is
-      Address_Value : GNAT.Sockets.Sock_Addr_Type;
    begin
       Item.Connected := False;
       if Socket_Path'Length = 0 then
          return Connection_Failed;
       end if;
 
-      GNAT.Sockets.Create_Socket
-        (Item.Socket, GNAT.Sockets.Family_Unix, GNAT.Sockets.Socket_Stream);
-      Address_Value := GNAT.Sockets.Unix_Socket_Address (Socket_Path);
-      GNAT.Sockets.Connect_Socket (Item.Socket, Address_Value);
+      if not Hostkit.Local_Channel.Connect (Socket_Path, Item.Channel) then
+         return Connection_Failed;
+      end if;
+
       Item.Connected := True;
       return Ok;
    exception
-      when GNAT.Sockets.Socket_Error =>
-         Reset (Item);
-         return Connection_Failed;
       when others =>
          Reset (Item);
          return Internal_Error;
@@ -67,29 +56,18 @@ package body SSH_Lib.Agent.Transport is
       Data : Stream_Element_Array)
       return Status
    is
-      First_Index : Stream_Element_Offset := Data'First;
-      Last_Index  : Stream_Element_Offset;
    begin
       if Data'Length = 0 then
          return Ok;
       end if;
 
-      while First_Index <= Data'Last loop
-         GNAT.Sockets.Send_Socket
-           (Item.Socket,
-            Data (First_Index .. Data'Last),
-            Last_Index);
-         if Last_Index < First_Index then
-            Reset (Item);
-            return Write_Failed;
-         end if;
-         First_Index := Last_Index + 1;
-      end loop;
-      return Ok;
-   exception
-      when GNAT.Sockets.Socket_Error =>
+      if not Hostkit.Local_Channel.Send (Item.Channel, Data) then
          Reset (Item);
          return Write_Failed;
+      end if;
+
+      return Ok;
+   exception
       when others =>
          Reset (Item);
          return Internal_Error;
@@ -100,29 +78,18 @@ package body SSH_Lib.Agent.Transport is
       Data : out Stream_Element_Array)
       return Status
    is
-      First_Index : Stream_Element_Offset := Data'First;
-      Last_Index  : Stream_Element_Offset;
    begin
       if Data'Length = 0 then
          return Ok;
       end if;
 
-      while First_Index <= Data'Last loop
-         GNAT.Sockets.Receive_Socket
-           (Item.Socket,
-            Data (First_Index .. Data'Last),
-            Last_Index);
-         if Last_Index < First_Index then
-            Reset (Item);
-            return Read_Failed;
-         end if;
-         First_Index := Last_Index + 1;
-      end loop;
-      return Ok;
-   exception
-      when GNAT.Sockets.Socket_Error =>
+      if not Hostkit.Local_Channel.Receive (Item.Channel, Data) then
          Reset (Item);
          return Read_Failed;
+      end if;
+
+      return Ok;
+   exception
       when others =>
          Reset (Item);
          return Internal_Error;
