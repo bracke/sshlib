@@ -1,3 +1,4 @@
+with Hostkit.Fs;
 with Hostkit.Process;
 with Ada.Directories;
 with Ada.Streams.Stream_IO;
@@ -17873,7 +17874,9 @@ package body SSH_Lib.Git is
 
       Stream_IO.Write (File, Data);
       Stream_IO.Close (File);
-      GNAT.OS_Lib.Rename_File (Lock_Path, Path, Renamed);
+      --  A replacing rename: the ref file usually already exists (this is an update),
+      --  and Windows rename fails on that, which reported spurious write failures.
+      Renamed := Hostkit.Fs.Replace_File (Lock_Path, Path);
       if not Renamed then
          if Ada.Directories.Exists (Lock_Path) then
             Ada.Directories.Delete_File (Lock_Path);

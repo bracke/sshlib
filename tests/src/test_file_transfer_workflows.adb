@@ -6,6 +6,8 @@ with Ada.Text_IO;
 with GNAT.OS_Lib;
 with Interfaces;
 
+with Hostkit.Fs;
+
 with CryptoLib.Errors;
 with CryptoLib.Hashes;
 
@@ -363,8 +365,11 @@ begin
    Check
      (Result.Status = CryptoLib.Errors.Ok and then Result.Items_Processed = 1,
       "restore creates local symlink from inventory target");
+   --  Hostkit.Fs.Is_Link, not GNAT.OS_Lib.Is_Symbolic_Link: the latter answers False
+   --  for every path on Windows (it wants an lstat there is none of), so it would fail a
+   --  link that was created just fine.
    Check
-     (GNAT.OS_Lib.Is_Symbolic_Link ("/tmp/ssh_lib_restore_symlink/link.txt"),
+     (Hostkit.Fs.Is_Link ("/tmp/ssh_lib_restore_symlink/link.txt"),
       "restored inventory symlink is a local symbolic link");
    Remove_Local_Tree_If_Exists ("/tmp/ssh_lib_restore_symlink");
 

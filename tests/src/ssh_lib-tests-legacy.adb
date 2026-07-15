@@ -19275,9 +19275,12 @@ package body SSH_Lib.Tests.Legacy is
       SSH_Lib.Platform.Environment.Set_Value_For_Test
         ("SSH_AUTH_SOCK", "/tmp/ssh_lib_agent.sock");
       Status_Value := SSH_Lib.Sessions.Open (Options, Session_Item);
-      Check_Status
-        (Status_Value,
-         CryptoLib.Errors.Connection_Failed,
+      --  Reaching the network is the point; whether a 1 ms connect to a closed port
+      --  returns Connection_Failed (a synchronous refuse) or Timeout is the host's call
+      --  -- Linux tends to the first, Windows to the second. Phase 9 above allows both.
+      Check
+        (Status_Value = CryptoLib.Errors.Connection_Failed
+         or else Status_Value = CryptoLib.Errors.Timeout,
          "phase9 explicit identity remains reachable after unusable agent");
       SSH_Lib.Platform.Environment.Reset_Provider;
       Options.Use_Agent := False;
@@ -19285,18 +19288,18 @@ package body SSH_Lib.Tests.Legacy is
       Options.Identity_File :=
         To_Unbounded_String (Identity_Path & ".missing");
       Status_Value := SSH_Lib.Sessions.Open (Options, Session_Item);
-      Check_Status
-        (Status_Value,
-         CryptoLib.Errors.Connection_Failed,
+      Check
+        (Status_Value = CryptoLib.Errors.Connection_Failed
+         or else Status_Value = CryptoLib.Errors.Timeout,
          "phase10 missing explicit identity waits for encrypted auth stage");
 
       Write_Text (Empty_Identity_Path, "");
       Options.Identity_File := To_Unbounded_String (Empty_Identity_Path);
       Status_Value := SSH_Lib.Sessions.Open (Options, Session_Item);
       Touch (Session_Item);
-      Check_Status
-        (Status_Value,
-         CryptoLib.Errors.Connection_Failed,
+      Check
+        (Status_Value = CryptoLib.Errors.Connection_Failed
+         or else Status_Value = CryptoLib.Errors.Timeout,
          "phase10 empty explicit identity reaches connection boundary");
    end Run_Phase_9_Identity_File_Tests;
 
