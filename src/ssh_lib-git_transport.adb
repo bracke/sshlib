@@ -1,9 +1,8 @@
+with Hostkit.Process;
 with Ada.Characters.Handling;
 with Ada.Strings.Fixed;
 with GNAT.Expect;
 with GNAT.OS_Lib;
-with Interfaces;
-with Interfaces.C;
 with SSH_Lib.Remote_Names;
 
 package body SSH_Lib.Git_Transport is
@@ -12,25 +11,9 @@ package body SSH_Lib.Git_Transport is
    use type Ada.Streams.Stream_Element_Offset;
    use type GNAT.OS_Lib.File_Descriptor;
    use type GNAT.OS_Lib.String_Access;
-   use type Interfaces.C.int;
 
    Read_Buffer_Size : constant Natural := 4096;
 
-   type Poll_FD is record
-      FD      : Interfaces.C.int;
-      Events  : Interfaces.C.short;
-      Revents : Interfaces.C.short;
-   end record
-     with Convention => C;
-
-   function C_Poll
-     (FDs     : access Poll_FD;
-      NFDs    : Interfaces.C.unsigned_long;
-      Timeout : Interfaces.C.int) return Interfaces.C.int
-     with Import, Convention => C, External_Name => "poll";
-
-   Poll_Input_Event  : constant Interfaces.C.short := 16#0001#;
-   Poll_Output_Event : constant Interfaces.C.short := 16#0004#;
 
    function Starts_With_Ssh_Scheme (Value : String) return Boolean is
       Prefix : constant String := "ssh://";
@@ -493,14 +476,12 @@ package body SSH_Lib.Git_Transport is
       For_Write  : Boolean;
       Timeout_MS : Natural) return CryptoLib.Errors.Status
    is
-      Event : constant Interfaces.C.short :=
-        (if For_Write then Poll_Output_Event else Poll_Input_Event);
-      Poll_Item : aliased Poll_FD :=
-        (FD      => Interfaces.C.int (FD),
-         Events  => Event,
-         Revents => 0);
-      Poll_Timeout : Interfaces.C.int;
-      Result       : Interfaces.C.int;
+      use type Hostkit.Process.Wait_Outcome;
+
+      --  A zero timeout meant "wait indefinitely" here; Hostkit.Process.Wait_FD spells that as a
+      --  negative timeout, so translate it.
+      Deadline : constant Integer := (if Timeout_MS = 0 then -1 else Integer (Timeout_MS));
+      Outcome  : Hostkit.Process.Wait_Outcome;
    begin
       if FD = GNAT.OS_Lib.Invalid_FD then
          if For_Write then
@@ -509,16 +490,13 @@ package body SSH_Lib.Git_Transport is
          return CryptoLib.Errors.Read_Failed;
       end if;
 
-      if Timeout_MS = 0 then
-         Poll_Timeout := -1;
-      else
-         Poll_Timeout := Interfaces.C.int (Timeout_MS);
-      end if;
+      --  poll() was here, which does not link on Windows -- a pipe descriptor is not a socket.
+      --  Hostkit does it per host: poll on POSIX, PeekNamedPipe on Windows.
+      Outcome := Hostkit.Process.Wait_FD (Integer (FD), For_Write, Deadline);
 
-      Result := C_Poll (Poll_Item'Access, 1, Poll_Timeout);
-      if Result > 0 then
+      if Outcome = Hostkit.Process.Wait_Ready then
          return CryptoLib.Errors.Ok;
-      elsif Result = 0 then
+      elsif Outcome = Hostkit.Process.Wait_Timed_Out then
          return CryptoLib.Errors.Timeout;
       elsif For_Write then
          return CryptoLib.Errors.Write_Failed;

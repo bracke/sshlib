@@ -1,3 +1,4 @@
+with Hostkit.Process;
 with Ada.Directories;
 with Ada.Streams.Stream_IO;
 with Ada.Text_IO;
@@ -6,7 +7,6 @@ with CryptoLib.Hashes;
 with GNAT.Expect;
 with GNAT.OS_Lib;
 with Interfaces;
-with Interfaces.C;
 with SSH_Lib.Protocol.Channels;
 with Zlib;
 
@@ -19,7 +19,6 @@ package body SSH_Lib.Git is
    use type Ada.Streams.Stream_IO.Count;
    use type GNAT.OS_Lib.File_Descriptor;
    use type GNAT.OS_Lib.String_Access;
-   use type Interfaces.C.int;
    package Stream_IO renames Ada.Streams.Stream_IO;
    Maximum_Packed_Refs_File_Length : constant Stream_IO.Count := 1_048_576;
    Maximum_Reflog_File_Length : constant Stream_IO.Count := 1_048_576;
@@ -28,21 +27,6 @@ package body SSH_Lib.Git is
    Maximum_Worktree_File_Length : constant Natural := 1_048_576;
    Maximum_Credential_Helper_Output_Length : constant Natural := 65_536;
 
-   type Poll_FD is record
-      FD      : Interfaces.C.int;
-      Events  : Interfaces.C.short;
-      Revents : Interfaces.C.short;
-   end record
-     with Convention => C;
-
-   function C_Poll
-     (FDs     : access Poll_FD;
-      NFDs    : Interfaces.C.unsigned_long;
-      Timeout : Interfaces.C.int) return Interfaces.C.int
-     with Import, Convention => C, External_Name => "poll";
-
-   Poll_Input_Event  : constant Interfaces.C.short := 16#0001#;
-   Poll_Output_Event : constant Interfaces.C.short := 16#0004#;
 
    type Tree_Traversal_Scratch is record
       Pack_Checksums_Hex : Stream_Element_Array
@@ -16201,14 +16185,11 @@ package body SSH_Lib.Git is
       For_Write  : Boolean;
       Timeout_MS : Natural) return Status
    is
-      Event : constant Interfaces.C.short :=
-        (if For_Write then Poll_Output_Event else Poll_Input_Event);
-      Poll_Item : aliased Poll_FD :=
-        (FD      => Interfaces.C.int (FD),
-         Events  => Event,
-         Revents => 0);
-      Poll_Timeout : Interfaces.C.int;
-      Result       : Interfaces.C.int;
+      use type Hostkit.Process.Wait_Outcome;
+
+      --  Zero meant "wait indefinitely" here; Hostkit spells that as a negative timeout.
+      Deadline : constant Integer := (if Timeout_MS = 0 then -1 else Integer (Timeout_MS));
+      Outcome  : Hostkit.Process.Wait_Outcome;
    begin
       if FD = GNAT.OS_Lib.Invalid_FD then
          if For_Write then
@@ -16217,16 +16198,12 @@ package body SSH_Lib.Git is
          return Read_Failed;
       end if;
 
-      if Timeout_MS = 0 then
-         Poll_Timeout := -1;
-      else
-         Poll_Timeout := Interfaces.C.int (Timeout_MS);
-      end if;
+      --  poll() was here, which does not link on Windows. Hostkit waits per host.
+      Outcome := Hostkit.Process.Wait_FD (Integer (FD), For_Write, Deadline);
 
-      Result := C_Poll (Poll_Item'Access, 1, Poll_Timeout);
-      if Result > 0 then
+      if Outcome = Hostkit.Process.Wait_Ready then
          return Ok;
-      elsif Result = 0 then
+      elsif Outcome = Hostkit.Process.Wait_Timed_Out then
          return Timeout;
       elsif For_Write then
          return Write_Failed;
