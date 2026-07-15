@@ -11,7 +11,7 @@ tags = ["ssh", "network", "transport"]
 project-files = ["SSH_Lib.gpr"]
 
 [[depends-on]]
-gnat_native = "^15"
+gnat_native = "=15.2.1"
 
 [[depends-on]]
 zlib = "*"

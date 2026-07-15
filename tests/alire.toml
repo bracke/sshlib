@@ -10,7 +10,7 @@ maintainers-logins = ["bracke"]
 project-files = ["tests.gpr"]
 
 [[depends-on]]
-gnat_native = "^15"
+gnat_native = "=15.2.1"
 
 [[depends-on]]
 ssh_lib = "*"
