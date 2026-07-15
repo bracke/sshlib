@@ -4,6 +4,7 @@ with Interfaces.C;
 with Interfaces.C.Strings;
 with System;
 with SSH_Lib.Protocol.Numbers;
+with SSH_Lib.Platform.XAttr;
 
 package body SSH_Lib.SFTP is
    use Ada.Streams;
@@ -83,27 +84,6 @@ package body SSH_Lib.SFTP is
      (Path : Interfaces.C.Strings.chars_ptr; Times : access C_Utime_Buffer)
       return Interfaces.C.int;
    pragma Import (C, C_Utime, "utime");
-
-   function C_ListXAttr
-     (Path : Interfaces.C.Strings.chars_ptr;
-      List : System.Address;
-      Size : Interfaces.C.size_t) return Interfaces.C.long;
-   pragma Import (C, C_ListXAttr, "listxattr");
-
-   function C_GetXAttr
-     (Path  : Interfaces.C.Strings.chars_ptr;
-      Name  : Interfaces.C.Strings.chars_ptr;
-      Value : System.Address;
-      Size  : Interfaces.C.size_t) return Interfaces.C.long;
-   pragma Import (C, C_GetXAttr, "getxattr");
-
-   function C_SetXAttr
-     (Path  : Interfaces.C.Strings.chars_ptr;
-      Name  : Interfaces.C.Strings.chars_ptr;
-      Value : System.Address;
-      Size  : Interfaces.C.size_t;
-      Flags : Interfaces.C.int) return Interfaces.C.int;
-   pragma Import (C, C_SetXAttr, "setxattr");
 
    function Parse_Mode
      (Mode : String; Permissions : out Interfaces.Unsigned_32)
@@ -622,7 +602,8 @@ package body SSH_Lib.SFTP is
       end if;
 
       Path := Interfaces.C.Strings.New_String (Local_Path);
-      Needed := C_ListXAttr (Path, System.Null_Address, 0);
+      Needed :=
+        SSH_Lib.Platform.XAttr.List_Names (Path, System.Null_Address, 0);
       if Needed <= 0 or else Needed > 65_536 then
          Interfaces.C.Strings.Free (Path);
          return;
@@ -634,7 +615,8 @@ package body SSH_Lib.SFTP is
                      (0 .. Interfaces.C.size_t (Needed - 1));
       begin
          Retrieved :=
-           C_ListXAttr (Path, Names'Address, Interfaces.C.size_t (Needed));
+           SSH_Lib.Platform.XAttr.List_Names
+             (Path, Names'Address, Interfaces.C.size_t (Needed));
          if Retrieved <= 0 then
             Interfaces.C.Strings.Free (Path);
             return;
@@ -664,7 +646,8 @@ package body SSH_Lib.SFTP is
                         Name_Ptr     : Interfaces.C.Strings.chars_ptr :=
                           Interfaces.C.Strings.New_String (Name_Value);
                         Value_Needed : constant Interfaces.C.long :=
-                          C_GetXAttr (Path, Name_Ptr, System.Null_Address, 0);
+                          SSH_Lib.Platform.XAttr.Get_Value
+                            (Path, Name_Ptr, System.Null_Address, 0);
                      begin
                         if Value_Needed > 0 and then Value_Needed <= 65_536
                         then
@@ -676,7 +659,7 @@ package body SSH_Lib.SFTP is
                                              Interfaces.C.size_t
                                                (Value_Needed - 1));
                               Value_Size   : constant Interfaces.C.long :=
-                                C_GetXAttr
+                                SSH_Lib.Platform.XAttr.Get_Value
                                   (Path,
                                    Name_Ptr,
                                    Value_Buffer'Address,
@@ -745,7 +728,7 @@ package body SSH_Lib.SFTP is
                   Result    : Interfaces.C.int;
                begin
                   Result :=
-                    C_SetXAttr
+                    SSH_Lib.Platform.XAttr.Set_Value
                       (Path,
                        XName_Ptr,
                        CValue'Address,

@@ -4,6 +4,7 @@ with Ada.Strings;
 with Ada.Strings.Fixed;
 with Ada.Unchecked_Deallocation;
 with GNAT.OS_Lib;
+with Hostkit.Process;
 with Interfaces.C;
 with System;
 with SSH_Lib.Protocol.Identification;
@@ -34,22 +35,6 @@ package body SSH_Lib.Sessions.Live_Transcript is
    Max_Identification_Bytes : constant Natural :=
      (SSH_Lib.Protocol.Identification.Max_Banner_Lines + 1)
      * SSH_Lib.Protocol.Identification.Max_Identification_Line_Length;
-
-   type Poll_FD is record
-      FD      : Interfaces.C.int;
-      Events  : Interfaces.C.short;
-      Revents : Interfaces.C.short;
-   end record
-     with Convention => C;
-
-   Poll_Input_Event  : constant Interfaces.C.short := 16#0001#;
-   Poll_Output_Event : constant Interfaces.C.short := 16#0004#;
-
-   function C_Poll
-     (FDs     : access Poll_FD;
-      NFDs    : Interfaces.C.unsigned_long;
-      Timeout : Interfaces.C.int) return Interfaces.C.int
-     with Import, Convention => C, External_Name => "poll";
 
    function C_Setsockopt
      (Socket : Interfaces.C.int;
@@ -925,14 +910,12 @@ package body SSH_Lib.Sessions.Live_Transcript is
       For_Write  : Boolean;
       Timeout_MS : Natural) return Status
    is
-      Event : constant Interfaces.C.short :=
-        (if For_Write then Poll_Output_Event else Poll_Input_Event);
-      Poll_Item : aliased Poll_FD :=
-        (FD      => Interfaces.C.int (FD),
-         Events  => Event,
-         Revents => 0);
-      Poll_Timeout : Interfaces.C.int;
-      Result       : Interfaces.C.int;
+      --  Ask the host to wait: poll on POSIX, but a pipe descriptor there is not a
+      --  socket, and select/poll are for sockets, so the Windows backend peeks the
+      --  handle directly. Timeout_MS 0 means wait indefinitely (a negative deadline).
+      Deadline : constant Integer :=
+        (if Timeout_MS = 0 then -1 else Integer (Timeout_MS));
+      Outcome  : Hostkit.Process.Wait_Outcome;
    begin
       if FD = GNAT.OS_Lib.Invalid_FD then
          if For_Write then
@@ -941,22 +924,19 @@ package body SSH_Lib.Sessions.Live_Transcript is
          return Read_Failed;
       end if;
 
-      if Timeout_MS = 0 then
-         Poll_Timeout := -1;
-      else
-         Poll_Timeout := Interfaces.C.int (Timeout_MS);
-      end if;
-
-      Result := C_Poll (Poll_Item'Access, 1, Poll_Timeout);
-      if Result > 0 then
-         return Ok;
-      elsif Result = 0 then
-         return Timeout;
-      elsif For_Write then
-         return Write_Failed;
-      else
-         return Read_Failed;
-      end if;
+      Outcome :=
+        Hostkit.Process.Wait_FD (Integer (FD), For_Write, Deadline);
+      case Outcome is
+         when Hostkit.Process.Wait_Ready =>
+            return Ok;
+         when Hostkit.Process.Wait_Timed_Out =>
+            return Timeout;
+         when Hostkit.Process.Wait_Error =>
+            if For_Write then
+               return Write_Failed;
+            end if;
+            return Read_Failed;
+      end case;
    exception
       when others =>
          if For_Write then
