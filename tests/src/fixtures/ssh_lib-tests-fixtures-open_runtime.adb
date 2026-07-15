@@ -1,3 +1,5 @@
+with SSH_Lib.Identity_Files;
+with Hostkit.Fs;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
@@ -31,6 +33,7 @@ package body SSH_Lib.Tests.Fixtures.Open_Runtime is
       Ada.Text_IO.Create (File_Item, Ada.Text_IO.Out_File, Path_Text);
       Ada.Text_IO.Put (File_Item, Data_Text);
       Ada.Text_IO.Close (File_Item);
+      SSH_Lib.Tests.Fixtures.Temp_Paths.Make_Owner_Only (Path_Text);
    exception
       when others =>
          if Ada.Text_IO.Is_Open (File_Item) then
@@ -417,6 +420,26 @@ package body SSH_Lib.Tests.Fixtures.Open_Runtime is
       Check
         (SSH_Lib.Sessions.Test_Support.Is_Open_For_Test (Session_Item),
          "identity-file signing can publish a successful public runtime state");
+
+      --  The other side of the posture: an identity file others can read is refused, the way
+      --  OpenSSH refuses a group- or world-readable private key. Only where mode bits mean
+      --  something -- on a host without them Hostkit does not reject, and neither does this.
+      declare
+         Exposed_Path : constant String :=
+           SSH_Lib.Tests.Fixtures.Temp_Paths.Path ("open_runtime_exposed_ed25519");
+         Exposed_Key  : SSH_Lib.Identity_Files.Identity_Key;
+      begin
+         Write_Text (Exposed_Path, Valid_OpenSSH_Ed25519);
+         SSH_Lib.Tests.Fixtures.Temp_Paths.Make_World_Readable (Exposed_Path);
+
+         if Hostkit.Fs.Accessible_By_Others (Exposed_Path) then
+            SSH_Lib.Tests.Assertions.Check_Status
+              (SSH_Lib.Identity_Files.Load (Exposed_Path, Exposed_Key),
+               CryptoLib.Errors.Permission_Denied,
+               "public open runtime",
+               "a world-readable identity file is refused");
+         end if;
+      end;
       Check
         (not SSH_Lib.Protocol.Buffers.Is_Empty
            (SSH_Lib.Sessions.Userauth_IO.Last_Plain_Service_Request_For_Test

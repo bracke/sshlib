@@ -1,3 +1,4 @@
+with Hostkit.Fs;
 with Ada.Directories;
 with Ada.Streams.Stream_IO;
 with Ada.Text_IO;
@@ -4370,6 +4371,13 @@ package body SSH_Lib.Identity_Files is
       end if;
       if not Ada.Directories.Exists (Path) then
          return Authentication_Failed;
+      end if;
+
+      --  A private key others can read is not a secret. Refuse it before reading it, the way
+      --  OpenSSH refuses a key file that is group- or world-accessible. Hostkit answers this
+      --  per host; on Windows, where access is by ACL, it does not reject (see its comment).
+      if Hostkit.Fs.Accessible_By_Others (Path) then
+         return Permission_Denied;
       end if;
 
       Ada.Streams.Stream_IO.Open

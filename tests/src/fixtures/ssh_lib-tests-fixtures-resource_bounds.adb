@@ -56,6 +56,7 @@ package body SSH_Lib.Tests.Fixtures.Resource_Bounds is
       Ada.Text_IO.Create (Output_File, Ada.Text_IO.Out_File, Path);
       Ada.Text_IO.Put (Output_File, Text);
       Ada.Text_IO.Close (Output_File);
+      SSH_Lib.Tests.Fixtures.Temp_Paths.Make_Owner_Only (Path);
    exception
       when others =>
          if Ada.Text_IO.Is_Open (Output_File) then
@@ -82,6 +83,7 @@ package body SSH_Lib.Tests.Fixtures.Resource_Bounds is
          end;
       end loop;
       Ada.Streams.Stream_IO.Close (Output_File);
+      SSH_Lib.Tests.Fixtures.Temp_Paths.Make_Owner_Only (Path);
    exception
       when others =>
          if Ada.Streams.Stream_IO.Is_Open (Output_File) then
