@@ -47,6 +47,12 @@ jobs:
           repository: ${{ github.repository_owner }}/cryptolib
           path: cryptolib
 
+      - name: Check out hostkit sibling
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/hostkit
+          path: hostkit
+
       - name: Set up Alire
         uses: alire-project/setup-alire@v5
         with:
