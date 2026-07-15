@@ -1,0 +1,6 @@
+dependency:aunit=26.0.0=f9a812acc3245faf82cf61aa1ca4a0f6a7905353073f854c8fdbcf5e4cd478af
+dependency:ssh_lib=1.0.0=8f75c502929237acf0e7a10d77a77b1a0414da8e10d66fed25b28afda99246cb
+external:LIBRARY_TYPE=default
+external:TESTS_LIBRARY_TYPE=default
+profile:tests=DEVELOPMENT
+switches:tests=-Og,-fdata-sections,-ffunction-sections,-g,-gnatVa,-gnatW8,-gnatw.X,-gnatwa,-gnaty-d,-gnaty3,-gnatyA,-gnatyB,-gnatyI,-gnatyO,-gnatyS,-gnatya,-gnatyb,-gnatyc,-gnatye,-gnatyf,-gnatyh,-gnatyi,-gnatyk,-gnatyl,-gnatym,-gnatyn,-gnatyp,-gnatyr,-gnatyt,-gnatyu,-gnatyx

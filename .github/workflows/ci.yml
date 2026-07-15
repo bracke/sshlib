@@ -1,0 +1,76 @@
+name: ci
+
+# Builds sshlib and runs its AUnit suite on Linux, macOS and Windows.
+#
+# sshlib is pure Ada -- sockets through GNAT.Sockets, process spawning through GNAT.Expect,
+# and only the pure-Ada zlib and cryptolib siblings underneath. There is no OpenSSL, no
+# system library to install: a matrix is cheap here, and it is what keeps the portability
+# honest.
+#
+# PREREQUISITE: sshlib pins zlib and cryptolib by local path, so both must exist as sibling
+# checkouts or the manifest will not load.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: build-and-test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      ALIRE_NONINTERACTIVE: "true"
+    strategy:
+      fail-fast: false
+      matrix:
+        # An x86_64 macOS image is required: gnat_native ships no aarch64-darwin binary for
+        # the pinned version, so macos-latest (arm64) cannot resolve it.
+        os: [ubuntu-latest, macos-15-intel, windows-latest]
+
+    steps:
+      - name: Check out sshlib
+        uses: actions/checkout@v4
+        with:
+          path: sshlib
+
+      - name: Check out zlib sibling
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/zlib
+          path: zlib
+
+      - name: Check out cryptolib sibling
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/cryptolib
+          path: cryptolib
+
+      - name: Set up Alire
+        uses: alire-project/setup-alire@v5
+        with:
+          toolchain: gnat_native=15.2.1 gprbuild
+
+      - name: Build the library
+        shell: bash
+        working-directory: sshlib
+        run: alr --non-interactive build
+
+      - name: Build and run the test suite
+        shell: bash
+        working-directory: sshlib/tests
+        run: |
+          alr --non-interactive build
+
+          # The suite is five executables, not one -- main plus the ecdsa, crypto, SFTP-fake
+          # and file-transfer harnesses, each with its own coverage. Run every one, and fail
+          # if any does. Each carries a .exe suffix on Windows.
+          ext=""
+          [ -f ./bin/main.exe ] && ext=".exe"
+          rc=0
+          for t in main test_ecdsa_nistp256 test_crypto_primitives test_sftp_fake_subsystem test_file_transfer_workflows; do
+            echo "=== $t ==="
+            "./bin/$t$ext" || rc=1
+          done
+          exit $rc

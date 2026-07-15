@@ -1,7 +1,7 @@
-dependency:cryptolib=0.1.0-dev=92712048d98494887d63c75abf305d659caac8db0ef0df451e5a11c9828ed12e
-dependency:zlib=0.1.0=f4d1507a77ec9d68fb6d8132553fad7c7aa7374c315ad5b8a67b780c87eb7e45
+dependency:cryptolib=0.1.0-dev=36a918a2d8bb3458732191c5f111568472ba450c018270bb4e03a2fb5f92b503
+dependency:zlib=0.1.0=cfe25f976ea9a02c3db3d9c0009fe4636bf70cbb3d235595867b8a75cffe69fe
 external:LIBRARY_TYPE=default
 external:SSH_LIB_LIBRARY_TYPE=default
-profile:ssh_lib=RELEASE
-switches:ssh_lib=-O3,-fdata-sections,-ffunction-sections,-gnatW8,-gnatn
+profile:ssh_lib=DEVELOPMENT
+switches:ssh_lib=-Og,-fdata-sections,-ffunction-sections,-g,-gnatVa,-gnatW8,-gnatw.X,-gnatwa,-gnaty-d,-gnaty3,-gnatyA,-gnatyB,-gnatyI,-gnatyO,-gnatyS,-gnatya,-gnatyb,-gnatyc,-gnatye,-gnatyf,-gnatyh,-gnatyi,-gnatyk,-gnatyl,-gnatym,-gnatyn,-gnatyp,-gnatyr,-gnatyt,-gnatyu,-gnatyx
 version:gnat_native=15.2.1

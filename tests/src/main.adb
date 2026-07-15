@@ -1,8 +1,14 @@
+with Ada.Command_Line;
+
+with AUnit;
 with AUnit.Reporter.Text;
 with AUnit.Run;
 with SSH_Lib.Tests.Suite;
 
+--  Test_Runner exits zero whatever happens, so the suite could not fail: a failing test
+--  reported success. Report the status, so a failure fails the run.
 procedure Main is
+   use type AUnit.Status;
    --  Phase 19 legacy runner coverage is wired through
    --  SSH_Lib.Tests.Legacy_Case in SSH_Lib.Tests.Suite.  The exact procedure
    --  names below are retained as guard-visible traceability markers:
@@ -23,8 +29,10 @@ procedure Main is
    --  Run_Phase_19_Context_Compliance_Tests
    --  phase39 identity-file signing produces a payload-bound signature blob
    --  public identity file loads successfully
-   procedure Run is new AUnit.Run.Test_Runner (SSH_Lib.Tests.Suite.Suite);
+   function Run is new AUnit.Run.Test_Runner_With_Status (SSH_Lib.Tests.Suite.Suite);
    Reporter : AUnit.Reporter.Text.Text_Reporter;
 begin
-   Run (Reporter);
+   if Run (Reporter) /= AUnit.Success then
+      Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+   end if;
 end Main;

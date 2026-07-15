@@ -20,3 +20,6 @@ aunit = "^26.0.0"
 
 [[pins]]
 ssh_lib = { path = ".." }
+
+[build-profiles]
+"*" = "development"

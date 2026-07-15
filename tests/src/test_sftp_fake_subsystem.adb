@@ -1,10 +1,15 @@
+with Ada.Command_Line;
+
+with AUnit;
 with AUnit.Reporter.Text;
 with AUnit.Run;
 with AUnit.Test_Suites;
 
 with SSH_Lib.Tests.Fixtures.SFTP_Fake_Subsystem;
 
+--  Report the status, so a failing test fails the run rather than exiting zero.
 procedure Test_SFTP_Fake_Subsystem is
+   use type AUnit.Status;
    type SFTP_Fake_Subsystem_Access is
      access all SSH_Lib.Tests.Fixtures.SFTP_Fake_Subsystem.Test_Case;
 
@@ -18,8 +23,10 @@ procedure Test_SFTP_Fake_Subsystem is
       return Result;
    end Suite;
 
-   procedure Run is new AUnit.Run.Test_Runner (Suite);
+   function Run is new AUnit.Run.Test_Runner_With_Status (Suite);
    Reporter : AUnit.Reporter.Text.Text_Reporter;
 begin
-   Run (Reporter);
+   if Run (Reporter) /= AUnit.Success then
+      Ada.Command_Line.Set_Exit_Status (Ada.Command_Line.Failure);
+   end if;
 end Test_SFTP_Fake_Subsystem;
