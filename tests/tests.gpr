@@ -1,10 +1,12 @@
-with "aunit.gpr";
+with "config/tests_config.gpr";
+--  Not an Alire dependency, so Alire cannot put this with into tests_config.gpr:
+--  ssh_lib_internal.gpr is a sibling project of this same crate.
 with "ssh_lib_internal.gpr";
 
 project Tests is
 
    for Source_Dirs use ("src/", "src/fixtures", "config/");
-   for Object_Dir use "obj/tests";
+   for Object_Dir use "obj/tests/" & Tests_Config.Build_Profile;
    for Create_Missing_Dirs use "True";
    for Exec_Dir use "bin";
    for Main use
@@ -16,11 +18,18 @@ project Tests is
 
    package Compiler is
       for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnatX", "-gnatyM120", "-gnata", "-gnatVa", "-gnatW8");
+        Tests_Config.Ada_Compiler_Switches & ("-gnat2022", "-gnatX", "-gnatyM120", "-gnata", "-gnatVa", "-gnatW8");
    end Compiler;
 
+
+   --  Bytes out as bytes in. Alire's generated switches carry -gnatW8 and the
+   --  binder takes its run-time encoding from the same place, which makes
+   --  Ada.Text_IO encode every byte above 127 a second time on the way out:
+   --  text that was already UTF-8 -- an accented path, an internationalized
+   --  domain name, a translated message -- came out doubled. -Wb is the
+   --  compiler default and leaves the bytes alone.
    package Binder is
-      for Switches ("Ada") use ("-Es"); --  Symbolic traceback
+      for Switches ("Ada") use ("-Es", "-Wb"); --  Symbolic traceback
    end Binder;
 
    --  sshlib and cryptolib are pure Ada; the suite imports no OpenSSL. "-lssl -lcrypto" were
