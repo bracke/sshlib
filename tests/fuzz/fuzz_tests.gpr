@@ -1,13 +1,22 @@
+with "config/ssh_lib_fuzz_tests_config.gpr";
+--  Not an Alire dependency, so Alire cannot put this with into the config gpr:
+--  ssh_lib_internal.gpr is the white-box view of the library, owned by the tests crate.
 with "../ssh_lib_internal.gpr";
 
 project Fuzz_Tests is
-   for Source_Dirs use (".");
+   for Source_Dirs use (".", "config");
    for Main use ("sftp_packet_fuzzer.adb");
-   for Object_Dir use "../../ssh_lib_build/obj/tests_fuzz";
+   --  Exec_Dir is hard-coded in tools/run_sftp_fuzzer_seed_corpus.adb; do not move it.
+   for Object_Dir use "../../ssh_lib_build/obj/tests_fuzz/" & SSH_Lib_Fuzz_Tests_Config.Build_Profile;
    for Exec_Dir use "../../ssh_lib_build/bin/tests_fuzz";
+   for Create_Missing_Dirs use "True";
 
    package Compiler is
       for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnatX", "-gnatwa", "-gnatVa", "-g");
+        SSH_Lib_Fuzz_Tests_Config.Ada_Compiler_Switches & ("-gnat2022", "-gnatyM120", "-gnatX", "-gnatwa", "-gnatVa", "-g");
    end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");
+   end Binder;
 end Fuzz_Tests;

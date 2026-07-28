@@ -1,22 +1,22 @@
-with "../config/ssh_lib_config.gpr";
-with "zlib.gpr";
+with "config/tests_config.gpr";
 
 project SSH_Lib_Internal is
    --  Mirror SSH_Lib.gpr's OS split: the platform bodies (fd passing, xattr) live in
    --  a per-OS directory, so the white-box tests must pull the same one in or the
-   --  platform specs would have no body.
-   case SSH_Lib_Config.Alire_Host_OS is
+   --  platform specs would have no body. Keep the two case statements in step -- each
+   --  one tests its OWN crate's config variable (SSH_Lib_Config there, Tests_Config here).
+   case Tests_Config.Alire_Host_OS is
       when "windows" =>
          for Source_Dirs use ("../src", "../src/platform/windows");
       when others =>
          for Source_Dirs use ("../src", "../src/platform/posix");
    end case;
-   for Object_Dir use "obj/internal";
+   for Object_Dir use "obj/internal/" & Tests_Config.Build_Profile;
    for Create_Missing_Dirs use "True";
 
    package Compiler is
       for Default_Switches ("Ada") use
-        ("-gnat2022", "-gnatX", "-gnatyM120", "-gnata", "-gnatVa", "-gnatW8");
+        Tests_Config.Ada_Compiler_Switches & ("-gnat2022", "-gnatX", "-gnatyM120", "-gnata", "-gnatVa", "-gnatW8");
    end Compiler;
 
    package Binder is

@@ -1,8 +1,10 @@
+with "config/ssh_lib_security_tests_config.gpr";
+--  Not an Alire dependency, so Alire cannot put this with into the config gpr:
+--  ssh_lib_internal.gpr is the white-box view of the library, owned by the tests crate.
 with "../ssh_lib_internal.gpr";
-with "aunit.gpr";
 
 project Security_Tests is
-   for Source_Dirs use (".", "../src", "../src/fixtures");
+   for Source_Dirs use (".", "config", "../src", "../src/fixtures");
    for Main use
      ("test_host_key_negative.adb",
       "test_algorithm_negative.adb",
@@ -38,10 +40,22 @@ project Security_Tests is
       "test_phase19_invariant_coverage.adb",
       "test_status_mapping_matrix.adb",
       "test_phase19_context_compliance.adb");
-   for Object_Dir use "../../../ssh_lib_build/obj/tests_security";
+   --  Exec_Dir is hard-coded in tools/check_release_artifacts.adb; do not move it.
+   for Object_Dir use
+     "../../../ssh_lib_build/obj/tests_security/" & SSH_Lib_Security_Tests_Config.Build_Profile;
    for Exec_Dir use "../../../ssh_lib_build/bin/tests_security";
+   for Create_Missing_Dirs use "True";
 
    package Compiler is
-      for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa", "-gnatwe");
+      for Default_Switches ("Ada") use
+        SSH_Lib_Security_Tests_Config.Ada_Compiler_Switches & ("-gnat2022", "-gnatyM120", "-gnatwa");
+      --  -gnatwe (warnings-as-errors) was dropped when this project adopted
+      --  Ada_Compiler_Switches: that switch set enables the full GNAT style checks, and
+      --  -gnatwe escalates every style note into a hard error. The style debt it exposes is
+      --  pre-existing and untouched here; restore -gnatwe once the style debt is cleared.
    end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");
+   end Binder;
 end Security_Tests;

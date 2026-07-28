@@ -1,12 +1,23 @@
+with "config/ssh_lib_version_integration_config.gpr";
+--  Not an Alire dependency, so Alire cannot put this with into the config gpr:
+--  ssh_lib_internal.gpr is the white-box view of the library, owned by the tests crate.
 with "../ssh_lib_internal.gpr";
 
 project Version_Integration is
-   for Source_Dirs use ("src", "../src", "../src/fixtures");
+   for Source_Dirs use ("src", "config", "../src", "../src/fixtures");
    for Main use ("version_ssh_shape.adb", "test_version_fixture.adb", "test_version_adapter_consumption.adb");
-   for Object_Dir use "../../../ssh_lib_build/obj/version_integration";
+   --  Exec_Dir is hard-coded in tools/check_release_artifacts.adb; do not move it.
+   for Object_Dir use
+     "../../../ssh_lib_build/obj/version_integration/" & SSH_Lib_Version_Integration_Config.Build_Profile;
    for Exec_Dir use "../../../ssh_lib_build/bin/version_integration";
+   for Create_Missing_Dirs use "True";
 
    package Compiler is
-      for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa", "-gnatwe");
+      for Default_Switches ("Ada") use
+        SSH_Lib_Version_Integration_Config.Ada_Compiler_Switches & ("-gnat2022", "-gnatyM120", "-gnatwa", "-gnatwe");
    end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");
+   end Binder;
 end Version_Integration;

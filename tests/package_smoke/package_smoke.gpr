@@ -1,12 +1,19 @@
-with "../../SSH_Lib.gpr";
+with "config/ssh_lib_package_smoke_config.gpr";
 
 project Package_Smoke is
-   for Source_Dirs use ("src");
+   for Source_Dirs use ("src", "config");
    for Main use ("package_smoke_main.adb");
-   for Object_Dir use "../../../ssh_lib_build/obj/package_smoke";
+   --  Exec_Dir is hard-coded in tools/check_release_artifacts.adb; do not move it.
+   for Object_Dir use "../../../ssh_lib_build/obj/package_smoke/" & SSH_Lib_Package_Smoke_Config.Build_Profile;
    for Exec_Dir use "../../../ssh_lib_build/bin/package_smoke";
+   for Create_Missing_Dirs use "True";
 
    package Compiler is
-      for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa", "-gnatwe");
+      for Default_Switches ("Ada") use
+        SSH_Lib_Package_Smoke_Config.Ada_Compiler_Switches & ("-gnat2022", "-gnatyM120", "-gnatwa", "-gnatwe");
    end Compiler;
+
+   package Binder is
+      for Switches ("Ada") use ("-Es");
+   end Binder;
 end Package_Smoke;
