@@ -35,23 +35,12 @@ jobs:
         with:
           path: sshlib
 
-      - name: Check out zlib sibling
-        uses: actions/checkout@v7
+      - name: Check out sibling crates (transitive pin closure)
+        uses: bracke/project_tools/.github/actions/checkout-ada-siblings@main
         with:
-          repository: ${{ github.repository_owner }}/zlib
-          path: zlib
+          root: sshlib
 
-      - name: Check out cryptolib sibling
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ github.repository_owner }}/cryptolib
-          path: cryptolib
 
-      - name: Check out hostkit sibling
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ github.repository_owner }}/hostkit
-          path: hostkit
 
       - name: Set up Alire
         uses: alire-project/setup-alire@v6
