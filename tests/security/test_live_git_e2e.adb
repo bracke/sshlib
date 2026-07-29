@@ -181,12 +181,12 @@ begin
    if Channel_Opened then
       Status_Value := SSH_Lib.Channels.Exit_Status (Channel_Item, Exit_Code);
       if Status_Value = CryptoLib.Errors.Ok
-     or else Status_Value = CryptoLib.Errors.Remote_Exit_Nonzero
-     or else Status_Value = CryptoLib.Errors.Channel_Request_Failed
-   then
-      Ada.Text_IO.Put_Line
-        ("live Git exit-status observation: " & Status_Image (Status_Value) &
-         ", code " & Integer'Image (Exit_Code));
+        or else Status_Value = CryptoLib.Errors.Remote_Exit_Nonzero
+        or else Status_Value = CryptoLib.Errors.Channel_Request_Failed
+      then
+         Ada.Text_IO.Put_Line
+           ("live Git exit-status observation: " & Status_Image (Status_Value) &
+            ", code " & Integer'Image (Exit_Code));
       else
          Fail ("unexpected live Git exit-status result " & Status_Image (Status_Value));
          Failed_State := True;

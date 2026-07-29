@@ -66,7 +66,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
       end if;
    end Check;
 
-
    function Bytes (Value : String) return Ada.Streams.Stream_Element_Array is
       Result : Ada.Streams.Stream_Element_Array
         (Ada.Streams.Stream_Element_Offset (1) ..
@@ -124,7 +123,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
    begin
       return Critical_Option (Name_Text, Empty_Data);
    end Critical_Option_With_No_Data;
-
 
    function Join_Bytes
      (Left_Value  : Ada.Streams.Stream_Element_Array;
@@ -186,8 +184,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
          raise;
    end Write_Malformed_Key_File;
 
-
-
    procedure Write_Unsupported_Marker_File
      (Path : String;
       Host : String)
@@ -236,7 +232,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
          end if;
          raise;
    end Write_Hashed_Entry_File;
-
 
    procedure Write_Negated_Hashed_Veto_File
      (Path : String;
@@ -289,7 +284,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
          raise;
    end Write_Nonmatching_Hashed_Unsupported_Marker_File;
 
-
    procedure Write_Malformed_Bracketed_Selector_File
      (Path : String;
       Host : String)
@@ -317,7 +311,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
          end if;
          raise;
    end Write_Malformed_Bracketed_Selector_File;
-
 
    procedure Write_Empty_Host_List_Member_File
      (Path : String;
@@ -347,7 +340,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
          raise;
    end Write_Empty_Host_List_Member_File;
 
-
    procedure Write_Unsupported_Hash_Version_File
      (Path : String;
       Host : String)
@@ -376,7 +368,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
          raise;
    end Write_Unsupported_Hash_Version_File;
 
-
    procedure Write_Malformed_Hashed_Selector_File
      (Path : String;
       Host : String)
@@ -404,7 +395,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
          end if;
          raise;
    end Write_Malformed_Hashed_Selector_File;
-
 
    procedure Write_Matching_Hashed_Unsupported_Key_File
      (Path : String;
@@ -480,7 +470,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
          end if;
          raise;
    end Write_Cert_Authority_File;
-
 
    procedure Write_Ed25519_Cert_Authority_File
      (Path : String)
@@ -788,7 +777,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
 
    end Assert_OpenSSH_Certificate_Critical_Option_Policy;
 
-
    procedure Assert_Known_Hosts_Record_Matching_Matrix is
       Host_Name       : constant String := "github.com";
       Other_Host      : constant String := "example.net";
@@ -934,7 +922,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
          raise;
    end Assert_Known_Hosts_Record_Matching_Matrix;
 
-
    procedure Assert_Known_Hosts_Fail_Closed_Matching_Records is
       Host_Name    : constant String := "github.com";
       Matrix_Path  : constant String :=
@@ -1044,7 +1031,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
       Check (Trust_Result = SSH_Lib.Known_Hosts.Unknown,
              "known_hosts matching negated selector vetoes trust for that line");
    end Assert_Known_Hosts_Fail_Closed_Matching_Records;
-
 
    procedure Assert_Known_Hosts_Wildcard_And_Hashed_Matrix is
       Wildcard_Path : constant String :=
@@ -1179,7 +1165,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
       Check (Trust_Result = SSH_Lib.Known_Hosts.Trusted,
              "known_hosts hashed selector match is case-insensitive");
    end Assert_Known_Hosts_Wildcard_And_Hashed_Matrix;
-
 
    procedure Assert_Known_Hosts_Load_And_Key_Normalization is
       use Ada.Strings.Unbounded;
@@ -1569,7 +1554,6 @@ package body SSH_Lib.Tests.Fixtures.Host_Key_Security is
            (CryptoLib.Errors.Ok, Trust_Result),
          CryptoLib.Errors.Ok,
          "host-key security", "realistic host certificate wildcard principal is trusted");
-
 
       Trust_Result := SSH_Lib.Known_Hosts.Verify
         (Ed25519_Cert_Authority_Path, "ed.cert.example.test", 22,

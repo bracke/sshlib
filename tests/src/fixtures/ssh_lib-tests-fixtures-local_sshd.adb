@@ -39,7 +39,6 @@ package body SSH_Lib.Tests.Fixtures.Local_SSHD is
          return "";
    end Env;
 
-
    function Bytes_From_String (Value : String) return Ada.Streams.Stream_Element_Array is
       Result : Ada.Streams.Stream_Element_Array
         (1 .. Ada.Streams.Stream_Element_Offset (Value'Length));
@@ -335,7 +334,6 @@ package body SSH_Lib.Tests.Fixtures.Local_SSHD is
          raise;
    end Assert_Keyboard_Interactive;
 
-
    function Natural_Env
      (Name          : String;
       Default_Value : Natural)
@@ -510,7 +508,6 @@ package body SSH_Lib.Tests.Fixtures.Local_SSHD is
          end if;
          raise;
    end Assert_Optional_Live_SFTP_V4_V6;
-
 
    procedure Assert_Optional_Live_SFTP_Against_SSHD is
       Options       : SSH_Lib.Sessions.Session_Options := Base_Options;

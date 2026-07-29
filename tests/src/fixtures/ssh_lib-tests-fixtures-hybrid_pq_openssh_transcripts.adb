@@ -6,7 +6,6 @@ with CryptoLib.Hybrid_PQ_Kex;
 
 package body SSH_Lib.Tests.Fixtures.Hybrid_PQ_OpenSSH_Transcripts is
 
-
    procedure Check (Condition : Boolean; Label_Text : String) is
    begin
       if not Condition then
@@ -73,7 +72,6 @@ package body SSH_Lib.Tests.Fixtures.Hybrid_PQ_OpenSSH_Transcripts is
 
       return Content_Text (Start_Index + Prefix_Text'Length .. Stop_Index - 1);
    end Field_Value;
-
 
    function Natural_Image (Value : Natural) return String is
       Image_Text : constant String := Natural'Image (Value);
@@ -154,7 +152,6 @@ package body SSH_Lib.Tests.Fixtures.Hybrid_PQ_OpenSSH_Transcripts is
          Ada.Strings.Fixed.Index (Content_Text, "placeholder") = 0,
          Relative_Path & " has no placeholder markers");
    end Assert_Transcript;
-
 
    procedure Assert_Manifest is
       Relative_Path : constant String :=

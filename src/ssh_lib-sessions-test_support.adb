@@ -249,7 +249,6 @@ package body SSH_Lib.Sessions.Test_Support is
       Item.Test_Exec_Timeout := Value;
    end Set_Channel_Exec_Timeout_For_Test;
 
-
    procedure Set_Open_Cancelled_For_Test
      (Item  : in out Session;
       Value : Boolean)
@@ -326,7 +325,6 @@ package body SSH_Lib.Sessions.Test_Support is
    begin
       Item.Channel_Max_Open_Count := Value;
    end Set_Channel_Limit_For_Test;
-
 
    function Run_Hostile_Open_Transcript_For_Test
      (Item     : in out Session;
@@ -479,7 +477,6 @@ package body SSH_Lib.Sessions.Test_Support is
          return False;
    end Stored_Credentials_Clear_For_Test;
 
-
    procedure Mark_Open_Success_Gates_For_Test (Item : in out Session) is
    begin
       Item.Transport_Connected := True;
@@ -544,7 +541,6 @@ package body SSH_Lib.Sessions.Test_Support is
             Item.User_Authenticated := False;
       end case;
    end Clear_Open_Success_Gate_For_Test;
-
 
    procedure Enable_Live_Channel_IO_For_Test (Item : in out Session) is
    begin

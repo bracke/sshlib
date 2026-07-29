@@ -636,16 +636,16 @@ package body SSH_Lib.Tests.Legacy is
       Pack_Consumed_Length : Natural := 0;
       Pack_Inflated  : Ada.Streams.Stream_Element_Array (1 .. 32);
       Pack_Inflated_Last : Ada.Streams.Stream_Element_Offset;
-	      Pack_Base_ID   : Ada.Streams.Stream_Element_Array (1 .. 20);
-	      Pack_Base_Last : Ada.Streams.Stream_Element_Offset;
-	      Pack_Hex_ID    : Ada.Streams.Stream_Element_Array (1 .. 40);
-	      Pack_Hex_Last  : Ada.Streams.Stream_Element_Offset;
-	      Pack_Consumed  : Natural := 0;
+      Pack_Base_ID   : Ada.Streams.Stream_Element_Array (1 .. 20);
+      Pack_Base_Last : Ada.Streams.Stream_Element_Offset;
+      Pack_Hex_ID    : Ada.Streams.Stream_Element_Array (1 .. 40);
+      Pack_Hex_Last  : Ada.Streams.Stream_Element_Offset;
+      Pack_Consumed  : Natural := 0;
       Pack_Object_Index : Natural := 0;
-	      Pack_Offset    : Natural := 0;
-	      Pack_Verified_Count : Natural := 0;
-	      Pack_Resolved_Count : Natural := 0;
-	      Pack_Object_Counts : SSH_Lib.Git.Pack_Object_Counts;
+      Pack_Offset    : Natural := 0;
+      Pack_Verified_Count : Natural := 0;
+      Pack_Resolved_Count : Natural := 0;
+      Pack_Object_Counts : SSH_Lib.Git.Pack_Object_Counts;
       Ref_Kind       : SSH_Lib.Git.Ref_Name_Kind := SSH_Lib.Git.Ref_Other;
       Side_Kind      : SSH_Lib.Git.Side_Band_Kind :=
         SSH_Lib.Git.Side_Band_Data;
@@ -1189,7 +1189,7 @@ package body SSH_Lib.Tests.Legacy is
            SSH_Lib.Git.Validate_Upload_Pack_Negotiation_Request
              (SSH_Lib.Protocol.Buffers.To_Array
                 (SSH_Lib.Git.Encode_Upload_Pack_Want_Line
-                   (Object_Hex, (1 .. 0 => 0)))
+                   (Object_Hex, [1 .. 0 => 0]))
               & SSH_Lib.Protocol.Buffers.To_Array
                   (SSH_Lib.Git.Encode_Pkt_Flush),
               Negotiation_Summary);
@@ -2028,1890 +2028,1890 @@ package body SSH_Lib.Tests.Legacy is
             0, 0, 0, 0],
            Pack_Version,
            Pack_Count);
-	      Check_Status
-	        (Status_Value, CryptoLib.Errors.Invalid_Command,
-	         "git pack bad signature rejected");
+      Check_Status
+        (Status_Value, CryptoLib.Errors.Invalid_Command,
+         "git pack bad signature rejected");
 
-	      Status_Value :=
-	        SSH_Lib.Git.Compute_Object_ID
-	          (SSH_Lib.Git.Pack_Blob,
-	           [Character'Pos ('h'), Character'Pos ('e'), Character'Pos ('l'),
-	            Character'Pos ('l'), Character'Pos ('o'), Character'Pos (' '),
-	            Character'Pos ('w'), Character'Pos ('o'), Character'Pos ('r'),
-	            Character'Pos ('l'), Character'Pos ('d'),
-	            Character'Pos (Character'Val (10))],
-	           Pack_Base_ID,
-	           Pack_Base_Last);
-	      Check_Status
-	        (Status_Value, CryptoLib.Errors.Ok,
-	         "git object id computed");
-	      Check
-	        (Pack_Base_Last = Pack_Base_ID'First + 19
-	         and then Bytes_Equal
-	           (Pack_Base_ID,
-	            [16#3B#, 16#18#, 16#E5#, 16#12#, 16#DB#,
-	             16#A7#, 16#9E#, 16#4C#, 16#83#, 16#00#,
-	             16#DD#, 16#08#, 16#AE#, 16#B3#, 16#7F#,
-	             16#8E#, 16#72#, 16#8B#, 16#8D#, 16#AD#]),
-	         "git object id bytes");
+      Status_Value :=
+        SSH_Lib.Git.Compute_Object_ID
+          (SSH_Lib.Git.Pack_Blob,
+           [Character'Pos ('h'), Character'Pos ('e'), Character'Pos ('l'),
+            Character'Pos ('l'), Character'Pos ('o'), Character'Pos (' '),
+            Character'Pos ('w'), Character'Pos ('o'), Character'Pos ('r'),
+            Character'Pos ('l'), Character'Pos ('d'),
+            Character'Pos (Character'Val (10))],
+           Pack_Base_ID,
+           Pack_Base_Last);
+      Check_Status
+        (Status_Value, CryptoLib.Errors.Ok,
+         "git object id computed");
+      Check
+        (Pack_Base_Last = Pack_Base_ID'First + 19
+         and then Bytes_Equal
+           (Pack_Base_ID,
+            [16#3B#, 16#18#, 16#E5#, 16#12#, 16#DB#,
+             16#A7#, 16#9E#, 16#4C#, 16#83#, 16#00#,
+             16#DD#, 16#08#, 16#AE#, 16#B3#, 16#7F#,
+             16#8E#, 16#72#, 16#8B#, 16#8D#, 16#AD#]),
+         "git object id bytes");
 
-	      Status_Value :=
-	        SSH_Lib.Git.Encode_Object_ID_Hex
-	          (Pack_Base_ID,
-	           Pack_Hex_ID,
-	           Pack_Hex_Last);
-	      Check_Status
-	        (Status_Value, CryptoLib.Errors.Ok,
-	         "git object id hex encoded");
-	      Check
-	        (Pack_Hex_Last = Pack_Hex_ID'First + 39
-	         and then Bytes_Equal
-	           (Pack_Hex_ID,
-	            [Character'Pos ('3'), Character'Pos ('b'),
-	             Character'Pos ('1'), Character'Pos ('8'),
-	             Character'Pos ('e'), Character'Pos ('5'),
-	             Character'Pos ('1'), Character'Pos ('2'),
-	             Character'Pos ('d'), Character'Pos ('b'),
-	             Character'Pos ('a'), Character'Pos ('7'),
-	             Character'Pos ('9'), Character'Pos ('e'),
-	             Character'Pos ('4'), Character'Pos ('c'),
-	             Character'Pos ('8'), Character'Pos ('3'),
-	             Character'Pos ('0'), Character'Pos ('0'),
-	             Character'Pos ('d'), Character'Pos ('d'),
-	             Character'Pos ('0'), Character'Pos ('8'),
-	             Character'Pos ('a'), Character'Pos ('e'),
-	             Character'Pos ('b'), Character'Pos ('3'),
-	             Character'Pos ('7'), Character'Pos ('f'),
-	             Character'Pos ('8'), Character'Pos ('e'),
-	             Character'Pos ('7'), Character'Pos ('2'),
-	             Character'Pos ('8'), Character'Pos ('b'),
-	             Character'Pos ('8'), Character'Pos ('d'),
-	             Character'Pos ('a'), Character'Pos ('d')]),
-	         "git object id hex bytes");
+      Status_Value :=
+        SSH_Lib.Git.Encode_Object_ID_Hex
+          (Pack_Base_ID,
+           Pack_Hex_ID,
+           Pack_Hex_Last);
+      Check_Status
+        (Status_Value, CryptoLib.Errors.Ok,
+         "git object id hex encoded");
+      Check
+        (Pack_Hex_Last = Pack_Hex_ID'First + 39
+         and then Bytes_Equal
+           (Pack_Hex_ID,
+            [Character'Pos ('3'), Character'Pos ('b'),
+             Character'Pos ('1'), Character'Pos ('8'),
+             Character'Pos ('e'), Character'Pos ('5'),
+             Character'Pos ('1'), Character'Pos ('2'),
+             Character'Pos ('d'), Character'Pos ('b'),
+             Character'Pos ('a'), Character'Pos ('7'),
+             Character'Pos ('9'), Character'Pos ('e'),
+             Character'Pos ('4'), Character'Pos ('c'),
+             Character'Pos ('8'), Character'Pos ('3'),
+             Character'Pos ('0'), Character'Pos ('0'),
+             Character'Pos ('d'), Character'Pos ('d'),
+             Character'Pos ('0'), Character'Pos ('8'),
+             Character'Pos ('a'), Character'Pos ('e'),
+             Character'Pos ('b'), Character'Pos ('3'),
+             Character'Pos ('7'), Character'Pos ('f'),
+             Character'Pos ('8'), Character'Pos ('e'),
+             Character'Pos ('7'), Character'Pos ('2'),
+             Character'Pos ('8'), Character'Pos ('b'),
+             Character'Pos ('8'), Character'Pos ('d'),
+             Character'Pos ('a'), Character'Pos ('d')]),
+         "git object id hex bytes");
 
-	      Pack_Base_ID := [others => 0];
-	      Status_Value :=
-	        SSH_Lib.Git.Parse_Object_ID_Hex
-	          (Pack_Hex_ID,
-	           Pack_Base_ID,
-	           Pack_Base_Last);
-	      Check_Status
-	        (Status_Value, CryptoLib.Errors.Ok,
-	         "git object id hex parsed");
-	      Check
-	        (Pack_Base_Last = Pack_Base_ID'First + 19
-	         and then Bytes_Equal
-	           (Pack_Base_ID,
-	            [16#3B#, 16#18#, 16#E5#, 16#12#, 16#DB#,
-	             16#A7#, 16#9E#, 16#4C#, 16#83#, 16#00#,
-	             16#DD#, 16#08#, 16#AE#, 16#B3#, 16#7F#,
-	             16#8E#, 16#72#, 16#8B#, 16#8D#, 16#AD#]),
-	         "git object id parsed bytes");
+      Pack_Base_ID := [others => 0];
+      Status_Value :=
+        SSH_Lib.Git.Parse_Object_ID_Hex
+          (Pack_Hex_ID,
+           Pack_Base_ID,
+           Pack_Base_Last);
+      Check_Status
+        (Status_Value, CryptoLib.Errors.Ok,
+         "git object id hex parsed");
+      Check
+        (Pack_Base_Last = Pack_Base_ID'First + 19
+         and then Bytes_Equal
+           (Pack_Base_ID,
+            [16#3B#, 16#18#, 16#E5#, 16#12#, 16#DB#,
+             16#A7#, 16#9E#, 16#4C#, 16#83#, 16#00#,
+             16#DD#, 16#08#, 16#AE#, 16#B3#, 16#7F#,
+             16#8E#, 16#72#, 16#8B#, 16#8D#, 16#AD#]),
+         "git object id parsed bytes");
 
-	      Pack_Hex_ID (1) := Character'Pos ('x');
-	      Status_Value :=
-	        SSH_Lib.Git.Parse_Object_ID_Hex
-	          (Pack_Hex_ID,
-	           Pack_Base_ID,
-	           Pack_Base_Last);
-	      Check_Status
-	        (Status_Value, CryptoLib.Errors.Invalid_Command,
-	         "git object id hex invalid byte rejected");
+      Pack_Hex_ID (1) := Character'Pos ('x');
+      Status_Value :=
+        SSH_Lib.Git.Parse_Object_ID_Hex
+          (Pack_Hex_ID,
+           Pack_Base_ID,
+           Pack_Base_Last);
+      Check_Status
+        (Status_Value, CryptoLib.Errors.Invalid_Command,
+         "git object id hex invalid byte rejected");
 
-	      declare
-	         Small_Hex : Ada.Streams.Stream_Element_Array (1 .. 39) :=
-	           [others => Character'Pos ('0')];
-	         Small_ID : Ada.Streams.Stream_Element_Array (1 .. 19) :=
-	           [others => 0];
-	         Small_Last : Ada.Streams.Stream_Element_Offset;
-	      begin
-	         Status_Value :=
-	           SSH_Lib.Git.Encode_Object_ID_Hex
-	             (Small_ID,
-	              Pack_Hex_ID,
-	              Small_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git object id hex encode small raw buffer rejected");
+      declare
+         Small_Hex : constant Ada.Streams.Stream_Element_Array (1 .. 39) :=
+           [others => Character'Pos ('0')];
+         Small_ID : constant Ada.Streams.Stream_Element_Array (1 .. 19) :=
+           [others => 0];
+         Small_Last : Ada.Streams.Stream_Element_Offset;
+      begin
+         Status_Value :=
+           SSH_Lib.Git.Encode_Object_ID_Hex
+             (Small_ID,
+              Pack_Hex_ID,
+              Small_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git object id hex encode small raw buffer rejected");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Parse_Object_ID_Hex
-	             (Small_Hex,
-	              Pack_Base_ID,
-	              Small_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git object id hex parse short text rejected");
-	      end;
+         Status_Value :=
+           SSH_Lib.Git.Parse_Object_ID_Hex
+             (Small_Hex,
+              Pack_Base_ID,
+              Small_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git object id hex parse short text rejected");
+      end;
 
-	      Status_Value :=
-	        SSH_Lib.Git.Compute_Object_ID
-	          (SSH_Lib.Git.Pack_OFS_Delta,
-	           [1, 2, 3],
-	           Pack_Base_ID,
-	           Pack_Base_Last);
-	      Check_Status
-	        (Status_Value, CryptoLib.Errors.Invalid_Command,
-	         "git object id delta kind rejected");
+      Status_Value :=
+        SSH_Lib.Git.Compute_Object_ID
+          (SSH_Lib.Git.Pack_OFS_Delta,
+           [1, 2, 3],
+           Pack_Base_ID,
+           Pack_Base_Last);
+      Check_Status
+        (Status_Value, CryptoLib.Errors.Invalid_Command,
+         "git object id delta kind rejected");
 
-	      declare
-	         Small_ID : Ada.Streams.Stream_Element_Array (1 .. 19);
-	         Small_Last : Ada.Streams.Stream_Element_Offset;
-	      begin
-	         Status_Value :=
-	           SSH_Lib.Git.Compute_Object_ID
-	             (SSH_Lib.Git.Pack_Blob,
-	              [1, 2, 3],
-	              Small_ID,
-	              Small_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git object id small buffer rejected");
-	      end;
+      declare
+         Small_ID : Ada.Streams.Stream_Element_Array (1 .. 19);
+         Small_Last : Ada.Streams.Stream_Element_Offset;
+      begin
+         Status_Value :=
+           SSH_Lib.Git.Compute_Object_ID
+             (SSH_Lib.Git.Pack_Blob,
+              [1, 2, 3],
+              Small_ID,
+              Small_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git object id small buffer rejected");
+      end;
 
-	      declare
-	         Repo_Root : constant String :=
-	           SSH_Lib.Tests.Fixtures.Temp_Paths.Path ("git_state_repo");
-	         Packed_Repo_Root : constant String :=
-	           SSH_Lib.Tests.Fixtures.Temp_Paths.Path
-	             ("git_state_packed_repo");
-	         Blob_Data : constant Ada.Streams.Stream_Element_Array :=
-	           [Character'Pos ('h'), Character'Pos ('e'),
-	            Character'Pos ('l'), Character'Pos ('l'),
-	            Character'Pos ('o'), Character'Pos (' '),
-	            Character'Pos ('w'), Character'Pos ('o'),
-	            Character'Pos ('r'), Character'Pos ('l'),
-	            Character'Pos ('d'),
-	            Character'Pos (Character'Val (10))];
-	         Expected_Blob_Hex : constant Ada.Streams.Stream_Element_Array :=
-	           [Character'Pos ('3'), Character'Pos ('b'),
-	            Character'Pos ('1'), Character'Pos ('8'),
-	            Character'Pos ('e'), Character'Pos ('5'),
-	            Character'Pos ('1'), Character'Pos ('2'),
-	            Character'Pos ('d'), Character'Pos ('b'),
-	            Character'Pos ('a'), Character'Pos ('7'),
-	            Character'Pos ('9'), Character'Pos ('e'),
-	            Character'Pos ('4'), Character'Pos ('c'),
-	            Character'Pos ('8'), Character'Pos ('3'),
-	            Character'Pos ('0'), Character'Pos ('0'),
-	            Character'Pos ('d'), Character'Pos ('d'),
-	            Character'Pos ('0'), Character'Pos ('8'),
-	            Character'Pos ('a'), Character'Pos ('e'),
-	            Character'Pos ('b'), Character'Pos ('3'),
-	            Character'Pos ('7'), Character'Pos ('f'),
-	            Character'Pos ('8'), Character'Pos ('e'),
-	            Character'Pos ('7'), Character'Pos ('2'),
-	            Character'Pos ('8'), Character'Pos ('b'),
-	            Character'Pos ('8'), Character'Pos ('d'),
-	            Character'Pos ('a'), Character'Pos ('d')];
-	         Alternate_Hex : constant Ada.Streams.Stream_Element_Array :=
-	           Bytes_From_String ("1111111111111111111111111111111111111111");
-	         Stored_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Stored_Last : Ada.Streams.Stream_Element_Offset;
-	         Deleted_Loose_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Deleted_Loose_Last : Ada.Streams.Stream_Element_Offset;
-	         Listed_Loose_Object_IDs :
-	           SSH_Lib.Git.Object_ID_Hex_Array (1 .. 16);
-	         Listed_Loose_Object_Count : Natural := 0;
-	         Read_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Read_Hex_Last : Ada.Streams.Stream_Element_Offset;
-	         Target_Ref : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Target_Last : Ada.Streams.Stream_Element_Offset;
-	         Listed_Ref_Names : Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Listed_Ref_Name_Lasts :
-	           SSH_Lib.Git.Ref_Name_Last_Array (1 .. 8);
-	         Listed_Ref_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 8);
-	         Listed_Ref_Count : Natural := 0;
-	         Ref_Found : Boolean := False;
-	         Head_Attached : Boolean := False;
-	         Commit_Is_Ancestor : Boolean := False;
-	         Branch_Updated : Boolean := False;
-	         Read_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Read_Last : Ada.Streams.Stream_Element_Offset;
-	         Read_Kind : SSH_Lib.Git.Pack_Object_Kind := SSH_Lib.Git.Pack_Tree;
-	         Reflog_Line : Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Reflog_Last : Ada.Streams.Stream_Element_Offset;
-	         Config_Value : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Config_Value_Last : Ada.Streams.Stream_Element_Offset;
-	         Config_Values : Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Config_Value_Lasts :
-	           SSH_Lib.Git.Config_Value_Last_Array (1 .. 4);
-	         Config_Value_Count : Natural := 0;
-	         Config_Removed : Boolean := False;
-	         Config_Found : Boolean := False;
-	         Core_Bare : Boolean := False;
-	         Core_Filemode : Boolean := False;
-	         Core_Log_All_Ref_Updates : Boolean := False;
-	         Index_Version : Natural := 0;
-	         Index_Entry_Count : Natural := 0;
-	         Built_Index_Entry : Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Built_Index_Entry_Last : Ada.Streams.Stream_Element_Offset;
-	         Parsed_Index_Mode : Natural := 0;
-	         Parsed_Index_Path : Ada.Streams.Stream_Element_Array (1 .. 32);
-	         Parsed_Index_Path_Last : Ada.Streams.Stream_Element_Offset;
-	         Parsed_Index_Object_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 20);
-	         Parsed_Index_Object_Last : Ada.Streams.Stream_Element_Offset;
-	         Parsed_Index_File_Size : Natural := 0;
-	         Parsed_Index_Next_Offset : Natural := 0;
-	         Index_Found : Boolean := False;
-	         Index_Removed : Boolean := False;
-	         Worktree_Found : Boolean := False;
-	         Worktree_Removed : Boolean := False;
-	         Worktree_Written : Boolean := False;
-	         Worktree_Written_Count : Natural := 0;
-	         Worktree_Path_State : SSH_Lib.Git.Worktree_Path_Status :=
-	           SSH_Lib.Git.Worktree_Path_Missing;
-	         use type SSH_Lib.Git.Worktree_Path_Status;
-	         Porcelain_Path_State : SSH_Lib.Git.Porcelain_Path_Status :=
-	           SSH_Lib.Git.Porcelain_Path_Absent;
-	         use type SSH_Lib.Git.Porcelain_Path_Status;
-	         Porcelain_Absent_Count : Natural := 0;
-	         Porcelain_Untracked_Count : Natural := 0;
-	         Worktree_Missing_Count : Natural := 0;
-	         Worktree_Unchanged_Count : Natural := 0;
-	         Worktree_Modified_Count : Natural := 0;
-	         Porcelain_Status_Summary :
-	           SSH_Lib.Git.Porcelain_Status_Summary;
+      declare
+         Repo_Root : constant String :=
+           SSH_Lib.Tests.Fixtures.Temp_Paths.Path ("git_state_repo");
+         Packed_Repo_Root : constant String :=
+           SSH_Lib.Tests.Fixtures.Temp_Paths.Path
+             ("git_state_packed_repo");
+         Blob_Data : constant Ada.Streams.Stream_Element_Array :=
+           [Character'Pos ('h'), Character'Pos ('e'),
+            Character'Pos ('l'), Character'Pos ('l'),
+            Character'Pos ('o'), Character'Pos (' '),
+            Character'Pos ('w'), Character'Pos ('o'),
+            Character'Pos ('r'), Character'Pos ('l'),
+            Character'Pos ('d'),
+            Character'Pos (Character'Val (10))];
+         Expected_Blob_Hex : constant Ada.Streams.Stream_Element_Array :=
+           [Character'Pos ('3'), Character'Pos ('b'),
+            Character'Pos ('1'), Character'Pos ('8'),
+            Character'Pos ('e'), Character'Pos ('5'),
+            Character'Pos ('1'), Character'Pos ('2'),
+            Character'Pos ('d'), Character'Pos ('b'),
+            Character'Pos ('a'), Character'Pos ('7'),
+            Character'Pos ('9'), Character'Pos ('e'),
+            Character'Pos ('4'), Character'Pos ('c'),
+            Character'Pos ('8'), Character'Pos ('3'),
+            Character'Pos ('0'), Character'Pos ('0'),
+            Character'Pos ('d'), Character'Pos ('d'),
+            Character'Pos ('0'), Character'Pos ('8'),
+            Character'Pos ('a'), Character'Pos ('e'),
+            Character'Pos ('b'), Character'Pos ('3'),
+            Character'Pos ('7'), Character'Pos ('f'),
+            Character'Pos ('8'), Character'Pos ('e'),
+            Character'Pos ('7'), Character'Pos ('2'),
+            Character'Pos ('8'), Character'Pos ('b'),
+            Character'Pos ('8'), Character'Pos ('d'),
+            Character'Pos ('a'), Character'Pos ('d')];
+         Alternate_Hex : constant Ada.Streams.Stream_Element_Array :=
+           Bytes_From_String ("1111111111111111111111111111111111111111");
+         Stored_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Stored_Last : Ada.Streams.Stream_Element_Offset;
+         Deleted_Loose_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Deleted_Loose_Last : Ada.Streams.Stream_Element_Offset;
+         Listed_Loose_Object_IDs :
+           SSH_Lib.Git.Object_ID_Hex_Array (1 .. 16);
+         Listed_Loose_Object_Count : Natural := 0;
+         Read_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Read_Hex_Last : Ada.Streams.Stream_Element_Offset;
+         Target_Ref : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Target_Last : Ada.Streams.Stream_Element_Offset;
+         Listed_Ref_Names : Ada.Streams.Stream_Element_Array (1 .. 256);
+         Listed_Ref_Name_Lasts :
+           SSH_Lib.Git.Ref_Name_Last_Array (1 .. 8);
+         Listed_Ref_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 8);
+         Listed_Ref_Count : Natural := 0;
+         Ref_Found : Boolean := False;
+         Head_Attached : Boolean := False;
+         Commit_Is_Ancestor : Boolean := False;
+         Branch_Updated : Boolean := False;
+         Read_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Read_Last : Ada.Streams.Stream_Element_Offset;
+         Read_Kind : SSH_Lib.Git.Pack_Object_Kind := SSH_Lib.Git.Pack_Tree;
+         Reflog_Line : Ada.Streams.Stream_Element_Array (1 .. 256);
+         Reflog_Last : Ada.Streams.Stream_Element_Offset;
+         Config_Value : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Config_Value_Last : Ada.Streams.Stream_Element_Offset;
+         Config_Values : Ada.Streams.Stream_Element_Array (1 .. 128);
+         Config_Value_Lasts :
+           SSH_Lib.Git.Config_Value_Last_Array (1 .. 4);
+         Config_Value_Count : Natural := 0;
+         Config_Removed : Boolean := False;
+         Config_Found : Boolean := False;
+         Core_Bare : Boolean := False;
+         Core_Filemode : Boolean := False;
+         Core_Log_All_Ref_Updates : Boolean := False;
+         Index_Version : Natural := 0;
+         Index_Entry_Count : Natural := 0;
+         Built_Index_Entry : Ada.Streams.Stream_Element_Array (1 .. 128);
+         Built_Index_Entry_Last : Ada.Streams.Stream_Element_Offset;
+         Parsed_Index_Mode : Natural := 0;
+         Parsed_Index_Path : Ada.Streams.Stream_Element_Array (1 .. 32);
+         Parsed_Index_Path_Last : Ada.Streams.Stream_Element_Offset;
+         Parsed_Index_Object_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 20);
+         Parsed_Index_Object_Last : Ada.Streams.Stream_Element_Offset;
+         Parsed_Index_File_Size : Natural := 0;
+         Parsed_Index_Next_Offset : Natural := 0;
+         Index_Found : Boolean := False;
+         Index_Removed : Boolean := False;
+         Worktree_Found : Boolean := False;
+         Worktree_Removed : Boolean := False;
+         Worktree_Written : Boolean := False;
+         Worktree_Written_Count : Natural := 0;
+         Worktree_Path_State : SSH_Lib.Git.Worktree_Path_Status :=
+           SSH_Lib.Git.Worktree_Path_Missing;
+         use type SSH_Lib.Git.Worktree_Path_Status;
+         Porcelain_Path_State : SSH_Lib.Git.Porcelain_Path_Status :=
+           SSH_Lib.Git.Porcelain_Path_Absent;
+         use type SSH_Lib.Git.Porcelain_Path_Status;
+         Porcelain_Absent_Count : Natural := 0;
+         Porcelain_Untracked_Count : Natural := 0;
+         Worktree_Missing_Count : Natural := 0;
+         Worktree_Unchanged_Count : Natural := 0;
+         Worktree_Modified_Count : Natural := 0;
+         Porcelain_Status_Summary :
+           SSH_Lib.Git.Porcelain_Status_Summary;
             Porcelain_Model :
               SSH_Lib.Git.Porcelain_Index_Worktree_Model;
             Database_Summary :
               SSH_Lib.Git.Repository_Database_Summary;
-	         Listed_Index_Paths : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Listed_Index_Path_Lasts :
-	           SSH_Lib.Git.Index_Path_Last_Array (1 .. 4);
-	         Listed_Index_Path_Count : Natural := 0;
-	         Raw_Blob_ID : Ada.Streams.Stream_Element_Array (1 .. 20);
-	         Raw_Blob_Last : Ada.Streams.Stream_Element_Offset;
-	         Tree_Data : Ada.Streams.Stream_Element_Array (1 .. 37) :=
-	           [Character'Pos ('1'), Character'Pos ('0'),
-	            Character'Pos ('0'), Character'Pos ('6'),
-	            Character'Pos ('4'), Character'Pos ('4'),
-	            Character'Pos (' '),
-	            Character'Pos ('h'), Character'Pos ('e'),
-	            Character'Pos ('l'), Character'Pos ('l'),
-	            Character'Pos ('o'), Character'Pos ('.'),
-	            Character'Pos ('t'), Character'Pos ('x'),
-	            Character'Pos ('t'), 0, others => 0];
-	         Tree_Mode : Natural := 0;
-	         Tree_Name : Ada.Streams.Stream_Element_Array (1 .. 32);
-	         Tree_Name_Last : Ada.Streams.Stream_Element_Offset;
-	         Tree_Object_ID : Ada.Streams.Stream_Element_Array (1 .. 20);
-	         Tree_Object_Last : Ada.Streams.Stream_Element_Offset;
-	         Built_Tree_Entry : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Built_Tree_Entry_Last : Ada.Streams.Stream_Element_Offset;
-	         Built_Tree_Object_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 20) :=
-	             [1 => 1, others => 0];
-	         Tree_Next_Offset : Natural := 0;
-	         Tree_Entry_Count : Natural := 0;
-	         Tree_Found_Mode : Natural := 0;
-	         Tree_Found_ID : Ada.Streams.Stream_Element_Array (1 .. 20);
-	         Tree_Found_Last : Ada.Streams.Stream_Element_Offset;
-	         Tree_Found_Hex_Mode : Natural := 0;
-	         Tree_Found_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Tree_Found_Hex_Last : Ada.Streams.Stream_Element_Offset;
-	         Listed_Tree_Names : Ada.Streams.Stream_Element_Array (1 .. 32);
-	         Listed_Tree_Name_Lasts :
-	           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
-	         Listed_Tree_Modes : SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
-	         Listed_Tree_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
-	         Listed_Tree_Count : Natural := 0;
-	         Stored_List_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Stored_List_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Stored_List_Names : Ada.Streams.Stream_Element_Array (1 .. 32);
-	         Stored_List_Name_Lasts :
-	           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
-	         Stored_List_Modes : SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
-	         Stored_List_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
-	         Stored_List_Count : Natural := 0;
-	         Commit_Tree_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commit_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_Parent_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commit_Parent_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_Author_Line : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Commit_Author_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_Committer_Line : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Commit_Committer_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_Message_Offset : Natural := 0;
-	         Commit_Parent_Count : Natural := 0;
-	         Tag_Target_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Tag_Target_Last : Ada.Streams.Stream_Element_Offset;
-	         Tag_Target_Kind : SSH_Lib.Git.Pack_Object_Kind :=
-	           SSH_Lib.Git.Pack_Blob;
-	         Merge_Result : SSH_Lib.Git.Three_Way_Merge_Result :=
-	           SSH_Lib.Git.Merge_Conflict;
-	         use type SSH_Lib.Git.Three_Way_Merge_Result;
-	         Tag_Name : Ada.Streams.Stream_Element_Array (1 .. 32);
-	         Tag_Name_Last : Ada.Streams.Stream_Element_Offset;
-	         Tag_Message_Offset : Natural := 0;
-	         Pack_Data : Ada.Streams.Stream_Element_Array (1 .. 32) :=
-	           [Character'Pos ('P'), Character'Pos ('A'),
-	            Character'Pos ('C'), Character'Pos ('K'),
-	            0, 0, 0, 2, 0, 0, 0, 0, others => 0];
-	         Object_Pack : Ada.Streams.Stream_Element_Array (1 .. 53) :=
-	           [Character'Pos ('P'), Character'Pos ('A'),
-	            Character'Pos ('C'), Character'Pos ('K'),
-	            0, 0, 0, 2, 0, 0, 0, 1,
-	            16#3C#,
-	            16#78#, 16#9C#, 16#CB#, 16#48#, 16#CD#, 16#C9#,
-	            16#C9#, 16#57#, 16#28#, 16#CF#, 16#2F#, 16#CA#,
-	            16#49#, 16#E1#, 16#02#, 16#00#, 16#1E#, 16#72#,
-	            16#04#, 16#67#,
-	            others => 0];
-	         Pack_Checksum_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Pack_Checksum_Last : Ada.Streams.Stream_Element_Offset;
-	         Object_Pack_Checksum_Hex :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Object_Pack_Checksum_Last : Ada.Streams.Stream_Element_Offset;
-	         Deleted_Pack_File : Boolean := False;
-	         Deleted_Pack_Index : Boolean := False;
-	         Read_Pack : Ada.Streams.Stream_Element_Array (1 .. 32);
-	         Read_Pack_Last : Ada.Streams.Stream_Element_Offset;
-	         Built_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
-	         Built_Index_Last : Ada.Streams.Stream_Element_Offset;
-	         Object_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
-	         Object_Index_Last : Ada.Streams.Stream_Element_Offset;
-	         Read_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
-	         Read_Index_Last : Ada.Streams.Stream_Element_Offset;
-	         Read_Object_Pack : Ada.Streams.Stream_Element_Array (1 .. 53);
-	         Read_Object_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
-	         Listed_Packed_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
-	         Listed_Packed_Index_Last : Ada.Streams.Stream_Element_Offset;
-	         Listed_Packed_Object_IDs :
-	           SSH_Lib.Git.Object_ID_Hex_Array (1 .. 4);
-	         Listed_Packed_Object_Count : Natural := 0;
-	         Exists_Pack_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
-	         Exists_Pack_Checksums : Ada.Streams.Stream_Element_Array (1 .. 80);
-	         Exists_Pack_Checksums_Last : Ada.Streams.Stream_Element_Offset;
-	         Exists_Pack_Checksum : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Exists_Pack_Checksum_Last : Ada.Streams.Stream_Element_Offset;
-	         Stored_Object_Found : Boolean := False;
-	         Stored_Object_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 32);
-	         Stored_Object_Count : Natural := 0;
-	         Stored_Object_Pack_Checksums :
-	           Ada.Streams.Stream_Element_Array (1 .. 80);
-	         Stored_Object_Pack_Checksums_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Stored_Object_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
-	         Stored_Object_Index_Last : Ada.Streams.Stream_Element_Offset;
-	         Packed_Object_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Packed_Object_Last : Ada.Streams.Stream_Element_Offset;
-	         Pack_Index_List : Ada.Streams.Stream_Element_Array (1 .. 80);
-	         Pack_Index_List_Last : Ada.Streams.Stream_Element_Offset;
-	         Pack_Index_List_Count : Natural := 0;
-	         Found_Pack_Checksum_Hex :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Found_Pack_Checksum_Last : Ada.Streams.Stream_Element_Offset;
-	         Validated_Stored_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Validated_Stored_Last : Ada.Streams.Stream_Element_Offset;
-	         Stored_Tree_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Stored_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Stored_Tree_Raw_ID : Ada.Streams.Stream_Element_Array (1 .. 20);
-	         Stored_Tree_Raw_Last : Ada.Streams.Stream_Element_Offset;
-	         Path_List_Root_Tree_Hex :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Path_List_Root_Tree_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Path_List_Parent_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Path_List_Parent_Tree_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Path_List_Mode : Natural := 0;
-	         Path_List_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Path_List_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Path_List_Names : Ada.Streams.Stream_Element_Array (1 .. 32);
-	         Path_List_Path_Lasts :
-	           SSH_Lib.Git.Index_Path_Last_Array (1 .. 2);
-	         Path_List_Name_Lasts :
-	           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
-	         Path_List_Modes : SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
-	         Path_List_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
-	         Path_List_Count : Natural := 0;
-	         Stored_Commit_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Stored_Commit_Last : Ada.Streams.Stream_Element_Offset;
-	         Stored_Tag_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Stored_Tag_Last : Ada.Streams.Stream_Element_Offset;
-	         Traversed_Tree_Data : Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Traversed_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Traversed_Mode : Natural := 0;
-	         Traversed_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Traversed_Last : Ada.Streams.Stream_Element_Offset;
-	         Path_Tree_Data : Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Path_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Path_Mode : Natural := 0;
-	         Path_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Path_Last : Ada.Streams.Stream_Element_Offset;
-	         Resolved_Path_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Resolved_Path_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Resolved_Path_Mode : Natural := 0;
-	         Resolved_Path_ID : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Resolved_Path_ID_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_Path_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commit_Path_Commit_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_Path_Tree_ID : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commit_Path_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_Path_Tree_Data : Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Commit_Path_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_Path_Mode : Natural := 0;
-	         Commit_Path_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Commit_Path_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_Resolved_Path_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commit_Resolved_Path_Commit_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commit_Resolved_Path_Tree_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commit_Resolved_Path_Tree_ID_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commit_Resolved_Path_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Commit_Resolved_Path_Tree_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commit_Resolved_Path_Mode : Natural := 0;
-	         Commit_Resolved_Path_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commit_Resolved_Path_ID_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commit_Tree_Read_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commit_Tree_Read_Commit_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commit_Tree_Read_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commit_Tree_Read_ID_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_Tree_Read_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Commit_Tree_Read_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_Tree_Read_Count : Natural := 0;
-	         Commit_List_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commit_List_Commit_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_List_Tree_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commit_List_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_List_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Commit_List_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Commit_List_Names : Ada.Streams.Stream_Element_Array (1 .. 32);
-	         Commit_List_Name_Lasts :
-	           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
-	         Commit_List_Modes : SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
-	         Commit_List_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
-	         Commit_List_Count : Natural := 0;
-	         Commit_Path_List_Hex :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commit_Path_List_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commit_Path_List_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commit_Path_List_Commit_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commit_Path_List_Tree_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commit_Path_List_Tree_ID_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commit_Path_List_Parent_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Commit_Path_List_Parent_Tree_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commit_Path_List_Mode : Natural := 0;
-	         Commit_Path_List_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Commit_Path_List_Tree_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commit_Path_List_Names :
-	           Ada.Streams.Stream_Element_Array (1 .. 32);
-	         Commit_Path_List_Name_Lasts :
-	           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
-	         Commit_Path_List_Modes :
-	           SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
-	         Commit_Path_List_IDs :
-	           SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
-	         Commit_Path_List_Count : Natural := 0;
-	         Ref_Path_List_Resolved_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Ref_Path_List_Resolved_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Ref_Path_List_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Ref_Path_List_Commit_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Ref_Path_List_Tree_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Ref_Path_List_Tree_ID_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Ref_Path_List_Parent_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Ref_Path_List_Parent_Tree_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Ref_Path_List_Mode : Natural := 0;
-	         Ref_Path_List_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Ref_Path_List_Tree_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Ref_Path_List_Names :
-	           Ada.Streams.Stream_Element_Array (1 .. 32);
-	         Ref_Path_List_Name_Lasts :
-	           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
-	         Ref_Path_List_Modes :
-	           SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
-	         Ref_Path_List_IDs :
-	           SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
-	         Ref_Path_List_Count : Natural := 0;
-	         Ref_Path_Resolved_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Ref_Path_Resolved_Last : Ada.Streams.Stream_Element_Offset;
-	         Ref_Path_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Ref_Path_Commit_Last : Ada.Streams.Stream_Element_Offset;
-	         Ref_Path_Tree_ID : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Ref_Path_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
-	         Ref_Path_Tree_Data : Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Ref_Path_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Ref_Path_Mode : Natural := 0;
-	         Ref_Path_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Ref_Path_Last : Ada.Streams.Stream_Element_Offset;
-	         Ref_Resolved_Path_Resolved_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Ref_Resolved_Path_Resolved_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Ref_Resolved_Path_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Ref_Resolved_Path_Commit_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Ref_Resolved_Path_Tree_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Ref_Resolved_Path_Tree_ID_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Ref_Resolved_Path_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Ref_Resolved_Path_Tree_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Ref_Resolved_Path_Mode : Natural := 0;
-	         Ref_Resolved_Path_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Ref_Resolved_Path_ID_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tagged_Path_Peeled_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Tagged_Path_Peeled_Last : Ada.Streams.Stream_Element_Offset;
-	         Tagged_Path_Tag_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Tagged_Path_Tag_Last : Ada.Streams.Stream_Element_Offset;
-	         Tagged_Path_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Tagged_Path_Commit_Last : Ada.Streams.Stream_Element_Offset;
-	         Tagged_Path_Tree_ID : Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Tagged_Path_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
-	         Tagged_Path_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Tagged_Path_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Tagged_Path_Mode : Natural := 0;
-	         Tagged_Path_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Tagged_Path_Last : Ada.Streams.Stream_Element_Offset;
-	         Tagged_Resolved_Path_Peeled_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Tagged_Resolved_Path_Peeled_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tagged_Resolved_Path_Tag_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Tagged_Resolved_Path_Tag_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tagged_Resolved_Path_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Tagged_Resolved_Path_Commit_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tagged_Resolved_Path_Tree_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Tagged_Resolved_Path_Tree_ID_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tagged_Resolved_Path_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Tagged_Resolved_Path_Tree_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tagged_Resolved_Path_Mode : Natural := 0;
-	         Tagged_Resolved_Path_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Tagged_Resolved_Path_ID_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tag_Path_List_Hex :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Tag_Path_List_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tag_Path_List_Peeled_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Tag_Path_List_Peeled_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tag_Path_List_Tag_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Tag_Path_List_Tag_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tag_Path_List_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Tag_Path_List_Commit_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tag_Path_List_Tree_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Tag_Path_List_Tree_ID_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tag_Path_List_Parent_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Tag_Path_List_Parent_Tree_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tag_Path_List_Mode : Natural := 0;
-	         Tag_Path_List_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Tag_Path_List_Tree_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Tag_Path_List_Names :
-	           Ada.Streams.Stream_Element_Array (1 .. 32);
-	         Tag_Path_List_Name_Lasts :
-	           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
-	         Tag_Path_List_Modes :
-	           SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
-	         Tag_Path_List_IDs :
-	           SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
-	         Tag_Path_List_Count : Natural := 0;
-	         Commitish_Path_Resolved_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_Path_Resolved_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Path_Peeled_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_Path_Peeled_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Path_Tag_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commitish_Path_Tag_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Path_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commitish_Path_Commit_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Path_Tree_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_Path_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Path_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Commitish_Path_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Path_Mode : Natural := 0;
-	         Commitish_Path_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
-	         Commitish_Path_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Resolved_Path_Resolved_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_Resolved_Path_Resolved_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commitish_Resolved_Path_Peeled_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_Resolved_Path_Peeled_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commitish_Resolved_Path_Tag_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commitish_Resolved_Path_Tag_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commitish_Resolved_Path_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commitish_Resolved_Path_Commit_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commitish_Resolved_Path_Tree_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_Resolved_Path_Tree_ID_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commitish_Resolved_Path_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Commitish_Resolved_Path_Tree_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commitish_Resolved_Path_Mode : Natural := 0;
-	         Commitish_Resolved_Path_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_Resolved_Path_ID_Last :
-	           Ada.Streams.Stream_Element_Offset;
-	         Commitish_Tree_Resolved_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_Tree_Resolved_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Tree_Peeled_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_Tree_Peeled_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Tree_Tag_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commitish_Tree_Tag_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Tree_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commitish_Tree_Commit_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Tree_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Commitish_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_Tree_Count : Natural := 0;
-	         Commitish_List_Resolved_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_List_Resolved_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_List_Peeled_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_List_Peeled_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_List_Tag_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commitish_List_Tag_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_List_Commit_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 256);
-	         Commitish_List_Commit_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_List_Tree_ID :
-	           Ada.Streams.Stream_Element_Array (1 .. 40);
-	         Commitish_List_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_List_Tree_Data :
-	           Ada.Streams.Stream_Element_Array (1 .. 128);
-	         Commitish_List_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	         Commitish_List_Names : Ada.Streams.Stream_Element_Array (1 .. 32);
-	         Commitish_List_Name_Lasts :
-	           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
-	         Commitish_List_Modes : SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
-	         Commitish_List_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
-	         Commitish_List_Count : Natural := 0;
-	         Pack_Index_Count : Natural := 0;
-	         Large_Offset_Count : Natural := 0;
-	         Pack_Index_Layout : SSH_Lib.Git.Pack_Index_Layout;
-	         Pack_Index_Scratch : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Listed_Index_Paths : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Listed_Index_Path_Lasts :
+           SSH_Lib.Git.Index_Path_Last_Array (1 .. 4);
+         Listed_Index_Path_Count : Natural := 0;
+         Raw_Blob_ID : Ada.Streams.Stream_Element_Array (1 .. 20);
+         Raw_Blob_Last : Ada.Streams.Stream_Element_Offset;
+         Tree_Data : Ada.Streams.Stream_Element_Array (1 .. 37) :=
+           [Character'Pos ('1'), Character'Pos ('0'),
+            Character'Pos ('0'), Character'Pos ('6'),
+            Character'Pos ('4'), Character'Pos ('4'),
+            Character'Pos (' '),
+            Character'Pos ('h'), Character'Pos ('e'),
+            Character'Pos ('l'), Character'Pos ('l'),
+            Character'Pos ('o'), Character'Pos ('.'),
+            Character'Pos ('t'), Character'Pos ('x'),
+            Character'Pos ('t'), 0, others => 0];
+         Tree_Mode : Natural := 0;
+         Tree_Name : Ada.Streams.Stream_Element_Array (1 .. 32);
+         Tree_Name_Last : Ada.Streams.Stream_Element_Offset;
+         Tree_Object_ID : Ada.Streams.Stream_Element_Array (1 .. 20);
+         Tree_Object_Last : Ada.Streams.Stream_Element_Offset;
+         Built_Tree_Entry : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Built_Tree_Entry_Last : Ada.Streams.Stream_Element_Offset;
+         Built_Tree_Object_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 20) :=
+             [1 => 1, others => 0];
+         Tree_Next_Offset : Natural := 0;
+         Tree_Entry_Count : Natural := 0;
+         Tree_Found_Mode : Natural := 0;
+         Tree_Found_ID : Ada.Streams.Stream_Element_Array (1 .. 20);
+         Tree_Found_Last : Ada.Streams.Stream_Element_Offset;
+         Tree_Found_Hex_Mode : Natural := 0;
+         Tree_Found_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Tree_Found_Hex_Last : Ada.Streams.Stream_Element_Offset;
+         Listed_Tree_Names : Ada.Streams.Stream_Element_Array (1 .. 32);
+         Listed_Tree_Name_Lasts :
+           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
+         Listed_Tree_Modes : SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
+         Listed_Tree_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
+         Listed_Tree_Count : Natural := 0;
+         Stored_List_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Stored_List_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Stored_List_Names : Ada.Streams.Stream_Element_Array (1 .. 32);
+         Stored_List_Name_Lasts :
+           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
+         Stored_List_Modes : SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
+         Stored_List_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
+         Stored_List_Count : Natural := 0;
+         Commit_Tree_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commit_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_Parent_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commit_Parent_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_Author_Line : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Commit_Author_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_Committer_Line : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Commit_Committer_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_Message_Offset : Natural := 0;
+         Commit_Parent_Count : Natural := 0;
+         Tag_Target_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Tag_Target_Last : Ada.Streams.Stream_Element_Offset;
+         Tag_Target_Kind : SSH_Lib.Git.Pack_Object_Kind :=
+           SSH_Lib.Git.Pack_Blob;
+         Merge_Result : SSH_Lib.Git.Three_Way_Merge_Result :=
+           SSH_Lib.Git.Merge_Conflict;
+         use type SSH_Lib.Git.Three_Way_Merge_Result;
+         Tag_Name : Ada.Streams.Stream_Element_Array (1 .. 32);
+         Tag_Name_Last : Ada.Streams.Stream_Element_Offset;
+         Tag_Message_Offset : Natural := 0;
+         Pack_Data : Ada.Streams.Stream_Element_Array (1 .. 32) :=
+           [Character'Pos ('P'), Character'Pos ('A'),
+            Character'Pos ('C'), Character'Pos ('K'),
+            0, 0, 0, 2, 0, 0, 0, 0, others => 0];
+         Object_Pack : Ada.Streams.Stream_Element_Array (1 .. 53) :=
+           [Character'Pos ('P'), Character'Pos ('A'),
+            Character'Pos ('C'), Character'Pos ('K'),
+            0, 0, 0, 2, 0, 0, 0, 1,
+            16#3C#,
+            16#78#, 16#9C#, 16#CB#, 16#48#, 16#CD#, 16#C9#,
+            16#C9#, 16#57#, 16#28#, 16#CF#, 16#2F#, 16#CA#,
+            16#49#, 16#E1#, 16#02#, 16#00#, 16#1E#, 16#72#,
+            16#04#, 16#67#,
+            others => 0];
+         Pack_Checksum_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Pack_Checksum_Last : Ada.Streams.Stream_Element_Offset;
+         Object_Pack_Checksum_Hex :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Object_Pack_Checksum_Last : Ada.Streams.Stream_Element_Offset;
+         Deleted_Pack_File : Boolean := False;
+         Deleted_Pack_Index : Boolean := False;
+         Read_Pack : Ada.Streams.Stream_Element_Array (1 .. 32);
+         Read_Pack_Last : Ada.Streams.Stream_Element_Offset;
+         Built_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
+         Built_Index_Last : Ada.Streams.Stream_Element_Offset;
+         Object_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
+         Object_Index_Last : Ada.Streams.Stream_Element_Offset;
+         Read_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
+         Read_Index_Last : Ada.Streams.Stream_Element_Offset;
+         Read_Object_Pack : Ada.Streams.Stream_Element_Array (1 .. 53);
+         Read_Object_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
+         Listed_Packed_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
+         Listed_Packed_Index_Last : Ada.Streams.Stream_Element_Offset;
+         Listed_Packed_Object_IDs :
+           SSH_Lib.Git.Object_ID_Hex_Array (1 .. 4);
+         Listed_Packed_Object_Count : Natural := 0;
+         Exists_Pack_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
+         Exists_Pack_Checksums : Ada.Streams.Stream_Element_Array (1 .. 80);
+         Exists_Pack_Checksums_Last : Ada.Streams.Stream_Element_Offset;
+         Exists_Pack_Checksum : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Exists_Pack_Checksum_Last : Ada.Streams.Stream_Element_Offset;
+         Stored_Object_Found : Boolean := False;
+         Stored_Object_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 32);
+         Stored_Object_Count : Natural := 0;
+         Stored_Object_Pack_Checksums :
+           Ada.Streams.Stream_Element_Array (1 .. 80);
+         Stored_Object_Pack_Checksums_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Stored_Object_Index : Ada.Streams.Stream_Element_Array (1 .. 1100);
+         Stored_Object_Index_Last : Ada.Streams.Stream_Element_Offset;
+         Packed_Object_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Packed_Object_Last : Ada.Streams.Stream_Element_Offset;
+         Pack_Index_List : Ada.Streams.Stream_Element_Array (1 .. 80);
+         Pack_Index_List_Last : Ada.Streams.Stream_Element_Offset;
+         Pack_Index_List_Count : Natural := 0;
+         Found_Pack_Checksum_Hex :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Found_Pack_Checksum_Last : Ada.Streams.Stream_Element_Offset;
+         Validated_Stored_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Validated_Stored_Last : Ada.Streams.Stream_Element_Offset;
+         Stored_Tree_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Stored_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Stored_Tree_Raw_ID : Ada.Streams.Stream_Element_Array (1 .. 20);
+         Stored_Tree_Raw_Last : Ada.Streams.Stream_Element_Offset;
+         Path_List_Root_Tree_Hex :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Path_List_Root_Tree_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Path_List_Parent_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 64);
+         Path_List_Parent_Tree_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Path_List_Mode : Natural := 0;
+         Path_List_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Path_List_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Path_List_Names : Ada.Streams.Stream_Element_Array (1 .. 32);
+         Path_List_Path_Lasts :
+           SSH_Lib.Git.Index_Path_Last_Array (1 .. 2);
+         Path_List_Name_Lasts :
+           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
+         Path_List_Modes : SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
+         Path_List_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
+         Path_List_Count : Natural := 0;
+         Stored_Commit_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Stored_Commit_Last : Ada.Streams.Stream_Element_Offset;
+         Stored_Tag_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Stored_Tag_Last : Ada.Streams.Stream_Element_Offset;
+         Traversed_Tree_Data : Ada.Streams.Stream_Element_Array (1 .. 128);
+         Traversed_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Traversed_Mode : Natural := 0;
+         Traversed_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Traversed_Last : Ada.Streams.Stream_Element_Offset;
+         Path_Tree_Data : Ada.Streams.Stream_Element_Array (1 .. 128);
+         Path_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Path_Mode : Natural := 0;
+         Path_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Path_Last : Ada.Streams.Stream_Element_Offset;
+         Resolved_Path_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Resolved_Path_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Resolved_Path_Mode : Natural := 0;
+         Resolved_Path_ID : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Resolved_Path_ID_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_Path_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commit_Path_Commit_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_Path_Tree_ID : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commit_Path_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_Path_Tree_Data : Ada.Streams.Stream_Element_Array (1 .. 128);
+         Commit_Path_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_Path_Mode : Natural := 0;
+         Commit_Path_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Commit_Path_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_Resolved_Path_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commit_Resolved_Path_Commit_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commit_Resolved_Path_Tree_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commit_Resolved_Path_Tree_ID_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commit_Resolved_Path_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Commit_Resolved_Path_Tree_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commit_Resolved_Path_Mode : Natural := 0;
+         Commit_Resolved_Path_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commit_Resolved_Path_ID_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commit_Tree_Read_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commit_Tree_Read_Commit_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commit_Tree_Read_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commit_Tree_Read_ID_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_Tree_Read_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Commit_Tree_Read_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_Tree_Read_Count : Natural := 0;
+         Commit_List_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commit_List_Commit_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_List_Tree_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commit_List_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_List_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Commit_List_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Commit_List_Names : Ada.Streams.Stream_Element_Array (1 .. 32);
+         Commit_List_Name_Lasts :
+           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
+         Commit_List_Modes : SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
+         Commit_List_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
+         Commit_List_Count : Natural := 0;
+         Commit_Path_List_Hex :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commit_Path_List_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commit_Path_List_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commit_Path_List_Commit_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commit_Path_List_Tree_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commit_Path_List_Tree_ID_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commit_Path_List_Parent_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 64);
+         Commit_Path_List_Parent_Tree_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commit_Path_List_Mode : Natural := 0;
+         Commit_Path_List_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Commit_Path_List_Tree_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commit_Path_List_Names :
+           Ada.Streams.Stream_Element_Array (1 .. 32);
+         Commit_Path_List_Name_Lasts :
+           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
+         Commit_Path_List_Modes :
+           SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
+         Commit_Path_List_IDs :
+           SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
+         Commit_Path_List_Count : Natural := 0;
+         Ref_Path_List_Resolved_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Ref_Path_List_Resolved_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Ref_Path_List_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Ref_Path_List_Commit_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Ref_Path_List_Tree_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Ref_Path_List_Tree_ID_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Ref_Path_List_Parent_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 64);
+         Ref_Path_List_Parent_Tree_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Ref_Path_List_Mode : Natural := 0;
+         Ref_Path_List_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Ref_Path_List_Tree_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Ref_Path_List_Names :
+           Ada.Streams.Stream_Element_Array (1 .. 32);
+         Ref_Path_List_Name_Lasts :
+           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
+         Ref_Path_List_Modes :
+           SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
+         Ref_Path_List_IDs :
+           SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
+         Ref_Path_List_Count : Natural := 0;
+         Ref_Path_Resolved_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Ref_Path_Resolved_Last : Ada.Streams.Stream_Element_Offset;
+         Ref_Path_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Ref_Path_Commit_Last : Ada.Streams.Stream_Element_Offset;
+         Ref_Path_Tree_ID : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Ref_Path_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
+         Ref_Path_Tree_Data : Ada.Streams.Stream_Element_Array (1 .. 128);
+         Ref_Path_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Ref_Path_Mode : Natural := 0;
+         Ref_Path_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Ref_Path_Last : Ada.Streams.Stream_Element_Offset;
+         Ref_Resolved_Path_Resolved_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Ref_Resolved_Path_Resolved_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Ref_Resolved_Path_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Ref_Resolved_Path_Commit_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Ref_Resolved_Path_Tree_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Ref_Resolved_Path_Tree_ID_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Ref_Resolved_Path_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Ref_Resolved_Path_Tree_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Ref_Resolved_Path_Mode : Natural := 0;
+         Ref_Resolved_Path_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Ref_Resolved_Path_ID_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tagged_Path_Peeled_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Tagged_Path_Peeled_Last : Ada.Streams.Stream_Element_Offset;
+         Tagged_Path_Tag_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Tagged_Path_Tag_Last : Ada.Streams.Stream_Element_Offset;
+         Tagged_Path_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Tagged_Path_Commit_Last : Ada.Streams.Stream_Element_Offset;
+         Tagged_Path_Tree_ID : Ada.Streams.Stream_Element_Array (1 .. 40);
+         Tagged_Path_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
+         Tagged_Path_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Tagged_Path_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Tagged_Path_Mode : Natural := 0;
+         Tagged_Path_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Tagged_Path_Last : Ada.Streams.Stream_Element_Offset;
+         Tagged_Resolved_Path_Peeled_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Tagged_Resolved_Path_Peeled_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tagged_Resolved_Path_Tag_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Tagged_Resolved_Path_Tag_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tagged_Resolved_Path_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Tagged_Resolved_Path_Commit_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tagged_Resolved_Path_Tree_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Tagged_Resolved_Path_Tree_ID_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tagged_Resolved_Path_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Tagged_Resolved_Path_Tree_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tagged_Resolved_Path_Mode : Natural := 0;
+         Tagged_Resolved_Path_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Tagged_Resolved_Path_ID_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tag_Path_List_Hex :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Tag_Path_List_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tag_Path_List_Peeled_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Tag_Path_List_Peeled_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tag_Path_List_Tag_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Tag_Path_List_Tag_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tag_Path_List_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Tag_Path_List_Commit_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tag_Path_List_Tree_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Tag_Path_List_Tree_ID_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tag_Path_List_Parent_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 64);
+         Tag_Path_List_Parent_Tree_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tag_Path_List_Mode : Natural := 0;
+         Tag_Path_List_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Tag_Path_List_Tree_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Tag_Path_List_Names :
+           Ada.Streams.Stream_Element_Array (1 .. 32);
+         Tag_Path_List_Name_Lasts :
+           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
+         Tag_Path_List_Modes :
+           SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
+         Tag_Path_List_IDs :
+           SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
+         Tag_Path_List_Count : Natural := 0;
+         Commitish_Path_Resolved_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_Path_Resolved_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Path_Peeled_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_Path_Peeled_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Path_Tag_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commitish_Path_Tag_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Path_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commitish_Path_Commit_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Path_Tree_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_Path_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Path_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Commitish_Path_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Path_Mode : Natural := 0;
+         Commitish_Path_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
+         Commitish_Path_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Resolved_Path_Resolved_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_Resolved_Path_Resolved_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commitish_Resolved_Path_Peeled_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_Resolved_Path_Peeled_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commitish_Resolved_Path_Tag_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commitish_Resolved_Path_Tag_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commitish_Resolved_Path_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commitish_Resolved_Path_Commit_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commitish_Resolved_Path_Tree_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_Resolved_Path_Tree_ID_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commitish_Resolved_Path_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Commitish_Resolved_Path_Tree_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commitish_Resolved_Path_Mode : Natural := 0;
+         Commitish_Resolved_Path_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_Resolved_Path_ID_Last :
+           Ada.Streams.Stream_Element_Offset;
+         Commitish_Tree_Resolved_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_Tree_Resolved_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Tree_Peeled_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_Tree_Peeled_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Tree_Tag_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commitish_Tree_Tag_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Tree_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commitish_Tree_Commit_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Tree_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Commitish_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_Tree_Count : Natural := 0;
+         Commitish_List_Resolved_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_List_Resolved_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_List_Peeled_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_List_Peeled_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_List_Tag_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commitish_List_Tag_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_List_Commit_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 256);
+         Commitish_List_Commit_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_List_Tree_ID :
+           Ada.Streams.Stream_Element_Array (1 .. 40);
+         Commitish_List_Tree_ID_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_List_Tree_Data :
+           Ada.Streams.Stream_Element_Array (1 .. 128);
+         Commitish_List_Tree_Last : Ada.Streams.Stream_Element_Offset;
+         Commitish_List_Names : Ada.Streams.Stream_Element_Array (1 .. 32);
+         Commitish_List_Name_Lasts :
+           SSH_Lib.Git.Tree_Entry_Name_Last_Array (1 .. 2);
+         Commitish_List_Modes : SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
+         Commitish_List_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
+         Commitish_List_Count : Natural := 0;
+         Pack_Index_Count : Natural := 0;
+         Large_Offset_Count : Natural := 0;
+         Pack_Index_Layout : SSH_Lib.Git.Pack_Index_Layout;
+         Pack_Index_Scratch : Ada.Streams.Stream_Element_Array (1 .. 64);
 
-	         procedure Store_SHA1
-	           (Digest : CryptoLib.Hashes.SHA1_Digest;
-	            Target : in out Ada.Streams.Stream_Element_Array)
-	         is
-	            Cursor : Ada.Streams.Stream_Element_Offset := Target'First;
-	         begin
-	            for Digest_Index in Digest'Range loop
-	               Target (Cursor) := Digest (Digest_Index);
-	               Cursor := Cursor + 1;
-	            end loop;
-	         end Store_SHA1;
+         procedure Store_SHA1
+           (Digest : CryptoLib.Hashes.SHA1_Digest;
+            Target : in out Ada.Streams.Stream_Element_Array)
+         is
+            Cursor : Ada.Streams.Stream_Element_Offset := Target'First;
+         begin
+            for Digest_Index in Digest'Range loop
+               Target (Cursor) := Digest (Digest_Index);
+               Cursor := Cursor + 1;
+            end loop;
+         end Store_SHA1;
 
-	         function Contains_Checksum
-	           (List   : Ada.Streams.Stream_Element_Array;
-	            Count  : Natural;
-	            Needle : Ada.Streams.Stream_Element_Array) return Boolean
-	         is
-	            First : Ada.Streams.Stream_Element_Offset := List'First;
-	         begin
-	            if Needle'Length /= 40 then
-	               return False;
-	            end if;
-	            for Item in 1 .. Count loop
-	               if First + 39 <= List'Last
-	                 and then Bytes_Equal
-	                   (List (First .. First + 39), Needle)
-	               then
-	                  return True;
-	               end if;
-	               First := First + 40;
-	            end loop;
-	            return False;
-	         end Contains_Checksum;
-	      begin
-	         Store_SHA1
-	           (CryptoLib.Hashes.SHA1 (Pack_Data (1 .. 12)),
-	            Pack_Data (13 .. 32));
-	         Store_SHA1
-	           (CryptoLib.Hashes.SHA1 (Object_Pack (1 .. 33)),
-	            Object_Pack (34 .. 53));
-	         Status_Value :=
-	           SSH_Lib.Git.Parse_Object_ID_Hex
-	             (Expected_Blob_Hex, Raw_Blob_ID, Raw_Blob_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tree fixture object id parsed");
-	         Tree_Data (18 .. 37) := Raw_Blob_ID;
+         function Contains_Checksum
+           (List   : Ada.Streams.Stream_Element_Array;
+            Count  : Natural;
+            Needle : Ada.Streams.Stream_Element_Array) return Boolean
+         is
+            First : Ada.Streams.Stream_Element_Offset := List'First;
+         begin
+            if Needle'Length /= 40 then
+               return False;
+            end if;
+            for Item in 1 .. Count loop
+               if First + 39 <= List'Last
+                 and then Bytes_Equal
+                   (List (First .. First + 39), Needle)
+               then
+                  return True;
+               end if;
+               First := First + 40;
+            end loop;
+            return False;
+         end Contains_Checksum;
+      begin
+         Store_SHA1
+           (CryptoLib.Hashes.SHA1 (Pack_Data (1 .. 12)),
+            Pack_Data (13 .. 32));
+         Store_SHA1
+           (CryptoLib.Hashes.SHA1 (Object_Pack (1 .. 33)),
+            Object_Pack (34 .. 53));
+         Status_Value :=
+           SSH_Lib.Git.Parse_Object_ID_Hex
+             (Expected_Blob_Hex, Raw_Blob_ID, Raw_Blob_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tree fixture object id parsed");
+         Tree_Data (18 .. 37) := Raw_Blob_ID;
 
-	         if Ada.Directories.Exists (Repo_Root) then
-	            Ada.Directories.Delete_Tree (Repo_Root);
-	         end if;
-	         if Ada.Directories.Exists (Packed_Repo_Root) then
-	            Ada.Directories.Delete_Tree (Packed_Repo_Root);
-	         end if;
+         if Ada.Directories.Exists (Repo_Root) then
+            Ada.Directories.Delete_Tree (Repo_Root);
+         end if;
+         if Ada.Directories.Exists (Packed_Repo_Root) then
+            Ada.Directories.Delete_Tree (Packed_Repo_Root);
+         end if;
 
-	         Status_Value := SSH_Lib.Git.Initialize_Repository_State (Repo_Root);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git repository state initialized");
-	         Check
-	           (Ada.Directories.Exists (Repo_Root & "/.git/objects")
-	            and then Ada.Directories.Exists (Repo_Root & "/.git/refs/heads"),
-	            "git repository state directories created");
-	         Status_Value := SSH_Lib.Git.Write_Empty_Index (Repo_Root);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git empty index written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Index_Header
-	             (Repo_Root, Index_Version, Index_Entry_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index header read");
-	         Check
-	           (Index_Version = 2 and then Index_Entry_Count = 0,
-	            "git index header values recovered");
-	         Check
-	           (SSH_Lib.Git.Valid_Worktree_Path ("file.txt")
-	            and then SSH_Lib.Git.Valid_Worktree_Path ("dir/file.txt")
-	            and then SSH_Lib.Git.Valid_Worktree_Path ("dir/sub/file.txt")
-	            and then not SSH_Lib.Git.Valid_Worktree_Path ("/file.txt")
-	            and then not SSH_Lib.Git.Valid_Worktree_Path ("dir/../file.txt")
-	            and then not SSH_Lib.Git.Valid_Worktree_Path ("dir/./file.txt")
-	            and then not SSH_Lib.Git.Valid_Worktree_Path ("dir//file.txt")
-	            and then not SSH_Lib.Git.Valid_Worktree_Path ("dir/")
-	            and then not SSH_Lib.Git.Valid_Worktree_Path
-	              ("bad" & Character'Val (10) & "path"),
-	            "git worktree path validation");
-	         Status_Value :=
-	           SSH_Lib.Git.Pathspec_Matches
-	             ("dir/file.txt", "dir/file.txt", Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git exact pathspec matched");
-	         Check (Config_Found, "git exact pathspec reports match");
-	         Status_Value :=
-	           SSH_Lib.Git.Pathspec_Matches
-	             ("dir/file.txt", "dir/", Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git directory pathspec matched");
-	         Check (Config_Found, "git directory pathspec reports match");
-	         Status_Value :=
-	           SSH_Lib.Git.Pathspec_Matches
-	             ("dir/file.txt", "*.txt", Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git wildcard pathspec matched");
-	         Check (Config_Found, "git wildcard pathspec reports match");
-	         Status_Value :=
-	           SSH_Lib.Git.Pathspec_Matches
-	             ("dir/file.txt", ".", Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git all pathspec matched");
-	         Check (Config_Found, "git all pathspec reports match");
-	         Status_Value :=
-	           SSH_Lib.Git.Pathspec_Matches
-	             ("dir/file.txt", "other/", Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git nonmatching pathspec checked");
-	         Check (not Config_Found, "git nonmatching pathspec reports false");
-	         Status_Value :=
-	           SSH_Lib.Git.Pathspec_Matches
-	             ("dir/file.txt", "../bad", Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git unsafe pathspec rejected");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Worktree_File
-	             (Repo_Root, "nested/file.txt", Blob_Data);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git worktree file written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Worktree_File
-	             (Repo_Root, "nested/file.txt", Read_Data, Read_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git worktree file read");
-	         Check
-	           (Read_Last = Read_Data'First
-	              + Ada.Streams.Stream_Element_Offset (Blob_Data'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
-	            "git worktree file values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Worktree_File_Exists
-	             (Repo_Root, "nested/file.txt", Worktree_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git worktree file existence probed");
-	         Check (Worktree_Found, "git worktree file exists");
-	         Status_Value :=
-	           SSH_Lib.Git.Worktree_File_Exists
-	             (Repo_Root, "nested/missing.txt", Worktree_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git missing worktree file existence probed");
-	         Check (not Worktree_Found, "git missing worktree file absent");
-	         declare
-	            Small_Worktree_Read : Ada.Streams.Stream_Element_Array (1 .. 4);
-	            Small_Worktree_Last : Ada.Streams.Stream_Element_Offset;
-	         begin
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Worktree_File
-	                (Repo_Root,
-	                 "nested/file.txt",
-	                 Small_Worktree_Read,
-	                 Small_Worktree_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Read_Failed,
-	               "git worktree file small buffer rejected");
-	         end;
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Worktree_File
-	             (Repo_Root, "../escape.txt", Blob_Data);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git worktree file rejects parent traversal");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Worktree_File
-	             (Repo_Root, "nested/file.txt", Worktree_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git worktree file deleted");
-	         Check (Worktree_Removed, "git worktree file delete reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Worktree_File_Exists
-	             (Repo_Root, "nested/file.txt", Worktree_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deleted worktree file existence probed");
-	         Check (not Worktree_Found, "git deleted worktree file absent");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Worktree_File
-	             (Repo_Root, "nested/file.txt", Worktree_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git missing worktree file delete probed");
-	         Check
-	           (not Worktree_Removed,
-	            "git missing worktree file delete not removed");
-	         Status_Value :=
-	           SSH_Lib.Git.Build_Index_Entry
-	             (8#100644#,
-	              "file.txt",
-	              Built_Tree_Object_ID,
-	              12,
-	              Built_Index_Entry,
-	              Built_Index_Entry_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index entry built");
-	         Check
-	           (Built_Index_Entry_Last = 72
-	            and then Built_Index_Entry (25) = 0
-	            and then Built_Index_Entry (26) = 0
-	            and then Built_Index_Entry (27) = 16#81#
-	            and then Built_Index_Entry (28) = 16#A4#
-	            and then Built_Index_Entry (40) = 12
-	            and then Built_Index_Entry (41 .. 60) = Built_Tree_Object_ID
-	            and then Built_Index_Entry (61) = 0
-	            and then Built_Index_Entry (62) = 8
-	            and then Bytes_Equal
-	              (Built_Index_Entry (63 .. 70),
-	               Bytes_From_String ("file.txt"))
-	            and then Built_Index_Entry (71) = 0
-	            and then Built_Index_Entry (72) = 0,
-	            "git index entry layout recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Index
-	             (Repo_Root,
-	              Built_Index_Entry
-	                (Built_Index_Entry'First .. Built_Index_Entry_Last),
-	              1);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git one-entry index written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Index_Header
-	             (Repo_Root, Index_Version, Index_Entry_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git one-entry index header read");
-	         Check
-	           (Index_Version = 2 and then Index_Entry_Count = 1,
-	            "git one-entry index header values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Parse_Index_Entry
-	             (Built_Index_Entry
-	                (Built_Index_Entry'First .. Built_Index_Entry_Last),
-	              0,
-	              Parsed_Index_Mode,
-	              Parsed_Index_Path,
-	              Parsed_Index_Path_Last,
-	              Parsed_Index_Object_ID,
-	              Parsed_Index_Object_Last,
-	              Parsed_Index_File_Size,
-	              Parsed_Index_Next_Offset);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index entry parsed");
-	         Check
-	           (Parsed_Index_Mode = 8#100644#
-	            and then Parsed_Index_File_Size = 12
-	            and then Parsed_Index_Next_Offset = 72
-	            and then Parsed_Index_Object_Last
-	              = Parsed_Index_Object_ID'First + 19
-	            and then Parsed_Index_Object_ID = Built_Tree_Object_ID
-	            and then Bytes_Equal
-	              (Parsed_Index_Path
-	                 (Parsed_Index_Path'First .. Parsed_Index_Path_Last),
-	               Bytes_From_String ("file.txt")),
-	            "git index entry parsed values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Index_Entry
-	             (Repo_Root,
-	              0,
-	              Parsed_Index_Mode,
-	              Parsed_Index_Path,
-	              Parsed_Index_Path_Last,
-	              Parsed_Index_Object_ID,
-	              Parsed_Index_Object_Last,
-	              Parsed_Index_File_Size);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git repository index entry read");
-	         Check
-	           (Parsed_Index_Mode = 8#100644#
-	            and then Parsed_Index_File_Size = 12
-	            and then Parsed_Index_Object_ID = Built_Tree_Object_ID
-	            and then Bytes_Equal
-	              (Parsed_Index_Path
-	                 (Parsed_Index_Path'First .. Parsed_Index_Path_Last),
-	               Bytes_From_String ("file.txt")),
-	            "git repository index entry values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Find_Index_Entry
-	             (Repo_Root,
-	              Bytes_From_String ("file.txt"),
-	              Parsed_Index_Mode,
-	              Parsed_Index_Object_ID,
-	              Parsed_Index_Object_Last,
-	              Parsed_Index_File_Size,
-	              Index_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git repository index entry found by path");
-	         Check
-	           (Index_Found
-	            and then Parsed_Index_Mode = 8#100644#
-	            and then Parsed_Index_File_Size = 12
-	            and then Parsed_Index_Object_ID = Built_Tree_Object_ID,
-	            "git repository index path lookup values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Find_Index_Entry
-	             (Repo_Root,
-	              Bytes_From_String ("missing.txt"),
-	              Parsed_Index_Mode,
-	              Parsed_Index_Object_ID,
-	              Parsed_Index_Object_Last,
-	              Parsed_Index_File_Size,
-	              Index_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git missing repository index entry probed");
-	         Check (not Index_Found, "git missing repository index entry absent");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Config_Value
-	             (Repo_Root,
-	              "core",
-	              "bare",
-	              Config_Value,
-	              Config_Value_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git config value read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("false")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("false")),
-	            "git config value recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Core_Filemode
-	             (Repo_Root, Core_Filemode, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core filemode read");
-	         Check
-	           (Config_Found and then Core_Filemode,
-	            "git core filemode true recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Core_Filemode
-	             (Repo_Root, False);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core filemode false written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Core_Filemode
-	             (Repo_Root, Core_Filemode, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core filemode reread");
-	         Check
-	           (Config_Found and then not Core_Filemode,
-	            "git core filemode false recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Core_Filemode
-	             (Repo_Root, Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core filemode deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Core_Filemode
-	             (Repo_Root, Core_Filemode, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deleted core filemode read");
-	         Check
-	           (Config_Removed and then not Config_Found,
-	            "git deleted core filemode absent");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Core_Log_All_Ref_Updates
-	             (Repo_Root, True);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core log all ref updates true written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Core_Log_All_Ref_Updates
-	             (Repo_Root, Core_Log_All_Ref_Updates, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core log all ref updates read");
-	         Check
-	           (Config_Found and then Core_Log_All_Ref_Updates,
-	            "git core log all ref updates true recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Core_Log_All_Ref_Updates
-	             (Repo_Root, False);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core log all ref updates false written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Core_Log_All_Ref_Updates
-	             (Repo_Root, Core_Log_All_Ref_Updates, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core log all ref updates reread");
-	         Check
-	           (Config_Found and then not Core_Log_All_Ref_Updates,
-	            "git core log all ref updates false recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Core_Log_All_Ref_Updates
-	             (Repo_Root, Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core log all ref updates deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Core_Log_All_Ref_Updates
-	             (Repo_Root, Core_Log_All_Ref_Updates, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deleted core log all ref updates read");
-	         Check
-	           (Config_Removed and then not Config_Found,
-	            "git deleted core log all ref updates absent");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Remote_Tracking_Branch
-	             (Repo_Root, "origin/feature", Expected_Blob_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote tracking branch written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Remote_Tracking_Branch
-	             (Repo_Root, "origin/feature", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote tracking branch read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
-	            "git remote tracking branch object id recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Resolve_Remote_Tracking_Branch
-	             (Repo_Root, "origin/feature", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote tracking branch resolved");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
-	            "git remote tracking branch resolve values");
-	         Status_Value :=
-	           SSH_Lib.Git.Remote_Tracking_Branch_Exists
-	             (Repo_Root,
-	              "origin/feature",
-	              Read_Hex,
-	              Read_Hex_Last,
-	              Ref_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote tracking branch existence checked");
-	         Check
-	           (Ref_Found
-	            and then Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
-	            "git remote tracking branch existence values");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Remote_Tracking_Branch
-	             (Repo_Root, "../bad", Expected_Blob_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git remote tracking branch rejects traversal");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Remote_Tracking_Branch
-	             (Repo_Root, "origin/feature");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote tracking branch deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Remote_Tracking_Branch_Exists
-	             (Repo_Root,
-	              "origin/feature",
-	              Read_Hex,
-	              Read_Hex_Last,
-	              Ref_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deleted remote tracking branch checked");
-	         Check
-	           (not Ref_Found,
-	            "git deleted remote tracking branch absent");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Config_Value
-	             (Repo_Root,
-	              "core",
-	              "missing",
-	              Config_Value,
-	              Config_Value_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git missing config value read");
-	         Check (not Config_Found, "git missing config value not found");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Config_Value
-	             (Repo_Root, "core", "bare", "true");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git config value written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Config_Value
-	             (Repo_Root,
-	              "core",
-	              "bare",
-	              Config_Value,
-	              Config_Value_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git updated config value read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("true")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("true")),
-	            "git updated config value recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Core_Bare
-	             (Repo_Root, Core_Bare, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core bare read");
-	         Check
-	           (Config_Found and then Core_Bare,
-	            "git core bare true recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Core_Bare
-	             (Repo_Root, False);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core bare false written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Core_Bare
-	             (Repo_Root, Core_Bare, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core bare reread");
-	         Check
-	           (Config_Found and then not Core_Bare,
-	            "git core bare false recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Core_Bare
-	             (Repo_Root, Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git core bare deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Core_Bare
-	             (Repo_Root, Core_Bare, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deleted core bare read");
-	         Check
-	           (Config_Removed and then not Config_Found,
-	            "git deleted core bare absent");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Config_Value
-	             (Repo_Root, "remote origin", "url", "git@example.invalid:r.git");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git config new section value written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Config_Value
-	             (Repo_Root,
-	              "remote origin",
-	              "url",
-	              Config_Value,
-	              Config_Value_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git new section config value read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("git@example.invalid:r.git")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("git@example.invalid:r.git")),
-	            "git new section config value recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Remote_URL
-	             (Repo_Root, "origin", "ssh://example.invalid/repo.git");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote url written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Remote_URL
-	             (Repo_Root,
-	              "origin",
-	              Config_Value,
-	              Config_Value_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote url read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("ssh://example.invalid/repo.git")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("ssh://example.invalid/repo.git")),
-	            "git remote url recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Remote_URL
-	             (Repo_Root, "origin", Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote url deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Remote_URL
-	             (Repo_Root,
-	              "origin",
-	              Config_Value,
-	              Config_Value_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote url read after delete");
-	         Check
-	           (Config_Removed and then not Config_Found,
-	            "git remote url absent after delete");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Remote_Fetch_Refspec
-	             (Repo_Root,
-	              "origin",
-	              "+refs/heads/*:refs/remotes/origin/*");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote fetch refspec written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Remote_Fetch_Refspec
-	             (Repo_Root,
-	              "origin",
-	              Config_Value,
-	              Config_Value_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote fetch refspec read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("+refs/heads/*:refs/remotes/origin/*")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String
-	                 ("+refs/heads/*:refs/remotes/origin/*")),
-	            "git remote fetch refspec recovered");
-	         Check
-	           (SSH_Lib.Git.Valid_Fetch_Refspec
-	              ("refs/heads/main:refs/remotes/origin/main")
-	            and then SSH_Lib.Git.Valid_Fetch_Refspec
-	              ("+refs/heads/*:refs/remotes/origin/*")
-	            and then not SSH_Lib.Git.Valid_Fetch_Refspec
-	              ("+refs/heads/*:refs/remotes/origin/main")
-	            and then not SSH_Lib.Git.Valid_Fetch_Refspec
-	              ("refs/heads/main"),
-	            "git fetch refspec validation");
-	         Status_Value :=
-	           SSH_Lib.Git.Append_Remote_Fetch_Refspec
-	             (Repo_Root,
-	              "origin",
-	              "+refs/tags/*:refs/tags/*");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote fetch refspec appended");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Remote_Fetch_Refspec
-	             (Repo_Root,
-	              "origin",
-	              Config_Value,
-	              Config_Value_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote fetch refspec reread after append");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("+refs/heads/*:refs/remotes/origin/*")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String
-	                 ("+refs/heads/*:refs/remotes/origin/*")),
-	            "git remote fetch append preserves first value");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Config_Values
-	             (Repo_Root,
-	              "remote origin",
-	              "fetch",
-	              Config_Values,
-	              Config_Value_Lasts,
-	              Config_Value_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git repeated config values read");
-	         Check
-	           (Config_Value_Count = 2
-	            and then Config_Value_Lasts (1) = Config_Values'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("+refs/heads/*:refs/remotes/origin/*")'Length)
-	              - 1
-	            and then Config_Value_Lasts (2) = Config_Value_Lasts (1)
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("+refs/tags/*:refs/tags/*")'Length)
-	            and then Bytes_Equal
-	              (Config_Values
-	                 (Config_Values'First .. Config_Value_Lasts (1)),
-	               Bytes_From_String
-	                 ("+refs/heads/*:refs/remotes/origin/*"))
-	            and then Bytes_Equal
-	              (Config_Values
-	                 (Config_Value_Lasts (1) + 1
-	                  .. Config_Value_Lasts (2)),
-	               Bytes_From_String ("+refs/tags/*:refs/tags/*")),
-	            "git repeated config values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Remote_Fetch_Refspecs
-	             (Repo_Root,
-	              "origin",
-	              Config_Values,
-	              Config_Value_Lasts,
-	              Config_Value_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote fetch refspecs read");
-	         Check
-	           (Config_Value_Count = 2
-	            and then Config_Value_Lasts (1) = Config_Values'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("+refs/heads/*:refs/remotes/origin/*")'Length)
-	              - 1
-	            and then Config_Value_Lasts (2) = Config_Value_Lasts (1)
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("+refs/tags/*:refs/tags/*")'Length),
-	            "git remote fetch refspecs count recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Remote_Fetch_Refspecs
-	             (Repo_Root, "origin", Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote fetch refspecs deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Remote_Fetch_Refspecs
-	             (Repo_Root,
-	              "origin",
-	              Config_Values,
-	              Config_Value_Lasts,
-	              Config_Value_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote fetch refspecs read after delete");
-	         Check
-	           (Config_Removed and then Config_Value_Count = 0,
-	            "git remote fetch refspecs absent after delete");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Remote_Push_Refspec
-	             (Repo_Root,
-	              "origin",
-	              "refs/heads/main:refs/heads/main");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote push refspec written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Remote_Push_Refspec
-	             (Repo_Root,
-	              "origin",
-	              Config_Value,
-	              Config_Value_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote push refspec read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("refs/heads/main:refs/heads/main")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String
-	                 ("refs/heads/main:refs/heads/main")),
-	            "git remote push refspec recovered");
-	         Check
-	           (SSH_Lib.Git.Valid_Push_Refspec
-	              ("refs/heads/main:refs/heads/main")
-	            and then SSH_Lib.Git.Valid_Push_Refspec
-	              (":refs/heads/main")
-	            and then SSH_Lib.Git.Valid_Push_Refspec
-	              ("+refs/heads/*:refs/heads/*")
-	            and then not SSH_Lib.Git.Valid_Push_Refspec
-	              ("+refs/heads/*:refs/heads/main")
-	            and then not SSH_Lib.Git.Valid_Push_Refspec (":"),
-	            "git push refspec validation");
-	         Status_Value :=
-	           SSH_Lib.Git.Append_Remote_Push_Refspec
-	             (Repo_Root,
-	              "origin",
-	              "+refs/tags/*:refs/tags/*");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote push refspec appended");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Remote_Push_Refspecs
-	             (Repo_Root,
-	              "origin",
-	              Config_Values,
-	              Config_Value_Lasts,
-	              Config_Value_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote push refspecs read");
-	         Check
-	           (Config_Value_Count = 2
-	            and then Config_Value_Lasts (1) = Config_Values'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'
-	                   ("refs/heads/main:refs/heads/main")'Length)
-	              - 1
-	            and then Config_Value_Lasts (2) = Config_Value_Lasts (1)
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("+refs/tags/*:refs/tags/*")'Length),
-	            "git remote push refspecs count recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Remote_Push_Refspecs
-	             (Repo_Root, "origin", Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote push refspecs deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Remote_Push_Refspecs
-	             (Repo_Root,
-	              "origin",
-	              Config_Values,
-	              Config_Value_Lasts,
-	              Config_Value_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote push refspecs read after delete");
-	         Check
-	           (Config_Removed and then Config_Value_Count = 0,
-	            "git remote push refspecs absent after delete");
-	         Status_Value :=
-	           SSH_Lib.Git.Append_Config_Value
-	             (Repo_Root,
-	              "remote backup",
-	              "fetch",
-	              "+refs/heads/*:refs/remotes/backup/*");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git config value appended to new section");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Config_Value
-	             (Repo_Root,
-	              "remote backup",
-	              "fetch",
-	              Config_Value,
-	              Config_Value_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git appended new section config value read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'
-	                   ("+refs/heads/*:refs/remotes/backup/*")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String
-	                 ("+refs/heads/*:refs/remotes/backup/*")),
-	            "git appended new section config value recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Config_Value
-	             (Repo_Root, "remote backup", "fetch", Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git config value deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Config_Value
-	             (Repo_Root,
-	              "remote backup",
-	              "fetch",
-	              Config_Value,
-	              Config_Value_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deleted config value read");
-	         Check
-	           (Config_Removed and then not Config_Found,
-	            "git deleted config value absent");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Credential_Helper
-	             (Repo_Root, "cache --timeout=60");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git credential helper written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Credential_Helper
-	             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git credential helper read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("cache --timeout=60")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("cache --timeout=60")),
-	            "git credential helper values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Credential_Helper
-	             (Repo_Root, "bad" & Character'Val (10) & "helper");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git credential helper rejects newline");
-	         Status_Value :=
-	           SSH_Lib.Git.Append_Credential_Helper
-	             (Repo_Root, "store --file=/tmp/sshlib-creds");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git credential helper appended");
-	         Config_Value_Count := 0;
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Credential_Helpers
-	             (Repo_Root,
-	              Config_Values,
-	              Config_Value_Lasts,
-	              Config_Value_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git credential helpers read");
-	         Check
-	           (Config_Value_Count = 2
-	            and then Ada.Streams.Stream_Element_Offset
-	              (Config_Value_Lasts (Config_Value_Lasts'First))
-	              = Config_Values'First
-	                + Ada.Streams.Stream_Element_Offset
-	                  (String'("cache --timeout=60")'Length)
-	                - 1
-	            and then Bytes_Equal
-	              (Config_Values
-	                 (Config_Values'First ..
-	                  Ada.Streams.Stream_Element_Offset
-	                    (Config_Value_Lasts
-	                       (Config_Value_Lasts'First))),
-	               Bytes_From_String ("cache --timeout=60"))
-	            and then Bytes_Equal
-	              (Config_Values
-	                 (Ada.Streams.Stream_Element_Offset
-	                    (Config_Value_Lasts
-	                       (Config_Value_Lasts'First)) + 1 ..
-	                  Ada.Streams.Stream_Element_Offset
-	                    (Config_Value_Lasts
-	                       (Config_Value_Lasts'First + 1))),
-	               Bytes_From_String ("store --file=/tmp/sshlib-creds")),
-	            "git credential helpers values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Credential_Helper
-	             (Repo_Root, Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git credential helper deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Credential_Helper
-	             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deleted credential helper read");
-	         Check
-	           (Config_Removed and then not Config_Found,
-	            "git deleted credential helper absent");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Credential_Username
-	             (Repo_Root, "alice");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git credential username written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Credential_Username
-	             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git credential username read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("alice")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("alice")),
-	            "git credential username recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Credential_Username
-	             (Repo_Root, "bad" & Character'Val (13) & "user");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git credential username rejects carriage return");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Credential_Username
-	             (Repo_Root, Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git credential username deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Credential_Username
-	             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deleted credential username read");
-	         Check
-	           (Config_Removed and then not Config_Found,
-	            "git deleted credential username absent");
-	         Status_Value :=
-	           SSH_Lib.Git.Build_Credential_Helper_Request
-	             ("https",
-	              "example.invalid",
-	              "owner/repo",
-	              "alice",
-	              "",
-	              Config_Values,
-	              Config_Value_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git credential helper request built");
-	         Check
-	           (Config_Value_Last = Config_Values'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'
-	                   ("protocol=https" & Character'Val (10)
-	                    & "host=example.invalid" & Character'Val (10)
-	                    & "path=owner/repo" & Character'Val (10)
-	                    & "username=alice" & Character'Val (10)
-	                    & Character'Val (10))'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Values (Config_Values'First .. Config_Value_Last),
-	               Bytes_From_String
-	                 ("protocol=https" & Character'Val (10)
-	                  & "host=example.invalid" & Character'Val (10)
-	                  & "path=owner/repo" & Character'Val (10)
-	                  & "username=alice" & Character'Val (10)
-	                  & Character'Val (10))),
-	            "git credential helper request values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Build_Credential_Helper_Request
-	             ("https",
-	              "bad" & Character'Val (10) & "host",
-	              "",
-	              "",
-	              "",
-	              Config_Values,
-	              Config_Value_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git credential helper request rejects newline");
-	         Status_Value :=
-	           SSH_Lib.Git.Parse_Credential_Helper_Response
-	             (Bytes_From_String
-	                ("username=bob" & Character'Val (10)
-	                 & "password=secret" & Character'Val (10)
-	                 & Character'Val (10)),
-	              Config_Value,
-	              Config_Value_Last,
-	              Config_Found,
-	              Reflog_Line,
-	              Reflog_Last,
-	              Ref_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git credential helper response parsed");
-	         Check
-	           (Config_Found
-	            and then Ref_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("bob")'Length)
-	              - 1
-	            and then Reflog_Last = Reflog_Line'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("secret")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("bob"))
-	            and then Bytes_Equal
-	              (Reflog_Line (Reflog_Line'First .. Reflog_Last),
-	               Bytes_From_String ("secret")),
-	            "git credential helper response values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Parse_Credential_Helper_Response
-	             (Bytes_From_String
-	                ("username=bad" & Character'Val (13)
-	                 & Character'Val (10)
+         Status_Value := SSH_Lib.Git.Initialize_Repository_State (Repo_Root);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git repository state initialized");
+         Check
+           (Ada.Directories.Exists (Repo_Root & "/.git/objects")
+            and then Ada.Directories.Exists (Repo_Root & "/.git/refs/heads"),
+            "git repository state directories created");
+         Status_Value := SSH_Lib.Git.Write_Empty_Index (Repo_Root);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git empty index written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Index_Header
+             (Repo_Root, Index_Version, Index_Entry_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index header read");
+         Check
+           (Index_Version = 2 and then Index_Entry_Count = 0,
+            "git index header values recovered");
+         Check
+           (SSH_Lib.Git.Valid_Worktree_Path ("file.txt")
+            and then SSH_Lib.Git.Valid_Worktree_Path ("dir/file.txt")
+            and then SSH_Lib.Git.Valid_Worktree_Path ("dir/sub/file.txt")
+            and then not SSH_Lib.Git.Valid_Worktree_Path ("/file.txt")
+            and then not SSH_Lib.Git.Valid_Worktree_Path ("dir/../file.txt")
+            and then not SSH_Lib.Git.Valid_Worktree_Path ("dir/./file.txt")
+            and then not SSH_Lib.Git.Valid_Worktree_Path ("dir//file.txt")
+            and then not SSH_Lib.Git.Valid_Worktree_Path ("dir/")
+            and then not SSH_Lib.Git.Valid_Worktree_Path
+              ("bad" & Character'Val (10) & "path"),
+            "git worktree path validation");
+         Status_Value :=
+           SSH_Lib.Git.Pathspec_Matches
+             ("dir/file.txt", "dir/file.txt", Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git exact pathspec matched");
+         Check (Config_Found, "git exact pathspec reports match");
+         Status_Value :=
+           SSH_Lib.Git.Pathspec_Matches
+             ("dir/file.txt", "dir/", Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git directory pathspec matched");
+         Check (Config_Found, "git directory pathspec reports match");
+         Status_Value :=
+           SSH_Lib.Git.Pathspec_Matches
+             ("dir/file.txt", "*.txt", Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git wildcard pathspec matched");
+         Check (Config_Found, "git wildcard pathspec reports match");
+         Status_Value :=
+           SSH_Lib.Git.Pathspec_Matches
+             ("dir/file.txt", ".", Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git all pathspec matched");
+         Check (Config_Found, "git all pathspec reports match");
+         Status_Value :=
+           SSH_Lib.Git.Pathspec_Matches
+             ("dir/file.txt", "other/", Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git nonmatching pathspec checked");
+         Check (not Config_Found, "git nonmatching pathspec reports false");
+         Status_Value :=
+           SSH_Lib.Git.Pathspec_Matches
+             ("dir/file.txt", "../bad", Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git unsafe pathspec rejected");
+         Status_Value :=
+           SSH_Lib.Git.Write_Worktree_File
+             (Repo_Root, "nested/file.txt", Blob_Data);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git worktree file written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Worktree_File
+             (Repo_Root, "nested/file.txt", Read_Data, Read_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git worktree file read");
+         Check
+           (Read_Last = Read_Data'First
+              + Ada.Streams.Stream_Element_Offset (Blob_Data'Length)
+              - 1
+            and then Bytes_Equal
+              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
+            "git worktree file values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Worktree_File_Exists
+             (Repo_Root, "nested/file.txt", Worktree_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git worktree file existence probed");
+         Check (Worktree_Found, "git worktree file exists");
+         Status_Value :=
+           SSH_Lib.Git.Worktree_File_Exists
+             (Repo_Root, "nested/missing.txt", Worktree_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git missing worktree file existence probed");
+         Check (not Worktree_Found, "git missing worktree file absent");
+         declare
+            Small_Worktree_Read : Ada.Streams.Stream_Element_Array (1 .. 4);
+            Small_Worktree_Last : Ada.Streams.Stream_Element_Offset;
+         begin
+            Status_Value :=
+              SSH_Lib.Git.Read_Worktree_File
+                (Repo_Root,
+                 "nested/file.txt",
+                 Small_Worktree_Read,
+                 Small_Worktree_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Read_Failed,
+               "git worktree file small buffer rejected");
+         end;
+         Status_Value :=
+           SSH_Lib.Git.Write_Worktree_File
+             (Repo_Root, "../escape.txt", Blob_Data);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git worktree file rejects parent traversal");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Worktree_File
+             (Repo_Root, "nested/file.txt", Worktree_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git worktree file deleted");
+         Check (Worktree_Removed, "git worktree file delete reported");
+         Status_Value :=
+           SSH_Lib.Git.Worktree_File_Exists
+             (Repo_Root, "nested/file.txt", Worktree_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deleted worktree file existence probed");
+         Check (not Worktree_Found, "git deleted worktree file absent");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Worktree_File
+             (Repo_Root, "nested/file.txt", Worktree_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git missing worktree file delete probed");
+         Check
+           (not Worktree_Removed,
+            "git missing worktree file delete not removed");
+         Status_Value :=
+           SSH_Lib.Git.Build_Index_Entry
+             (8#100644#,
+              "file.txt",
+              Built_Tree_Object_ID,
+              12,
+              Built_Index_Entry,
+              Built_Index_Entry_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index entry built");
+         Check
+           (Built_Index_Entry_Last = 72
+            and then Built_Index_Entry (25) = 0
+            and then Built_Index_Entry (26) = 0
+            and then Built_Index_Entry (27) = 16#81#
+            and then Built_Index_Entry (28) = 16#A4#
+            and then Built_Index_Entry (40) = 12
+            and then Built_Index_Entry (41 .. 60) = Built_Tree_Object_ID
+            and then Built_Index_Entry (61) = 0
+            and then Built_Index_Entry (62) = 8
+            and then Bytes_Equal
+              (Built_Index_Entry (63 .. 70),
+               Bytes_From_String ("file.txt"))
+            and then Built_Index_Entry (71) = 0
+            and then Built_Index_Entry (72) = 0,
+            "git index entry layout recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Index
+             (Repo_Root,
+              Built_Index_Entry
+                (Built_Index_Entry'First .. Built_Index_Entry_Last),
+              1);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git one-entry index written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Index_Header
+             (Repo_Root, Index_Version, Index_Entry_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git one-entry index header read");
+         Check
+           (Index_Version = 2 and then Index_Entry_Count = 1,
+            "git one-entry index header values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Parse_Index_Entry
+             (Built_Index_Entry
+                (Built_Index_Entry'First .. Built_Index_Entry_Last),
+              0,
+              Parsed_Index_Mode,
+              Parsed_Index_Path,
+              Parsed_Index_Path_Last,
+              Parsed_Index_Object_ID,
+              Parsed_Index_Object_Last,
+              Parsed_Index_File_Size,
+              Parsed_Index_Next_Offset);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index entry parsed");
+         Check
+           (Parsed_Index_Mode = 8#100644#
+            and then Parsed_Index_File_Size = 12
+            and then Parsed_Index_Next_Offset = 72
+            and then Parsed_Index_Object_Last
+              = Parsed_Index_Object_ID'First + 19
+            and then Parsed_Index_Object_ID = Built_Tree_Object_ID
+            and then Bytes_Equal
+              (Parsed_Index_Path
+                 (Parsed_Index_Path'First .. Parsed_Index_Path_Last),
+               Bytes_From_String ("file.txt")),
+            "git index entry parsed values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Index_Entry
+             (Repo_Root,
+              0,
+              Parsed_Index_Mode,
+              Parsed_Index_Path,
+              Parsed_Index_Path_Last,
+              Parsed_Index_Object_ID,
+              Parsed_Index_Object_Last,
+              Parsed_Index_File_Size);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git repository index entry read");
+         Check
+           (Parsed_Index_Mode = 8#100644#
+            and then Parsed_Index_File_Size = 12
+            and then Parsed_Index_Object_ID = Built_Tree_Object_ID
+            and then Bytes_Equal
+              (Parsed_Index_Path
+                 (Parsed_Index_Path'First .. Parsed_Index_Path_Last),
+               Bytes_From_String ("file.txt")),
+            "git repository index entry values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Find_Index_Entry
+             (Repo_Root,
+              Bytes_From_String ("file.txt"),
+              Parsed_Index_Mode,
+              Parsed_Index_Object_ID,
+              Parsed_Index_Object_Last,
+              Parsed_Index_File_Size,
+              Index_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git repository index entry found by path");
+         Check
+           (Index_Found
+            and then Parsed_Index_Mode = 8#100644#
+            and then Parsed_Index_File_Size = 12
+            and then Parsed_Index_Object_ID = Built_Tree_Object_ID,
+            "git repository index path lookup values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Find_Index_Entry
+             (Repo_Root,
+              Bytes_From_String ("missing.txt"),
+              Parsed_Index_Mode,
+              Parsed_Index_Object_ID,
+              Parsed_Index_Object_Last,
+              Parsed_Index_File_Size,
+              Index_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git missing repository index entry probed");
+         Check (not Index_Found, "git missing repository index entry absent");
+         Status_Value :=
+           SSH_Lib.Git.Read_Config_Value
+             (Repo_Root,
+              "core",
+              "bare",
+              Config_Value,
+              Config_Value_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git config value read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("false")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("false")),
+            "git config value recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Core_Filemode
+             (Repo_Root, Core_Filemode, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core filemode read");
+         Check
+           (Config_Found and then Core_Filemode,
+            "git core filemode true recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Core_Filemode
+             (Repo_Root, False);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core filemode false written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Core_Filemode
+             (Repo_Root, Core_Filemode, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core filemode reread");
+         Check
+           (Config_Found and then not Core_Filemode,
+            "git core filemode false recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Core_Filemode
+             (Repo_Root, Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core filemode deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Core_Filemode
+             (Repo_Root, Core_Filemode, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deleted core filemode read");
+         Check
+           (Config_Removed and then not Config_Found,
+            "git deleted core filemode absent");
+         Status_Value :=
+           SSH_Lib.Git.Write_Core_Log_All_Ref_Updates
+             (Repo_Root, True);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core log all ref updates true written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Core_Log_All_Ref_Updates
+             (Repo_Root, Core_Log_All_Ref_Updates, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core log all ref updates read");
+         Check
+           (Config_Found and then Core_Log_All_Ref_Updates,
+            "git core log all ref updates true recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Core_Log_All_Ref_Updates
+             (Repo_Root, False);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core log all ref updates false written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Core_Log_All_Ref_Updates
+             (Repo_Root, Core_Log_All_Ref_Updates, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core log all ref updates reread");
+         Check
+           (Config_Found and then not Core_Log_All_Ref_Updates,
+            "git core log all ref updates false recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Core_Log_All_Ref_Updates
+             (Repo_Root, Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core log all ref updates deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Core_Log_All_Ref_Updates
+             (Repo_Root, Core_Log_All_Ref_Updates, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deleted core log all ref updates read");
+         Check
+           (Config_Removed and then not Config_Found,
+            "git deleted core log all ref updates absent");
+         Status_Value :=
+           SSH_Lib.Git.Write_Remote_Tracking_Branch
+             (Repo_Root, "origin/feature", Expected_Blob_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote tracking branch written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Remote_Tracking_Branch
+             (Repo_Root, "origin/feature", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote tracking branch read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
+            "git remote tracking branch object id recovered");
+         Status_Value :=
+           SSH_Lib.Git.Resolve_Remote_Tracking_Branch
+             (Repo_Root, "origin/feature", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote tracking branch resolved");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
+            "git remote tracking branch resolve values");
+         Status_Value :=
+           SSH_Lib.Git.Remote_Tracking_Branch_Exists
+             (Repo_Root,
+              "origin/feature",
+              Read_Hex,
+              Read_Hex_Last,
+              Ref_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote tracking branch existence checked");
+         Check
+           (Ref_Found
+            and then Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
+            "git remote tracking branch existence values");
+         Status_Value :=
+           SSH_Lib.Git.Write_Remote_Tracking_Branch
+             (Repo_Root, "../bad", Expected_Blob_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git remote tracking branch rejects traversal");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Remote_Tracking_Branch
+             (Repo_Root, "origin/feature");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote tracking branch deleted");
+         Status_Value :=
+           SSH_Lib.Git.Remote_Tracking_Branch_Exists
+             (Repo_Root,
+              "origin/feature",
+              Read_Hex,
+              Read_Hex_Last,
+              Ref_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deleted remote tracking branch checked");
+         Check
+           (not Ref_Found,
+            "git deleted remote tracking branch absent");
+         Status_Value :=
+           SSH_Lib.Git.Read_Config_Value
+             (Repo_Root,
+              "core",
+              "missing",
+              Config_Value,
+              Config_Value_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git missing config value read");
+         Check (not Config_Found, "git missing config value not found");
+         Status_Value :=
+           SSH_Lib.Git.Write_Config_Value
+             (Repo_Root, "core", "bare", "true");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git config value written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Config_Value
+             (Repo_Root,
+              "core",
+              "bare",
+              Config_Value,
+              Config_Value_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git updated config value read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("true")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("true")),
+            "git updated config value recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Core_Bare
+             (Repo_Root, Core_Bare, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core bare read");
+         Check
+           (Config_Found and then Core_Bare,
+            "git core bare true recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Core_Bare
+             (Repo_Root, False);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core bare false written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Core_Bare
+             (Repo_Root, Core_Bare, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core bare reread");
+         Check
+           (Config_Found and then not Core_Bare,
+            "git core bare false recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Core_Bare
+             (Repo_Root, Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git core bare deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Core_Bare
+             (Repo_Root, Core_Bare, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deleted core bare read");
+         Check
+           (Config_Removed and then not Config_Found,
+            "git deleted core bare absent");
+         Status_Value :=
+           SSH_Lib.Git.Write_Config_Value
+             (Repo_Root, "remote origin", "url", "git@example.invalid:r.git");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git config new section value written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Config_Value
+             (Repo_Root,
+              "remote origin",
+              "url",
+              Config_Value,
+              Config_Value_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git new section config value read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("git@example.invalid:r.git")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("git@example.invalid:r.git")),
+            "git new section config value recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Remote_URL
+             (Repo_Root, "origin", "ssh://example.invalid/repo.git");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote url written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Remote_URL
+             (Repo_Root,
+              "origin",
+              Config_Value,
+              Config_Value_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote url read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("ssh://example.invalid/repo.git")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("ssh://example.invalid/repo.git")),
+            "git remote url recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Remote_URL
+             (Repo_Root, "origin", Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote url deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Remote_URL
+             (Repo_Root,
+              "origin",
+              Config_Value,
+              Config_Value_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote url read after delete");
+         Check
+           (Config_Removed and then not Config_Found,
+            "git remote url absent after delete");
+         Status_Value :=
+           SSH_Lib.Git.Write_Remote_Fetch_Refspec
+             (Repo_Root,
+              "origin",
+              "+refs/heads/*:refs/remotes/origin/*");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote fetch refspec written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Remote_Fetch_Refspec
+             (Repo_Root,
+              "origin",
+              Config_Value,
+              Config_Value_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote fetch refspec read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("+refs/heads/*:refs/remotes/origin/*")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String
+                 ("+refs/heads/*:refs/remotes/origin/*")),
+            "git remote fetch refspec recovered");
+         Check
+           (SSH_Lib.Git.Valid_Fetch_Refspec
+              ("refs/heads/main:refs/remotes/origin/main")
+            and then SSH_Lib.Git.Valid_Fetch_Refspec
+              ("+refs/heads/*:refs/remotes/origin/*")
+            and then not SSH_Lib.Git.Valid_Fetch_Refspec
+              ("+refs/heads/*:refs/remotes/origin/main")
+            and then not SSH_Lib.Git.Valid_Fetch_Refspec
+              ("refs/heads/main"),
+            "git fetch refspec validation");
+         Status_Value :=
+           SSH_Lib.Git.Append_Remote_Fetch_Refspec
+             (Repo_Root,
+              "origin",
+              "+refs/tags/*:refs/tags/*");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote fetch refspec appended");
+         Status_Value :=
+           SSH_Lib.Git.Read_Remote_Fetch_Refspec
+             (Repo_Root,
+              "origin",
+              Config_Value,
+              Config_Value_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote fetch refspec reread after append");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("+refs/heads/*:refs/remotes/origin/*")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String
+                 ("+refs/heads/*:refs/remotes/origin/*")),
+            "git remote fetch append preserves first value");
+         Status_Value :=
+           SSH_Lib.Git.Read_Config_Values
+             (Repo_Root,
+              "remote origin",
+              "fetch",
+              Config_Values,
+              Config_Value_Lasts,
+              Config_Value_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git repeated config values read");
+         Check
+           (Config_Value_Count = 2
+            and then Config_Value_Lasts (1) = Config_Values'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("+refs/heads/*:refs/remotes/origin/*")'Length)
+              - 1
+            and then Config_Value_Lasts (2) = Config_Value_Lasts (1)
+              + Ada.Streams.Stream_Element_Offset
+                (String'("+refs/tags/*:refs/tags/*")'Length)
+            and then Bytes_Equal
+              (Config_Values
+                 (Config_Values'First .. Config_Value_Lasts (1)),
+               Bytes_From_String
+                 ("+refs/heads/*:refs/remotes/origin/*"))
+            and then Bytes_Equal
+              (Config_Values
+                 (Config_Value_Lasts (1) + 1
+                  .. Config_Value_Lasts (2)),
+               Bytes_From_String ("+refs/tags/*:refs/tags/*")),
+            "git repeated config values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Remote_Fetch_Refspecs
+             (Repo_Root,
+              "origin",
+              Config_Values,
+              Config_Value_Lasts,
+              Config_Value_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote fetch refspecs read");
+         Check
+           (Config_Value_Count = 2
+            and then Config_Value_Lasts (1) = Config_Values'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("+refs/heads/*:refs/remotes/origin/*")'Length)
+              - 1
+            and then Config_Value_Lasts (2) = Config_Value_Lasts (1)
+              + Ada.Streams.Stream_Element_Offset
+                (String'("+refs/tags/*:refs/tags/*")'Length),
+            "git remote fetch refspecs count recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Remote_Fetch_Refspecs
+             (Repo_Root, "origin", Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote fetch refspecs deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Remote_Fetch_Refspecs
+             (Repo_Root,
+              "origin",
+              Config_Values,
+              Config_Value_Lasts,
+              Config_Value_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote fetch refspecs read after delete");
+         Check
+           (Config_Removed and then Config_Value_Count = 0,
+            "git remote fetch refspecs absent after delete");
+         Status_Value :=
+           SSH_Lib.Git.Write_Remote_Push_Refspec
+             (Repo_Root,
+              "origin",
+              "refs/heads/main:refs/heads/main");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote push refspec written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Remote_Push_Refspec
+             (Repo_Root,
+              "origin",
+              Config_Value,
+              Config_Value_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote push refspec read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("refs/heads/main:refs/heads/main")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String
+                 ("refs/heads/main:refs/heads/main")),
+            "git remote push refspec recovered");
+         Check
+           (SSH_Lib.Git.Valid_Push_Refspec
+              ("refs/heads/main:refs/heads/main")
+            and then SSH_Lib.Git.Valid_Push_Refspec
+              (":refs/heads/main")
+            and then SSH_Lib.Git.Valid_Push_Refspec
+              ("+refs/heads/*:refs/heads/*")
+            and then not SSH_Lib.Git.Valid_Push_Refspec
+              ("+refs/heads/*:refs/heads/main")
+            and then not SSH_Lib.Git.Valid_Push_Refspec (":"),
+            "git push refspec validation");
+         Status_Value :=
+           SSH_Lib.Git.Append_Remote_Push_Refspec
+             (Repo_Root,
+              "origin",
+              "+refs/tags/*:refs/tags/*");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote push refspec appended");
+         Status_Value :=
+           SSH_Lib.Git.Read_Remote_Push_Refspecs
+             (Repo_Root,
+              "origin",
+              Config_Values,
+              Config_Value_Lasts,
+              Config_Value_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote push refspecs read");
+         Check
+           (Config_Value_Count = 2
+            and then Config_Value_Lasts (1) = Config_Values'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'
+                   ("refs/heads/main:refs/heads/main")'Length)
+              - 1
+            and then Config_Value_Lasts (2) = Config_Value_Lasts (1)
+              + Ada.Streams.Stream_Element_Offset
+                (String'("+refs/tags/*:refs/tags/*")'Length),
+            "git remote push refspecs count recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Remote_Push_Refspecs
+             (Repo_Root, "origin", Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote push refspecs deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Remote_Push_Refspecs
+             (Repo_Root,
+              "origin",
+              Config_Values,
+              Config_Value_Lasts,
+              Config_Value_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote push refspecs read after delete");
+         Check
+           (Config_Removed and then Config_Value_Count = 0,
+            "git remote push refspecs absent after delete");
+         Status_Value :=
+           SSH_Lib.Git.Append_Config_Value
+             (Repo_Root,
+              "remote backup",
+              "fetch",
+              "+refs/heads/*:refs/remotes/backup/*");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git config value appended to new section");
+         Status_Value :=
+           SSH_Lib.Git.Read_Config_Value
+             (Repo_Root,
+              "remote backup",
+              "fetch",
+              Config_Value,
+              Config_Value_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git appended new section config value read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'
+                   ("+refs/heads/*:refs/remotes/backup/*")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String
+                 ("+refs/heads/*:refs/remotes/backup/*")),
+            "git appended new section config value recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Config_Value
+             (Repo_Root, "remote backup", "fetch", Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git config value deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Config_Value
+             (Repo_Root,
+              "remote backup",
+              "fetch",
+              Config_Value,
+              Config_Value_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deleted config value read");
+         Check
+           (Config_Removed and then not Config_Found,
+            "git deleted config value absent");
+         Status_Value :=
+           SSH_Lib.Git.Write_Credential_Helper
+             (Repo_Root, "cache --timeout=60");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git credential helper written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Credential_Helper
+             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git credential helper read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("cache --timeout=60")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("cache --timeout=60")),
+            "git credential helper values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Credential_Helper
+             (Repo_Root, "bad" & Character'Val (10) & "helper");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git credential helper rejects newline");
+         Status_Value :=
+           SSH_Lib.Git.Append_Credential_Helper
+             (Repo_Root, "store --file=/tmp/sshlib-creds");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git credential helper appended");
+         Config_Value_Count := 0;
+         Status_Value :=
+           SSH_Lib.Git.Read_Credential_Helpers
+             (Repo_Root,
+              Config_Values,
+              Config_Value_Lasts,
+              Config_Value_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git credential helpers read");
+         Check
+           (Config_Value_Count = 2
+            and then Ada.Streams.Stream_Element_Offset
+              (Config_Value_Lasts (Config_Value_Lasts'First))
+              = Config_Values'First
+                + Ada.Streams.Stream_Element_Offset
+                  (String'("cache --timeout=60")'Length)
+                - 1
+            and then Bytes_Equal
+              (Config_Values
+                 (Config_Values'First ..
+                  Ada.Streams.Stream_Element_Offset
+                    (Config_Value_Lasts
+                       (Config_Value_Lasts'First))),
+               Bytes_From_String ("cache --timeout=60"))
+            and then Bytes_Equal
+              (Config_Values
+                 (Ada.Streams.Stream_Element_Offset
+                    (Config_Value_Lasts
+                       (Config_Value_Lasts'First)) + 1 ..
+                  Ada.Streams.Stream_Element_Offset
+                    (Config_Value_Lasts
+                       (Config_Value_Lasts'First + 1))),
+               Bytes_From_String ("store --file=/tmp/sshlib-creds")),
+            "git credential helpers values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Credential_Helper
+             (Repo_Root, Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git credential helper deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Credential_Helper
+             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deleted credential helper read");
+         Check
+           (Config_Removed and then not Config_Found,
+            "git deleted credential helper absent");
+         Status_Value :=
+           SSH_Lib.Git.Write_Credential_Username
+             (Repo_Root, "alice");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git credential username written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Credential_Username
+             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git credential username read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("alice")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("alice")),
+            "git credential username recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Credential_Username
+             (Repo_Root, "bad" & Character'Val (13) & "user");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git credential username rejects carriage return");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Credential_Username
+             (Repo_Root, Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git credential username deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Credential_Username
+             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deleted credential username read");
+         Check
+           (Config_Removed and then not Config_Found,
+            "git deleted credential username absent");
+         Status_Value :=
+           SSH_Lib.Git.Build_Credential_Helper_Request
+             ("https",
+              "example.invalid",
+              "owner/repo",
+              "alice",
+              "",
+              Config_Values,
+              Config_Value_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git credential helper request built");
+         Check
+           (Config_Value_Last = Config_Values'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'
+                   ("protocol=https" & Character'Val (10)
+                    & "host=example.invalid" & Character'Val (10)
+                    & "path=owner/repo" & Character'Val (10)
+                    & "username=alice" & Character'Val (10)
+                    & Character'Val (10))'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Values (Config_Values'First .. Config_Value_Last),
+               Bytes_From_String
+                 ("protocol=https" & Character'Val (10)
+                  & "host=example.invalid" & Character'Val (10)
+                  & "path=owner/repo" & Character'Val (10)
+                  & "username=alice" & Character'Val (10)
+                  & Character'Val (10))),
+            "git credential helper request values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Build_Credential_Helper_Request
+             ("https",
+              "bad" & Character'Val (10) & "host",
+              "",
+              "",
+              "",
+              Config_Values,
+              Config_Value_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git credential helper request rejects newline");
+         Status_Value :=
+           SSH_Lib.Git.Parse_Credential_Helper_Response
+             (Bytes_From_String
+                ("username=bob" & Character'Val (10)
+                 & "password=secret" & Character'Val (10)
+                 & Character'Val (10)),
+              Config_Value,
+              Config_Value_Last,
+              Config_Found,
+              Reflog_Line,
+              Reflog_Last,
+              Ref_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git credential helper response parsed");
+         Check
+           (Config_Found
+            and then Ref_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("bob")'Length)
+              - 1
+            and then Reflog_Last = Reflog_Line'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("secret")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("bob"))
+            and then Bytes_Equal
+              (Reflog_Line (Reflog_Line'First .. Reflog_Last),
+               Bytes_From_String ("secret")),
+            "git credential helper response values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Parse_Credential_Helper_Response
+             (Bytes_From_String
+                ("username=bad" & Character'Val (13)
+                 & Character'Val (10)
                           & Character'Val (10)),
                        Config_Value,
                        Config_Value_Last,
@@ -4097,538 +4097,538 @@ package body SSH_Lib.Tests.Legacy is
                   Check
                     ((for all Index in Config_Values'Range =>
                         Config_Values (Index) = 0),
-	            "git credential data cleared");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_User_Name
-	             (Repo_Root, "Ada Lovelace");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git user name written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_User_Name
-	             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git user name read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("Ada Lovelace")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("Ada Lovelace")),
-	            "git user name recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_User_Name
-	             (Repo_Root, "bad" & Character'Val (10) & "name");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git user name rejects newline");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_User_Email
-	             (Repo_Root, "ada@example.invalid");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git user email written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_User_Email
-	             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git user email read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("ada@example.invalid")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("ada@example.invalid")),
-	            "git user email recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_User_Name
-	             (Repo_Root, Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git user name deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_User_Email
-	             (Repo_Root, Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git user email deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Init_Default_Branch
-	             (Repo_Root, "trunk");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git init default branch written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Init_Default_Branch
-	             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git init default branch read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("trunk")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("trunk")),
-	            "git init default branch recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Init_Default_Branch
-	             (Repo_Root, "bad..name");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git init default branch rejects invalid name");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Init_Default_Branch
-	             (Repo_Root, Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git init default branch deleted");
-	         Check
-	           (SSH_Lib.Git.Valid_Push_Default_Mode ("simple")
-	            and then SSH_Lib.Git.Valid_Push_Default_Mode ("matching")
-	            and then not SSH_Lib.Git.Valid_Push_Default_Mode ("bad"),
-	            "git push default mode validation");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Push_Default
-	             (Repo_Root, "simple");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git push default written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Push_Default
-	             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git push default read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("simple")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("simple")),
-	            "git push default recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Push_Default
-	             (Repo_Root, "bad");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git push default rejects invalid mode");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Push_Default
-	             (Repo_Root, Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git push default deleted");
-	         Check
-	           (SSH_Lib.Git.Valid_Pull_Rebase_Mode ("false")
-	            and then SSH_Lib.Git.Valid_Pull_Rebase_Mode ("merges")
-	            and then SSH_Lib.Git.Valid_Pull_Rebase_Mode ("interactive")
-	            and then not SSH_Lib.Git.Valid_Pull_Rebase_Mode ("bad"),
-	            "git pull rebase mode validation");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Pull_Rebase
-	             (Repo_Root, "merges");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pull rebase written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Pull_Rebase
-	             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pull rebase read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("merges")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("merges")),
-	            "git pull rebase recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Pull_Rebase
-	             (Repo_Root, "bad");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git pull rebase rejects invalid mode");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Pull_Rebase
-	             (Repo_Root, Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pull rebase deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Branch_Upstream
-	             (Repo_Root, "main", "origin", "refs/heads/main");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch upstream written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Branch_Upstream
-	             (Repo_Root,
-	              "main",
-	              Config_Value,
-	              Config_Value_Last,
-	              Target_Ref,
-	              Target_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch upstream read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("origin")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("origin"))
-	            and then Target_Last = Target_Ref'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("refs/heads/main")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Target_Ref (Target_Ref'First .. Target_Last),
-	               Bytes_From_String ("refs/heads/main")),
-	            "git branch upstream values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Branch_Upstream
-	             (Repo_Root, "main", Config_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch upstream deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Branch_Upstream
-	             (Repo_Root,
-	              "main",
-	              Config_Value,
-	              Config_Value_Last,
-	              Target_Ref,
-	              Target_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch upstream read after delete");
-	         Check
-	           (Config_Removed and then not Config_Found,
-	            "git branch upstream absent after delete");
+            "git credential data cleared");
+         Status_Value :=
+           SSH_Lib.Git.Write_User_Name
+             (Repo_Root, "Ada Lovelace");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git user name written");
+         Status_Value :=
+           SSH_Lib.Git.Read_User_Name
+             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git user name read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("Ada Lovelace")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("Ada Lovelace")),
+            "git user name recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_User_Name
+             (Repo_Root, "bad" & Character'Val (10) & "name");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git user name rejects newline");
+         Status_Value :=
+           SSH_Lib.Git.Write_User_Email
+             (Repo_Root, "ada@example.invalid");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git user email written");
+         Status_Value :=
+           SSH_Lib.Git.Read_User_Email
+             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git user email read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("ada@example.invalid")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("ada@example.invalid")),
+            "git user email recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_User_Name
+             (Repo_Root, Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git user name deleted");
+         Status_Value :=
+           SSH_Lib.Git.Delete_User_Email
+             (Repo_Root, Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git user email deleted");
+         Status_Value :=
+           SSH_Lib.Git.Write_Init_Default_Branch
+             (Repo_Root, "trunk");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git init default branch written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Init_Default_Branch
+             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git init default branch read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("trunk")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("trunk")),
+            "git init default branch recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Init_Default_Branch
+             (Repo_Root, "bad..name");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git init default branch rejects invalid name");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Init_Default_Branch
+             (Repo_Root, Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git init default branch deleted");
+         Check
+           (SSH_Lib.Git.Valid_Push_Default_Mode ("simple")
+            and then SSH_Lib.Git.Valid_Push_Default_Mode ("matching")
+            and then not SSH_Lib.Git.Valid_Push_Default_Mode ("bad"),
+            "git push default mode validation");
+         Status_Value :=
+           SSH_Lib.Git.Write_Push_Default
+             (Repo_Root, "simple");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git push default written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Push_Default
+             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git push default read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("simple")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("simple")),
+            "git push default recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Push_Default
+             (Repo_Root, "bad");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git push default rejects invalid mode");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Push_Default
+             (Repo_Root, Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git push default deleted");
+         Check
+           (SSH_Lib.Git.Valid_Pull_Rebase_Mode ("false")
+            and then SSH_Lib.Git.Valid_Pull_Rebase_Mode ("merges")
+            and then SSH_Lib.Git.Valid_Pull_Rebase_Mode ("interactive")
+            and then not SSH_Lib.Git.Valid_Pull_Rebase_Mode ("bad"),
+            "git pull rebase mode validation");
+         Status_Value :=
+           SSH_Lib.Git.Write_Pull_Rebase
+             (Repo_Root, "merges");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pull rebase written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Pull_Rebase
+             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pull rebase read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("merges")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("merges")),
+            "git pull rebase recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Pull_Rebase
+             (Repo_Root, "bad");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git pull rebase rejects invalid mode");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Pull_Rebase
+             (Repo_Root, Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pull rebase deleted");
+         Status_Value :=
+           SSH_Lib.Git.Write_Branch_Upstream
+             (Repo_Root, "main", "origin", "refs/heads/main");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch upstream written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Branch_Upstream
+             (Repo_Root,
+              "main",
+              Config_Value,
+              Config_Value_Last,
+              Target_Ref,
+              Target_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch upstream read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("origin")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("origin"))
+            and then Target_Last = Target_Ref'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("refs/heads/main")'Length)
+              - 1
+            and then Bytes_Equal
+              (Target_Ref (Target_Ref'First .. Target_Last),
+               Bytes_From_String ("refs/heads/main")),
+            "git branch upstream values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Branch_Upstream
+             (Repo_Root, "main", Config_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch upstream deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Branch_Upstream
+             (Repo_Root,
+              "main",
+              Config_Value,
+              Config_Value_Last,
+              Target_Ref,
+              Target_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch upstream read after delete");
+         Check
+           (Config_Removed and then not Config_Found,
+            "git branch upstream absent after delete");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Loose_Object
-	             (Repo_Root,
-	              SSH_Lib.Git.Pack_Blob,
-	              Blob_Data,
-	              Stored_Hex,
-	              Stored_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git loose blob stored");
-	         Check
-	           (Stored_Last = Stored_Hex'Last
-	            and then Bytes_Equal (Stored_Hex, Expected_Blob_Hex),
-	            "git loose blob object id reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Build_Index_Entry
-	             (8#100644#,
-	              "hello.txt",
-	              Raw_Blob_ID,
-	              Natural (Blob_Data'Length),
-	              Built_Index_Entry,
-	              Built_Index_Entry_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git stored blob index entry built");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Index
-	             (Repo_Root,
-	              Built_Index_Entry
-	                (Built_Index_Entry'First .. Built_Index_Entry_Last),
-	              1);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git stored blob index written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Index_Path_Object
-	             (Repo_Root,
-	              Bytes_From_String ("hello.txt"),
-	              Read_Kind,
-	              Read_Data,
-	              Read_Last,
-	              Index_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index path object read");
-	         Check
-	           (Index_Found
-	            and then Read_Kind = SSH_Lib.Git.Pack_Blob
-	            and then Read_Last = Read_Data'First
-	              + Ada.Streams.Stream_Element_Offset (Blob_Data'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
-	            "git index path object values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.List_Index_Paths
-	             (Repo_Root,
-	              Listed_Index_Paths,
-	              Listed_Index_Path_Lasts,
-	              Listed_Index_Path_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index paths listed");
-	         Check
-	           (Listed_Index_Path_Count = 1
-	            and then Listed_Index_Path_Lasts (1)
-	              = Listed_Index_Paths'First
-	                + Ada.Streams.Stream_Element_Offset
-	                  (String'("hello.txt")'Length)
-	                - 1
-	            and then Bytes_Equal
-	              (Listed_Index_Paths
-	                 (Listed_Index_Paths'First
-	                  .. Listed_Index_Path_Lasts (1)),
-	               Bytes_From_String ("hello.txt")),
-	            "git index path list values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Worktree_File
-	             (Repo_Root, "hello.txt", Worktree_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git indexed worktree file delete before checkout");
-	         Status_Value :=
-	           SSH_Lib.Git.Checkout_Index_Path
-	             (Repo_Root,
-	              Bytes_From_String ("hello.txt"),
-	              Worktree_Written);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index path checked out");
-	         Check (Worktree_Written, "git index checkout wrote file");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Worktree_File
-	             (Repo_Root, "hello.txt", Read_Data, Read_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git checked out worktree file read");
-	         Check
-	           (Read_Last = Read_Data'First
-	              + Ada.Streams.Stream_Element_Offset (Blob_Data'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
-	            "git checked out worktree file values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Worktree_File
-	             (Repo_Root, "hello.txt", Worktree_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git checked out file deleted before checkout all");
-	         Status_Value :=
-	           SSH_Lib.Git.Checkout_Index_All
-	             (Repo_Root, Worktree_Written_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git all index paths checked out");
-	         Check
-	           (Worktree_Written_Count = 1,
-	            "git checkout all written count recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Worktree_File
-	             (Repo_Root, "hello.txt", Read_Data, Read_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git checkout all worktree file read");
-	         Check
-	           (Read_Last = Read_Data'First
-	              + Ada.Streams.Stream_Element_Offset (Blob_Data'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
-	            "git checkout all worktree values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Compare_Index_Path_To_Worktree
-	             (Repo_Root,
-	              Bytes_From_String ("hello.txt"),
-	              Worktree_Path_State);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index path worktree compared unchanged");
-	         Check
-	           (Worktree_Path_State = SSH_Lib.Git.Worktree_Path_Unchanged,
-	            "git index path worktree unchanged reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Summarize_Index_Worktree
-	             (Repo_Root,
-	              Worktree_Missing_Count,
-	              Worktree_Unchanged_Count,
-	              Worktree_Modified_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index worktree summary unchanged");
-	         Check
-	           (Worktree_Missing_Count = 0
-	            and then Worktree_Unchanged_Count = 1
-	            and then Worktree_Modified_Count = 0,
-	            "git index worktree summary unchanged counts");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Worktree_File
-	             (Repo_Root,
-	              "hello.txt",
-	              Bytes_From_String ("changed"));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git indexed worktree file modified");
-	         Status_Value :=
-	           SSH_Lib.Git.Compare_Index_Path_To_Worktree
-	             (Repo_Root,
-	              Bytes_From_String ("hello.txt"),
-	              Worktree_Path_State);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index path worktree compared modified");
-	         Check
-	           (Worktree_Path_State = SSH_Lib.Git.Worktree_Path_Modified,
-	            "git index path worktree modified reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Summarize_Index_Worktree
-	             (Repo_Root,
-	              Worktree_Missing_Count,
-	              Worktree_Unchanged_Count,
-	              Worktree_Modified_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index worktree summary modified");
-	         Check
-	           (Worktree_Missing_Count = 0
-	            and then Worktree_Unchanged_Count = 0
-	            and then Worktree_Modified_Count = 1,
-	            "git index worktree summary modified counts");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Worktree_File
-	             (Repo_Root, "hello.txt", Worktree_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git indexed worktree file deleted before compare");
-	         Status_Value :=
-	           SSH_Lib.Git.Compare_Index_Path_To_Worktree
-	             (Repo_Root,
-	              Bytes_From_String ("hello.txt"),
-	              Worktree_Path_State);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index path worktree compared missing");
-	         Check
-	           (Worktree_Path_State = SSH_Lib.Git.Worktree_Path_Missing,
-	            "git index path worktree missing reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Summarize_Index_Worktree
-	             (Repo_Root,
-	              Worktree_Missing_Count,
-	              Worktree_Unchanged_Count,
-	              Worktree_Modified_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index worktree summary missing");
-	         Check
-	           (Worktree_Missing_Count = 1
-	            and then Worktree_Unchanged_Count = 0
-	            and then Worktree_Modified_Count = 0,
-	            "git index worktree summary missing counts");
-	         Status_Value :=
-	           SSH_Lib.Git.Classify_Worktree_Path
-	             (Repo_Root, "hello.txt", Porcelain_Path_State);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git porcelain path classified tracked missing");
-	         Check
-	           (Porcelain_Path_State =
-	              SSH_Lib.Git.Porcelain_Path_Tracked_Missing,
-	            "git porcelain tracked missing reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Worktree_File
-	             (Repo_Root,
-	              "untracked.txt",
-	              Bytes_From_String ("new"));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git untracked fixture worktree file written");
-	         Status_Value :=
-	           SSH_Lib.Git.Classify_Worktree_Path
-	             (Repo_Root, "untracked.txt", Porcelain_Path_State);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git porcelain path classified untracked");
-	         Check
-	           (Porcelain_Path_State =
-	              SSH_Lib.Git.Porcelain_Path_Untracked,
-	            "git porcelain untracked reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Worktree_File
-	             (Repo_Root,
-	              "nested/file.txt",
-	              Bytes_From_String ("nested"));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git nested untracked fixture worktree file written");
-	         Status_Value :=
-	           SSH_Lib.Git.List_Worktree_Files
-	             (Repo_Root,
-	              Listed_Index_Paths,
-	              Listed_Index_Path_Lasts,
-	              Listed_Index_Path_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git recursive worktree files listed");
-	         Check
-	           (Listed_Index_Path_Count = 2,
-	            "git recursive worktree file count skips git dir");
-	         Status_Value :=
-	           SSH_Lib.Git.Summarize_Worktree_Status
-	             (Repo_Root,
-	              Porcelain_Untracked_Count,
-	              Worktree_Missing_Count,
-	              Worktree_Unchanged_Count,
-	              Worktree_Modified_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git recursive worktree status summarized");
-	         Check
-	           (Porcelain_Untracked_Count = 2
-	            and then Worktree_Missing_Count = 1
-	            and then Worktree_Unchanged_Count = 0
-	            and then Worktree_Modified_Count = 0,
-	            "git recursive worktree status counts");
-	         Status_Value :=
-	           SSH_Lib.Git.Evaluate_Porcelain_Status
-	             (Repo_Root, ".", False, Porcelain_Status_Summary);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git porcelain status policy summarized");
-	         Check
-	           (Porcelain_Status_Summary.Untracked_Count = 2
-	            and then Porcelain_Status_Summary.Missing_Count = 1
-	            and then Porcelain_Status_Summary.Has_Untracked
-	            and then Porcelain_Status_Summary.Has_Tracked_Changes
-	            and then not Porcelain_Status_Summary.Is_Clean
-	            and then not Porcelain_Status_Summary.Pathspec_Applied,
-	            "git porcelain status policy dirty summary");
+         Status_Value :=
+           SSH_Lib.Git.Store_Loose_Object
+             (Repo_Root,
+              SSH_Lib.Git.Pack_Blob,
+              Blob_Data,
+              Stored_Hex,
+              Stored_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git loose blob stored");
+         Check
+           (Stored_Last = Stored_Hex'Last
+            and then Bytes_Equal (Stored_Hex, Expected_Blob_Hex),
+            "git loose blob object id reported");
+         Status_Value :=
+           SSH_Lib.Git.Build_Index_Entry
+             (8#100644#,
+              "hello.txt",
+              Raw_Blob_ID,
+              Natural (Blob_Data'Length),
+              Built_Index_Entry,
+              Built_Index_Entry_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git stored blob index entry built");
+         Status_Value :=
+           SSH_Lib.Git.Write_Index
+             (Repo_Root,
+              Built_Index_Entry
+                (Built_Index_Entry'First .. Built_Index_Entry_Last),
+              1);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git stored blob index written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Index_Path_Object
+             (Repo_Root,
+              Bytes_From_String ("hello.txt"),
+              Read_Kind,
+              Read_Data,
+              Read_Last,
+              Index_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index path object read");
+         Check
+           (Index_Found
+            and then Read_Kind = SSH_Lib.Git.Pack_Blob
+            and then Read_Last = Read_Data'First
+              + Ada.Streams.Stream_Element_Offset (Blob_Data'Length)
+              - 1
+            and then Bytes_Equal
+              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
+            "git index path object values recovered");
+         Status_Value :=
+           SSH_Lib.Git.List_Index_Paths
+             (Repo_Root,
+              Listed_Index_Paths,
+              Listed_Index_Path_Lasts,
+              Listed_Index_Path_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index paths listed");
+         Check
+           (Listed_Index_Path_Count = 1
+            and then Listed_Index_Path_Lasts (1)
+              = Listed_Index_Paths'First
+                + Ada.Streams.Stream_Element_Offset
+                  (String'("hello.txt")'Length)
+                - 1
+            and then Bytes_Equal
+              (Listed_Index_Paths
+                 (Listed_Index_Paths'First
+                  .. Listed_Index_Path_Lasts (1)),
+               Bytes_From_String ("hello.txt")),
+            "git index path list values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Worktree_File
+             (Repo_Root, "hello.txt", Worktree_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git indexed worktree file delete before checkout");
+         Status_Value :=
+           SSH_Lib.Git.Checkout_Index_Path
+             (Repo_Root,
+              Bytes_From_String ("hello.txt"),
+              Worktree_Written);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index path checked out");
+         Check (Worktree_Written, "git index checkout wrote file");
+         Status_Value :=
+           SSH_Lib.Git.Read_Worktree_File
+             (Repo_Root, "hello.txt", Read_Data, Read_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git checked out worktree file read");
+         Check
+           (Read_Last = Read_Data'First
+              + Ada.Streams.Stream_Element_Offset (Blob_Data'Length)
+              - 1
+            and then Bytes_Equal
+              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
+            "git checked out worktree file values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Worktree_File
+             (Repo_Root, "hello.txt", Worktree_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git checked out file deleted before checkout all");
+         Status_Value :=
+           SSH_Lib.Git.Checkout_Index_All
+             (Repo_Root, Worktree_Written_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git all index paths checked out");
+         Check
+           (Worktree_Written_Count = 1,
+            "git checkout all written count recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Worktree_File
+             (Repo_Root, "hello.txt", Read_Data, Read_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git checkout all worktree file read");
+         Check
+           (Read_Last = Read_Data'First
+              + Ada.Streams.Stream_Element_Offset (Blob_Data'Length)
+              - 1
+            and then Bytes_Equal
+              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
+            "git checkout all worktree values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Compare_Index_Path_To_Worktree
+             (Repo_Root,
+              Bytes_From_String ("hello.txt"),
+              Worktree_Path_State);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index path worktree compared unchanged");
+         Check
+           (Worktree_Path_State = SSH_Lib.Git.Worktree_Path_Unchanged,
+            "git index path worktree unchanged reported");
+         Status_Value :=
+           SSH_Lib.Git.Summarize_Index_Worktree
+             (Repo_Root,
+              Worktree_Missing_Count,
+              Worktree_Unchanged_Count,
+              Worktree_Modified_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index worktree summary unchanged");
+         Check
+           (Worktree_Missing_Count = 0
+            and then Worktree_Unchanged_Count = 1
+            and then Worktree_Modified_Count = 0,
+            "git index worktree summary unchanged counts");
+         Status_Value :=
+           SSH_Lib.Git.Write_Worktree_File
+             (Repo_Root,
+              "hello.txt",
+              Bytes_From_String ("changed"));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git indexed worktree file modified");
+         Status_Value :=
+           SSH_Lib.Git.Compare_Index_Path_To_Worktree
+             (Repo_Root,
+              Bytes_From_String ("hello.txt"),
+              Worktree_Path_State);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index path worktree compared modified");
+         Check
+           (Worktree_Path_State = SSH_Lib.Git.Worktree_Path_Modified,
+            "git index path worktree modified reported");
+         Status_Value :=
+           SSH_Lib.Git.Summarize_Index_Worktree
+             (Repo_Root,
+              Worktree_Missing_Count,
+              Worktree_Unchanged_Count,
+              Worktree_Modified_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index worktree summary modified");
+         Check
+           (Worktree_Missing_Count = 0
+            and then Worktree_Unchanged_Count = 0
+            and then Worktree_Modified_Count = 1,
+            "git index worktree summary modified counts");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Worktree_File
+             (Repo_Root, "hello.txt", Worktree_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git indexed worktree file deleted before compare");
+         Status_Value :=
+           SSH_Lib.Git.Compare_Index_Path_To_Worktree
+             (Repo_Root,
+              Bytes_From_String ("hello.txt"),
+              Worktree_Path_State);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index path worktree compared missing");
+         Check
+           (Worktree_Path_State = SSH_Lib.Git.Worktree_Path_Missing,
+            "git index path worktree missing reported");
+         Status_Value :=
+           SSH_Lib.Git.Summarize_Index_Worktree
+             (Repo_Root,
+              Worktree_Missing_Count,
+              Worktree_Unchanged_Count,
+              Worktree_Modified_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index worktree summary missing");
+         Check
+           (Worktree_Missing_Count = 1
+            and then Worktree_Unchanged_Count = 0
+            and then Worktree_Modified_Count = 0,
+            "git index worktree summary missing counts");
+         Status_Value :=
+           SSH_Lib.Git.Classify_Worktree_Path
+             (Repo_Root, "hello.txt", Porcelain_Path_State);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git porcelain path classified tracked missing");
+         Check
+           (Porcelain_Path_State =
+              SSH_Lib.Git.Porcelain_Path_Tracked_Missing,
+            "git porcelain tracked missing reported");
+         Status_Value :=
+           SSH_Lib.Git.Write_Worktree_File
+             (Repo_Root,
+              "untracked.txt",
+              Bytes_From_String ("new"));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git untracked fixture worktree file written");
+         Status_Value :=
+           SSH_Lib.Git.Classify_Worktree_Path
+             (Repo_Root, "untracked.txt", Porcelain_Path_State);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git porcelain path classified untracked");
+         Check
+           (Porcelain_Path_State =
+              SSH_Lib.Git.Porcelain_Path_Untracked,
+            "git porcelain untracked reported");
+         Status_Value :=
+           SSH_Lib.Git.Write_Worktree_File
+             (Repo_Root,
+              "nested/file.txt",
+              Bytes_From_String ("nested"));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git nested untracked fixture worktree file written");
+         Status_Value :=
+           SSH_Lib.Git.List_Worktree_Files
+             (Repo_Root,
+              Listed_Index_Paths,
+              Listed_Index_Path_Lasts,
+              Listed_Index_Path_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git recursive worktree files listed");
+         Check
+           (Listed_Index_Path_Count = 2,
+            "git recursive worktree file count skips git dir");
+         Status_Value :=
+           SSH_Lib.Git.Summarize_Worktree_Status
+             (Repo_Root,
+              Porcelain_Untracked_Count,
+              Worktree_Missing_Count,
+              Worktree_Unchanged_Count,
+              Worktree_Modified_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git recursive worktree status summarized");
+         Check
+           (Porcelain_Untracked_Count = 2
+            and then Worktree_Missing_Count = 1
+            and then Worktree_Unchanged_Count = 0
+            and then Worktree_Modified_Count = 0,
+            "git recursive worktree status counts");
+         Status_Value :=
+           SSH_Lib.Git.Evaluate_Porcelain_Status
+             (Repo_Root, ".", False, Porcelain_Status_Summary);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git porcelain status policy summarized");
+         Check
+           (Porcelain_Status_Summary.Untracked_Count = 2
+            and then Porcelain_Status_Summary.Missing_Count = 1
+            and then Porcelain_Status_Summary.Has_Untracked
+            and then Porcelain_Status_Summary.Has_Tracked_Changes
+            and then not Porcelain_Status_Summary.Is_Clean
+            and then not Porcelain_Status_Summary.Pathspec_Applied,
+            "git porcelain status policy dirty summary");
             Status_Value :=
               SSH_Lib.Git.Read_Porcelain_Index_Worktree_Model
                 (Repo_Root, ".", False, Porcelain_Model);
@@ -4642,536 +4642,536 @@ package body SSH_Lib.Tests.Legacy is
                and then Porcelain_Model.Status.Missing_Count = 1
                and then not Porcelain_Model.Status.Is_Clean,
                "git porcelain index/worktree model counts");
-	         Status_Value :=
-	           SSH_Lib.Git.Summarize_Worktree_Status_Matching
-	             (Repo_Root,
-	              "nested/",
-	              Porcelain_Untracked_Count,
-	              Worktree_Missing_Count,
-	              Worktree_Unchanged_Count,
-	              Worktree_Modified_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pathspec worktree status summarized nested");
-	         Check
-	           (Porcelain_Untracked_Count = 1
-	            and then Worktree_Missing_Count = 0
-	            and then Worktree_Unchanged_Count = 0
-	            and then Worktree_Modified_Count = 0,
-	            "git pathspec worktree status nested counts");
-	         Status_Value :=
-	           SSH_Lib.Git.Evaluate_Porcelain_Status
-	             (Repo_Root, "nested/", False, Porcelain_Status_Summary);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git porcelain status policy pathspec summarized");
-	         Check
-	           (Porcelain_Status_Summary.Untracked_Count = 1
-	            and then Porcelain_Status_Summary.Missing_Count = 0
-	            and then Porcelain_Status_Summary.Pathspec_Applied
-	            and then Porcelain_Status_Summary.Has_Untracked
-	            and then not Porcelain_Status_Summary.Has_Tracked_Changes,
-	            "git porcelain status policy pathspec counts");
-	         Status_Value :=
-	           SSH_Lib.Git.Summarize_Worktree_Status_Matching
-	             (Repo_Root,
-	              "hello.txt",
-	              Porcelain_Untracked_Count,
-	              Worktree_Missing_Count,
-	              Worktree_Unchanged_Count,
-	              Worktree_Modified_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pathspec worktree status summarized tracked");
-	         Check
-	           (Porcelain_Untracked_Count = 0
-	            and then Worktree_Missing_Count = 1
-	            and then Worktree_Unchanged_Count = 0
-	            and then Worktree_Modified_Count = 0,
-	            "git pathspec worktree status tracked counts");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Worktree_File
-	             (Repo_Root,
-	              "moved.txt",
-	              Blob_Data);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git rename fixture worktree file written");
-	         Status_Value :=
-	           SSH_Lib.Git.Detect_Worktree_Rename
-	             (Repo_Root,
-	              Config_Value,
-	              Config_Value_Last,
-	              Reflog_Line,
-	              Reflog_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git worktree rename detected");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("hello.txt")'Length)
-	              - 1
-	            and then Reflog_Last = Reflog_Line'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("moved.txt")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("hello.txt"))
-	            and then Bytes_Equal
-	              (Reflog_Line (Reflog_Line'First .. Reflog_Last),
-	               Bytes_From_String ("moved.txt")),
-	            "git worktree rename paths recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Worktree_File
-	             (Repo_Root,
-	              ".gitignore",
-	              Bytes_From_String ("ignored*.tmp" & Character'Val (10)));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git ignore fixture written");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Worktree_File
-	             (Repo_Root,
-	              "ignored-one.tmp",
-	              Bytes_From_String ("ignored"));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git ignored worktree file written");
-	         Status_Value :=
-	           SSH_Lib.Git.Worktree_Path_Ignored
-	             (Repo_Root, "ignored-one.tmp", Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git ignored path checked");
-	         Check (Config_Found, "git ignored path reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Summarize_Worktree_Status_With_Ignored
-	             (Repo_Root,
-	              Porcelain_Untracked_Count,
-	              Porcelain_Absent_Count,
-	              Worktree_Missing_Count,
-	              Worktree_Unchanged_Count,
-	              Worktree_Modified_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git ignored-aware worktree status summarized");
-	         Check
-	           (Porcelain_Untracked_Count = 4
-	            and then Porcelain_Absent_Count = 1
-	            and then Worktree_Missing_Count = 1
-	            and then Worktree_Unchanged_Count = 0
-	            and then Worktree_Modified_Count = 0,
-	            "git ignored-aware worktree status counts");
-	         Status_Value :=
-	           SSH_Lib.Git.Evaluate_Porcelain_Status
-	             (Repo_Root, ".", True, Porcelain_Status_Summary);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git porcelain status policy ignored-aware summarized");
-	         Check
-	           (Porcelain_Status_Summary.Untracked_Count = 4
-	            and then Porcelain_Status_Summary.Ignored_Count = 1
-	            and then Porcelain_Status_Summary.Has_Ignored
-	            and then Porcelain_Status_Summary.Include_Ignored,
-	            "git porcelain status policy ignored-aware counts");
-	         Status_Value :=
-	           SSH_Lib.Git.Classify_Worktree_Path
-	             (Repo_Root, "absent.txt", Porcelain_Path_State);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git porcelain path classified absent");
-	         Check
-	           (Porcelain_Path_State = SSH_Lib.Git.Porcelain_Path_Absent,
-	            "git porcelain absent reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Summarize_Worktree_Paths
-	             (Repo_Root,
-	              Bytes_From_String
-	                ("hello.txt" & "untracked.txt" & "absent.txt"),
-	              [1 => 9, 2 => 22, 3 => 32],
-	              3,
-	              Porcelain_Absent_Count,
-	              Porcelain_Untracked_Count,
-	              Worktree_Missing_Count,
-	              Worktree_Unchanged_Count,
-	              Worktree_Modified_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git porcelain path summary completed");
-	         Check
-	           (Porcelain_Absent_Count = 1
-	            and then Porcelain_Untracked_Count = 1
-	            and then Worktree_Missing_Count = 1
-	            and then Worktree_Unchanged_Count = 0
-	            and then Worktree_Modified_Count = 0,
-	            "git porcelain path summary counts");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Worktree_File
-	             (Repo_Root, "stage.txt", Blob_Data);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git stage fixture worktree file written");
-	         Status_Value :=
-	           SSH_Lib.Git.Stage_Worktree_File
-	             (Repo_Root, "stage.txt", Stored_Hex, Stored_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git worktree file staged");
-	         Check
-	           (Stored_Last = Stored_Hex'Last
-	            and then Bytes_Equal (Stored_Hex, Expected_Blob_Hex),
-	            "git staged worktree file object id reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Find_Index_Entry
-	             (Repo_Root,
-	              Bytes_From_String ("stage.txt"),
-	              Parsed_Index_Mode,
-	              Parsed_Index_Object_ID,
-	              Parsed_Index_Object_Last,
-	              Parsed_Index_File_Size,
-	              Index_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git staged worktree file index entry found");
-	         Check
-	           (Index_Found
-	            and then Parsed_Index_File_Size = Natural (Blob_Data'Length),
-	            "git staged worktree file index values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Detect_Worktree_Copy
-	             (Repo_Root,
-	              Config_Value,
-	              Config_Value_Last,
-	              Reflog_Line,
-	              Reflog_Last,
-	              Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git worktree copy detected");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("stage.txt")'Length)
-	              - 1
-	            and then Reflog_Last = Reflog_Line'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("moved.txt")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("stage.txt"))
-	            and then Bytes_Equal
-	              (Reflog_Line (Reflog_Line'First .. Reflog_Last),
-	               Bytes_From_String ("moved.txt")),
-	            "git worktree copy paths recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Clean_Worktree_Not_In_Index
-	             (Repo_Root, Worktree_Written_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git worktree unindexed cleanup completed");
-	         Check
-	           (Worktree_Written_Count = 4,
-	            "git worktree unindexed cleanup count recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Worktree_File_Exists
-	             (Repo_Root, "moved.txt", Worktree_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git worktree cleanup copy path probed");
-	         Check
-	           (not Worktree_Found,
-	            "git worktree cleanup removed unindexed copy path");
-	         Status_Value :=
-	           SSH_Lib.Git.Worktree_File_Exists
-	             (Repo_Root, "ignored-one.tmp", Worktree_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git worktree cleanup ignored path probed");
-	         Check
-	           (Worktree_Found,
-	            "git worktree cleanup preserved ignored path");
-	         Status_Value :=
-	           SSH_Lib.Git.Worktree_File_Exists
-	             (Repo_Root, "stage.txt", Worktree_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git worktree cleanup indexed path probed");
-	         Check
-	           (Worktree_Found,
-	            "git worktree cleanup preserved indexed path");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Index_Header
-	             (Repo_Root, Index_Version, Index_Entry_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git preserved staging index header read");
-	         Check
-	           (Index_Entry_Count = 2,
-	            "git staging preserves existing index entries");
-	         Status_Value :=
-	           SSH_Lib.Git.Find_Index_Entry
-	             (Repo_Root,
-	              Bytes_From_String ("hello.txt"),
-	              Parsed_Index_Mode,
-	              Parsed_Index_Object_ID,
-	              Parsed_Index_Object_Last,
-	              Parsed_Index_File_Size,
-	              Index_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git preserved staged path found");
-	         Check (Index_Found, "git preserved staged path remains indexed");
-	         Status_Value :=
-	           SSH_Lib.Git.Remove_Index_Path
-	             (Repo_Root, "hello.txt", Index_Removed);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index path removed");
-	         Check (Index_Removed, "git index path removal reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Index_Header
-	             (Repo_Root, Index_Version, Index_Entry_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index header read after path removal");
-	         Check
-	           (Index_Entry_Count = 1,
-	            "git index path removal preserves other entries");
-	         Status_Value :=
-	           SSH_Lib.Git.Find_Index_Entry
-	             (Repo_Root,
-	              Bytes_From_String ("stage.txt"),
-	              Parsed_Index_Mode,
-	              Parsed_Index_Object_ID,
-	              Parsed_Index_Object_Last,
-	              Parsed_Index_File_Size,
-	              Index_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remaining staged path found after removal");
-	         Check (Index_Found, "git remaining staged path preserved");
-	         Status_Value :=
-	           SSH_Lib.Git.Commit_Index_To_Branch
-	             (Repo_Root,
-	              "main",
-	              "A <a@example.test> 0 +0000",
-	              "A <a@example.test> 0 +0000",
-	              "stage" & Character'Val (10),
-	              Stored_Commit_Hex,
-	              Stored_Commit_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index committed to branch");
-	         Check
-	           (Stored_Commit_Last = Stored_Commit_Hex'Last,
-	            "git index commit object id reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Branch
-	             (Repo_Root, "main", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index commit branch read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Commit_Hex),
-	            "git index commit branch values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Commit_Index_To_Branch
-	             (Repo_Root,
-	              "main",
-	              "A <a@example.test> 1 +0000",
-	              "A <a@example.test> 1 +0000",
-	              "stage again" & Character'Val (10),
-	              Stored_Commit_Hex,
-	              Stored_Commit_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git index committed to existing branch");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Loose_Object
-	             (Repo_Root,
-	              Stored_Commit_Hex,
-	              Read_Kind,
-	              Commit_Path_Commit_Data,
-	              Commit_Path_Commit_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git parented index commit read");
-	         Status_Value :=
-	           SSH_Lib.Git.Parse_Commit_Parent_ID
-	             (Commit_Path_Commit_Data
-	                (Commit_Path_Commit_Data'First
-	                 .. Commit_Path_Commit_Last),
-	              1,
-	              Commit_Parent_Hex,
-	              Commit_Parent_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git parented index commit parent parsed");
-	         Check
-	           (Commit_Parent_Last = Commit_Parent_Hex'Last
-	            and then Bytes_Equal (Commit_Parent_Hex, Read_Hex),
-	            "git parented index commit parent values");
-	         Status_Value :=
-	           SSH_Lib.Git.Is_Ancestor_First_Parent
-	             (Repo_Root,
-	              Read_Hex,
-	              Stored_Commit_Hex,
-	              Commit_Is_Ancestor);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git first-parent ancestry checked");
-	         Check
-	           (Commit_Is_Ancestor,
-	            "git first commit is first-parent ancestor");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Branch
-	             (Repo_Root, "topic", Read_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git fast-forward fixture branch written");
-	         Status_Value :=
-	           SSH_Lib.Git.Fast_Forward_Branch
-	             (Repo_Root, "topic", Stored_Commit_Hex, Branch_Updated);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch fast-forwarded");
-	         Check (Branch_Updated, "git branch fast-forward update reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Branch
-	             (Repo_Root, "topic", Commit_Parent_Hex, Commit_Parent_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git fast-forwarded branch read");
-	         Check
-	           (Commit_Parent_Last = Commit_Parent_Hex'Last
-	            and then Bytes_Equal (Commit_Parent_Hex, Stored_Commit_Hex),
-	            "git fast-forwarded branch target updated");
-	         Status_Value :=
-	           SSH_Lib.Git.Apply_Push_Branch_Update
-	             (Repo_Root,
-	              "topic",
-	              Stored_Commit_Hex,
-	              Stored_Commit_Hex,
-	              False,
-	              Branch_Updated);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git push update no-ops equal branch");
-	         Check
-	           (not Branch_Updated,
-	            "git push no-op not reported as updated");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Branch
-	             (Repo_Root, "push-target", Read_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git push update fixture branch written");
-	         Status_Value :=
-	           SSH_Lib.Git.Apply_Push_Branch_Update
-	             (Repo_Root,
-	              "push-target",
-	              Read_Hex,
-	              Stored_Commit_Hex,
-	              False,
-	              Branch_Updated);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git push update fast-forwards branch");
-	         Check (Branch_Updated, "git push fast-forward update reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Apply_Push_Branch_Update
-	             (Repo_Root,
-	              "push-target",
-	              Read_Hex,
-	              Stored_Commit_Hex,
-	              False,
-	              Branch_Updated);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git push update rejects stale expected old");
-	         Status_Value :=
-	           SSH_Lib.Git.Apply_Push_Branch_Update
-	             (Repo_Root,
-	              "push-target",
-	              Stored_Commit_Hex,
-	              Read_Hex,
-	              False,
-	              Branch_Updated);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Unsupported_Feature,
-	            "git push update rejects non-fast-forward");
-	         Check
-	           (not Branch_Updated,
-	            "git rejected push update not reported as updated");
-	         Status_Value :=
-	           SSH_Lib.Git.Apply_Push_Branch_Update
-	             (Repo_Root,
-	              "push-target",
-	              Stored_Commit_Hex,
-	              Read_Hex,
-	              True,
-	              Branch_Updated);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git push update allows forced non-fast-forward");
-	         Check (Branch_Updated, "git forced push update reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Apply_Fetch_Ref_Update
-	             (Repo_Root,
-	              "origin",
-	              "main",
-	              Read_Hex,
-	              False,
-	              Branch_Updated);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git fetch update creates remote tracking branch");
-	         Check (Branch_Updated, "git fetch create update reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Apply_Fetch_Ref_Update
-	             (Repo_Root,
-	              "origin",
-	              "main",
-	              Stored_Commit_Hex,
-	              False,
-	              Branch_Updated);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git fetch update fast-forwards remote tracking branch");
-	         Check (Branch_Updated, "git fetch fast-forward reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Apply_Fetch_Ref_Update
-	             (Repo_Root,
-	              "origin",
-	              "main",
-	              Read_Hex,
-	              False,
-	              Branch_Updated);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Unsupported_Feature,
-	            "git fetch update rejects non-fast-forward");
-	         Check
-	           (not Branch_Updated,
-	            "git rejected fetch update not reported as updated");
-	         Status_Value :=
-	           SSH_Lib.Git.Apply_Fetch_Ref_Update
-	             (Repo_Root,
-	              "origin",
-	              "main",
-	              Read_Hex,
-	              True,
-	              Branch_Updated);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git fetch update allows forced non-fast-forward");
-	         Check (Branch_Updated, "git forced fetch update reported");
+         Status_Value :=
+           SSH_Lib.Git.Summarize_Worktree_Status_Matching
+             (Repo_Root,
+              "nested/",
+              Porcelain_Untracked_Count,
+              Worktree_Missing_Count,
+              Worktree_Unchanged_Count,
+              Worktree_Modified_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pathspec worktree status summarized nested");
+         Check
+           (Porcelain_Untracked_Count = 1
+            and then Worktree_Missing_Count = 0
+            and then Worktree_Unchanged_Count = 0
+            and then Worktree_Modified_Count = 0,
+            "git pathspec worktree status nested counts");
+         Status_Value :=
+           SSH_Lib.Git.Evaluate_Porcelain_Status
+             (Repo_Root, "nested/", False, Porcelain_Status_Summary);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git porcelain status policy pathspec summarized");
+         Check
+           (Porcelain_Status_Summary.Untracked_Count = 1
+            and then Porcelain_Status_Summary.Missing_Count = 0
+            and then Porcelain_Status_Summary.Pathspec_Applied
+            and then Porcelain_Status_Summary.Has_Untracked
+            and then not Porcelain_Status_Summary.Has_Tracked_Changes,
+            "git porcelain status policy pathspec counts");
+         Status_Value :=
+           SSH_Lib.Git.Summarize_Worktree_Status_Matching
+             (Repo_Root,
+              "hello.txt",
+              Porcelain_Untracked_Count,
+              Worktree_Missing_Count,
+              Worktree_Unchanged_Count,
+              Worktree_Modified_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pathspec worktree status summarized tracked");
+         Check
+           (Porcelain_Untracked_Count = 0
+            and then Worktree_Missing_Count = 1
+            and then Worktree_Unchanged_Count = 0
+            and then Worktree_Modified_Count = 0,
+            "git pathspec worktree status tracked counts");
+         Status_Value :=
+           SSH_Lib.Git.Write_Worktree_File
+             (Repo_Root,
+              "moved.txt",
+              Blob_Data);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git rename fixture worktree file written");
+         Status_Value :=
+           SSH_Lib.Git.Detect_Worktree_Rename
+             (Repo_Root,
+              Config_Value,
+              Config_Value_Last,
+              Reflog_Line,
+              Reflog_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git worktree rename detected");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("hello.txt")'Length)
+              - 1
+            and then Reflog_Last = Reflog_Line'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("moved.txt")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("hello.txt"))
+            and then Bytes_Equal
+              (Reflog_Line (Reflog_Line'First .. Reflog_Last),
+               Bytes_From_String ("moved.txt")),
+            "git worktree rename paths recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Worktree_File
+             (Repo_Root,
+              ".gitignore",
+              Bytes_From_String ("ignored*.tmp" & Character'Val (10)));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git ignore fixture written");
+         Status_Value :=
+           SSH_Lib.Git.Write_Worktree_File
+             (Repo_Root,
+              "ignored-one.tmp",
+              Bytes_From_String ("ignored"));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git ignored worktree file written");
+         Status_Value :=
+           SSH_Lib.Git.Worktree_Path_Ignored
+             (Repo_Root, "ignored-one.tmp", Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git ignored path checked");
+         Check (Config_Found, "git ignored path reported");
+         Status_Value :=
+           SSH_Lib.Git.Summarize_Worktree_Status_With_Ignored
+             (Repo_Root,
+              Porcelain_Untracked_Count,
+              Porcelain_Absent_Count,
+              Worktree_Missing_Count,
+              Worktree_Unchanged_Count,
+              Worktree_Modified_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git ignored-aware worktree status summarized");
+         Check
+           (Porcelain_Untracked_Count = 4
+            and then Porcelain_Absent_Count = 1
+            and then Worktree_Missing_Count = 1
+            and then Worktree_Unchanged_Count = 0
+            and then Worktree_Modified_Count = 0,
+            "git ignored-aware worktree status counts");
+         Status_Value :=
+           SSH_Lib.Git.Evaluate_Porcelain_Status
+             (Repo_Root, ".", True, Porcelain_Status_Summary);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git porcelain status policy ignored-aware summarized");
+         Check
+           (Porcelain_Status_Summary.Untracked_Count = 4
+            and then Porcelain_Status_Summary.Ignored_Count = 1
+            and then Porcelain_Status_Summary.Has_Ignored
+            and then Porcelain_Status_Summary.Include_Ignored,
+            "git porcelain status policy ignored-aware counts");
+         Status_Value :=
+           SSH_Lib.Git.Classify_Worktree_Path
+             (Repo_Root, "absent.txt", Porcelain_Path_State);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git porcelain path classified absent");
+         Check
+           (Porcelain_Path_State = SSH_Lib.Git.Porcelain_Path_Absent,
+            "git porcelain absent reported");
+         Status_Value :=
+           SSH_Lib.Git.Summarize_Worktree_Paths
+             (Repo_Root,
+              Bytes_From_String
+                ("hello.txt" & "untracked.txt" & "absent.txt"),
+              [1 => 9, 2 => 22, 3 => 32],
+              3,
+              Porcelain_Absent_Count,
+              Porcelain_Untracked_Count,
+              Worktree_Missing_Count,
+              Worktree_Unchanged_Count,
+              Worktree_Modified_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git porcelain path summary completed");
+         Check
+           (Porcelain_Absent_Count = 1
+            and then Porcelain_Untracked_Count = 1
+            and then Worktree_Missing_Count = 1
+            and then Worktree_Unchanged_Count = 0
+            and then Worktree_Modified_Count = 0,
+            "git porcelain path summary counts");
+         Status_Value :=
+           SSH_Lib.Git.Write_Worktree_File
+             (Repo_Root, "stage.txt", Blob_Data);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git stage fixture worktree file written");
+         Status_Value :=
+           SSH_Lib.Git.Stage_Worktree_File
+             (Repo_Root, "stage.txt", Stored_Hex, Stored_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git worktree file staged");
+         Check
+           (Stored_Last = Stored_Hex'Last
+            and then Bytes_Equal (Stored_Hex, Expected_Blob_Hex),
+            "git staged worktree file object id reported");
+         Status_Value :=
+           SSH_Lib.Git.Find_Index_Entry
+             (Repo_Root,
+              Bytes_From_String ("stage.txt"),
+              Parsed_Index_Mode,
+              Parsed_Index_Object_ID,
+              Parsed_Index_Object_Last,
+              Parsed_Index_File_Size,
+              Index_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git staged worktree file index entry found");
+         Check
+           (Index_Found
+            and then Parsed_Index_File_Size = Natural (Blob_Data'Length),
+            "git staged worktree file index values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Detect_Worktree_Copy
+             (Repo_Root,
+              Config_Value,
+              Config_Value_Last,
+              Reflog_Line,
+              Reflog_Last,
+              Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git worktree copy detected");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("stage.txt")'Length)
+              - 1
+            and then Reflog_Last = Reflog_Line'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("moved.txt")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("stage.txt"))
+            and then Bytes_Equal
+              (Reflog_Line (Reflog_Line'First .. Reflog_Last),
+               Bytes_From_String ("moved.txt")),
+            "git worktree copy paths recovered");
+         Status_Value :=
+           SSH_Lib.Git.Clean_Worktree_Not_In_Index
+             (Repo_Root, Worktree_Written_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git worktree unindexed cleanup completed");
+         Check
+           (Worktree_Written_Count = 4,
+            "git worktree unindexed cleanup count recovered");
+         Status_Value :=
+           SSH_Lib.Git.Worktree_File_Exists
+             (Repo_Root, "moved.txt", Worktree_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git worktree cleanup copy path probed");
+         Check
+           (not Worktree_Found,
+            "git worktree cleanup removed unindexed copy path");
+         Status_Value :=
+           SSH_Lib.Git.Worktree_File_Exists
+             (Repo_Root, "ignored-one.tmp", Worktree_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git worktree cleanup ignored path probed");
+         Check
+           (Worktree_Found,
+            "git worktree cleanup preserved ignored path");
+         Status_Value :=
+           SSH_Lib.Git.Worktree_File_Exists
+             (Repo_Root, "stage.txt", Worktree_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git worktree cleanup indexed path probed");
+         Check
+           (Worktree_Found,
+            "git worktree cleanup preserved indexed path");
+         Status_Value :=
+           SSH_Lib.Git.Read_Index_Header
+             (Repo_Root, Index_Version, Index_Entry_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git preserved staging index header read");
+         Check
+           (Index_Entry_Count = 2,
+            "git staging preserves existing index entries");
+         Status_Value :=
+           SSH_Lib.Git.Find_Index_Entry
+             (Repo_Root,
+              Bytes_From_String ("hello.txt"),
+              Parsed_Index_Mode,
+              Parsed_Index_Object_ID,
+              Parsed_Index_Object_Last,
+              Parsed_Index_File_Size,
+              Index_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git preserved staged path found");
+         Check (Index_Found, "git preserved staged path remains indexed");
+         Status_Value :=
+           SSH_Lib.Git.Remove_Index_Path
+             (Repo_Root, "hello.txt", Index_Removed);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index path removed");
+         Check (Index_Removed, "git index path removal reported");
+         Status_Value :=
+           SSH_Lib.Git.Read_Index_Header
+             (Repo_Root, Index_Version, Index_Entry_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index header read after path removal");
+         Check
+           (Index_Entry_Count = 1,
+            "git index path removal preserves other entries");
+         Status_Value :=
+           SSH_Lib.Git.Find_Index_Entry
+             (Repo_Root,
+              Bytes_From_String ("stage.txt"),
+              Parsed_Index_Mode,
+              Parsed_Index_Object_ID,
+              Parsed_Index_Object_Last,
+              Parsed_Index_File_Size,
+              Index_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remaining staged path found after removal");
+         Check (Index_Found, "git remaining staged path preserved");
+         Status_Value :=
+           SSH_Lib.Git.Commit_Index_To_Branch
+             (Repo_Root,
+              "main",
+              "A <a@example.test> 0 +0000",
+              "A <a@example.test> 0 +0000",
+              "stage" & Character'Val (10),
+              Stored_Commit_Hex,
+              Stored_Commit_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index committed to branch");
+         Check
+           (Stored_Commit_Last = Stored_Commit_Hex'Last,
+            "git index commit object id reported");
+         Status_Value :=
+           SSH_Lib.Git.Read_Branch
+             (Repo_Root, "main", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index commit branch read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Commit_Hex),
+            "git index commit branch values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Commit_Index_To_Branch
+             (Repo_Root,
+              "main",
+              "A <a@example.test> 1 +0000",
+              "A <a@example.test> 1 +0000",
+              "stage again" & Character'Val (10),
+              Stored_Commit_Hex,
+              Stored_Commit_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git index committed to existing branch");
+         Status_Value :=
+           SSH_Lib.Git.Read_Loose_Object
+             (Repo_Root,
+              Stored_Commit_Hex,
+              Read_Kind,
+              Commit_Path_Commit_Data,
+              Commit_Path_Commit_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git parented index commit read");
+         Status_Value :=
+           SSH_Lib.Git.Parse_Commit_Parent_ID
+             (Commit_Path_Commit_Data
+                (Commit_Path_Commit_Data'First
+                 .. Commit_Path_Commit_Last),
+              1,
+              Commit_Parent_Hex,
+              Commit_Parent_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git parented index commit parent parsed");
+         Check
+           (Commit_Parent_Last = Commit_Parent_Hex'Last
+            and then Bytes_Equal (Commit_Parent_Hex, Read_Hex),
+            "git parented index commit parent values");
+         Status_Value :=
+           SSH_Lib.Git.Is_Ancestor_First_Parent
+             (Repo_Root,
+              Read_Hex,
+              Stored_Commit_Hex,
+              Commit_Is_Ancestor);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git first-parent ancestry checked");
+         Check
+           (Commit_Is_Ancestor,
+            "git first commit is first-parent ancestor");
+         Status_Value :=
+           SSH_Lib.Git.Write_Branch
+             (Repo_Root, "topic", Read_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git fast-forward fixture branch written");
+         Status_Value :=
+           SSH_Lib.Git.Fast_Forward_Branch
+             (Repo_Root, "topic", Stored_Commit_Hex, Branch_Updated);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch fast-forwarded");
+         Check (Branch_Updated, "git branch fast-forward update reported");
+         Status_Value :=
+           SSH_Lib.Git.Read_Branch
+             (Repo_Root, "topic", Commit_Parent_Hex, Commit_Parent_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git fast-forwarded branch read");
+         Check
+           (Commit_Parent_Last = Commit_Parent_Hex'Last
+            and then Bytes_Equal (Commit_Parent_Hex, Stored_Commit_Hex),
+            "git fast-forwarded branch target updated");
+         Status_Value :=
+           SSH_Lib.Git.Apply_Push_Branch_Update
+             (Repo_Root,
+              "topic",
+              Stored_Commit_Hex,
+              Stored_Commit_Hex,
+              False,
+              Branch_Updated);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git push update no-ops equal branch");
+         Check
+           (not Branch_Updated,
+            "git push no-op not reported as updated");
+         Status_Value :=
+           SSH_Lib.Git.Write_Branch
+             (Repo_Root, "push-target", Read_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git push update fixture branch written");
+         Status_Value :=
+           SSH_Lib.Git.Apply_Push_Branch_Update
+             (Repo_Root,
+              "push-target",
+              Read_Hex,
+              Stored_Commit_Hex,
+              False,
+              Branch_Updated);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git push update fast-forwards branch");
+         Check (Branch_Updated, "git push fast-forward update reported");
+         Status_Value :=
+           SSH_Lib.Git.Apply_Push_Branch_Update
+             (Repo_Root,
+              "push-target",
+              Read_Hex,
+              Stored_Commit_Hex,
+              False,
+              Branch_Updated);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git push update rejects stale expected old");
+         Status_Value :=
+           SSH_Lib.Git.Apply_Push_Branch_Update
+             (Repo_Root,
+              "push-target",
+              Stored_Commit_Hex,
+              Read_Hex,
+              False,
+              Branch_Updated);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Unsupported_Feature,
+            "git push update rejects non-fast-forward");
+         Check
+           (not Branch_Updated,
+            "git rejected push update not reported as updated");
+         Status_Value :=
+           SSH_Lib.Git.Apply_Push_Branch_Update
+             (Repo_Root,
+              "push-target",
+              Stored_Commit_Hex,
+              Read_Hex,
+              True,
+              Branch_Updated);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git push update allows forced non-fast-forward");
+         Check (Branch_Updated, "git forced push update reported");
+         Status_Value :=
+           SSH_Lib.Git.Apply_Fetch_Ref_Update
+             (Repo_Root,
+              "origin",
+              "main",
+              Read_Hex,
+              False,
+              Branch_Updated);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git fetch update creates remote tracking branch");
+         Check (Branch_Updated, "git fetch create update reported");
+         Status_Value :=
+           SSH_Lib.Git.Apply_Fetch_Ref_Update
+             (Repo_Root,
+              "origin",
+              "main",
+              Stored_Commit_Hex,
+              False,
+              Branch_Updated);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git fetch update fast-forwards remote tracking branch");
+         Check (Branch_Updated, "git fetch fast-forward reported");
+         Status_Value :=
+           SSH_Lib.Git.Apply_Fetch_Ref_Update
+             (Repo_Root,
+              "origin",
+              "main",
+              Read_Hex,
+              False,
+              Branch_Updated);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Unsupported_Feature,
+            "git fetch update rejects non-fast-forward");
+         Check
+           (not Branch_Updated,
+            "git rejected fetch update not reported as updated");
+         Status_Value :=
+           SSH_Lib.Git.Apply_Fetch_Ref_Update
+             (Repo_Root,
+              "origin",
+              "main",
+              Read_Hex,
+              True,
+              Branch_Updated);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git fetch update allows forced non-fast-forward");
+         Check (Branch_Updated, "git forced fetch update reported");
             Status_Value :=
               SSH_Lib.Git.Summarize_Repository_Database
                 (Repo_Root, Database_Summary);
@@ -5188,3865 +5188,3865 @@ package body SSH_Lib.Tests.Legacy is
                and then Database_Summary.HEAD_Resolved
                and then not Database_Summary.Has_Missing_Ref_Targets,
                "git repository database summary values");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Worktree_File
-	             (Repo_Root,
-	              "stage.txt",
-	              Bytes_From_String ("dirty"));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git checkout branch dirty worktree written");
-	         Status_Value :=
-	           SSH_Lib.Git.Checkout_Branch
-	             (Repo_Root, "main", Worktree_Written_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch checked out");
-	         Check
-	           (Worktree_Written_Count = 1,
-	            "git branch checkout writes root blob");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Current_Branch
-	             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch checkout current branch read");
-	         Check
-	           (Config_Found
-	            and then Config_Value_Last = Config_Value'First
-	              + Ada.Streams.Stream_Element_Offset (String'("main")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Config_Value (Config_Value'First .. Config_Value_Last),
-	               Bytes_From_String ("main")),
-	            "git branch checkout attaches HEAD");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Worktree_File
-	             (Repo_Root, "stage.txt", Read_Data, Read_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch checkout worktree file read");
-	         Check
-	           (Read_Last = Read_Data'First
-	              + Ada.Streams.Stream_Element_Offset (Blob_Data'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
-	            "git branch checkout restores staged blob");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Worktree_File
-	             (Repo_Root,
-	              "porcelain.txt",
-	              Bytes_From_String ("porcelain"));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git porcelain worktree file written");
-	         Status_Value :=
-	           SSH_Lib.Git.Stage_And_Commit_Worktree_File
-	             (Repo_Root,
-	              "main",
-	              "porcelain.txt",
-	              "A <a@example.test> 1 +0000",
-	              "A <a@example.test> 1 +0000",
-	              "porcelain" & Character'Val (10),
-	              Stored_Commit_Hex,
-	              Stored_Commit_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git porcelain stage and commit succeeds");
-	         Check
-	           (Stored_Commit_Last = Stored_Commit_Hex'Last,
-	            "git porcelain commit id is returned");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Branch
-	             (Repo_Root, "main", Read_Hex, Read_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git porcelain committed branch can be read");
-	         Check
-	           (Read_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Commit_Hex),
-	            "git porcelain commit updates target branch");
-	         declare
-	            Nested_Commit_Data :
-	              Ada.Streams.Stream_Element_Array (1 .. 256);
-	            Nested_Commit_Last : Ada.Streams.Stream_Element_Offset;
-	         begin
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Loose_Object_Validated
-	                (Repo_Root,
-	                 SSH_Lib.Git.Pack_Tree,
-	                 Tree_Data,
-	                 Stored_Tree_Hex,
-	                 Stored_Tree_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested checkout leaf tree stored");
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Object_ID_Hex
-	                (Stored_Tree_Hex, Tree_Object_ID, Tree_Object_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested checkout leaf tree id parsed");
-	            Status_Value :=
-	              SSH_Lib.Git.Build_Tree_Entry
-	                (8#040000#,
-	                 "nested",
-	                 Tree_Object_ID,
-	                 Built_Tree_Entry,
-	                 Built_Tree_Entry_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested checkout root tree entry built");
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Loose_Object_Validated
-	                (Repo_Root,
-	                 SSH_Lib.Git.Pack_Tree,
-	                 Built_Tree_Entry
-	                   (Built_Tree_Entry'First .. Built_Tree_Entry_Last),
-	                 Commit_Tree_Hex,
-	                 Commit_Tree_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested checkout root tree stored");
-	            Status_Value :=
-	              SSH_Lib.Git.Build_Commit_Object
-	                (Commit_Tree_Hex,
-	                 False,
-	                 Alternate_Hex,
-	                 "A <a@example.test> 2 +0000",
-	                 "A <a@example.test> 2 +0000",
-	                 "nested" & Character'Val (10),
-	                 Nested_Commit_Data,
-	                 Nested_Commit_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested checkout commit built");
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Loose_Object_Validated
-	                (Repo_Root,
-	                 SSH_Lib.Git.Pack_Commit,
-	                 Nested_Commit_Data
-	                   (Nested_Commit_Data'First .. Nested_Commit_Last),
-	                 Read_Hex,
-	                 Read_Hex_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested checkout commit stored");
-	            Status_Value :=
-	              SSH_Lib.Git.Write_Branch
-	                (Repo_Root, "nested", Read_Hex);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested checkout branch written");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Tree_Paths_Hex
-	                (Repo_Root,
-	                 Commit_Tree_Hex,
-	                 Path_List_Names,
-	                 Path_List_Path_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git root tree paths traversed");
-	            Check
-	              (Path_List_Count = 2
-	               and then Path_List_Path_Lasts (1) =
-	                 Path_List_Names'First
-	                 + Ada.Streams.Stream_Element_Offset
-	                   (String'("nested")'Length)
-	                 - 1
-	               and then Path_List_Path_Lasts (2) =
-	                 Path_List_Names'First
-	                 + Ada.Streams.Stream_Element_Offset
-	                   (String'("nested")'Length
-	                    + String'("nested/hello.txt")'Length)
-	                 - 1
-	               and then Bytes_Equal
-	                 (Path_List_Names
-	                    (Path_List_Names'First .. Path_List_Path_Lasts (1)),
-	                  Bytes_From_String ("nested"))
-	               and then Bytes_Equal
-	                 (Path_List_Names
-	                    (Path_List_Path_Lasts (1) + 1
-	                     .. Path_List_Path_Lasts (2)),
-	                  Bytes_From_String ("nested/hello.txt"))
-	               and then Path_List_Modes (1) = 8#040000#
-	               and then Path_List_Modes (2) = 8#100644#
-	               and then Bytes_Equal
-	                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (1)),
-	                  Stored_Tree_Hex)
-	               and then Bytes_Equal
-	                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (2)),
-	                  Expected_Blob_Hex),
-	               "git root tree paths traversal values");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Commit_Tree_Paths_Hex
-	                (Repo_Root,
-	                 Read_Hex,
-	                 Path_List_Names,
-	                 Path_List_Path_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit tree paths traversed");
-	            Check
-	              (Path_List_Count = 2
-	               and then Bytes_Equal
-	                 (Path_List_Names
-	                    (Path_List_Path_Lasts (1) + 1
-	                     .. Path_List_Path_Lasts (2)),
-	                  Bytes_From_String ("nested/hello.txt")),
-	               "git commit tree paths traversal values");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Ref_Commitish_Tree_Paths_Hex
-	                (Repo_Root,
-	                 "refs/heads/nested",
-	                 Path_List_Names,
-	                 Path_List_Path_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git ref commitish tree paths traversed");
-	            Check
-	              (Path_List_Count = 2
-	               and then Bytes_Equal
-	                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (2)),
-	                  Expected_Blob_Hex),
-	               "git ref commitish tree paths traversal values");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Tree_Paths_Matching_Hex
-	                (Repo_Root,
-	                 Commit_Tree_Hex,
-	                 "nested/",
-	                 Path_List_Names,
-	                 Path_List_Path_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git root tree pathspec paths traversed");
-	            Check
-	              (Path_List_Count = 1
-	               and then Path_List_Path_Lasts (1) =
-	                 Path_List_Names'First
-	                 + Ada.Streams.Stream_Element_Offset
-	                   (String'("nested/hello.txt")'Length)
-	                 - 1
-	               and then Bytes_Equal
-	                 (Path_List_Names
-	                    (Path_List_Names'First .. Path_List_Path_Lasts (1)),
-	                  Bytes_From_String ("nested/hello.txt"))
-	               and then Path_List_Modes (1) = 8#100644#
-	               and then Bytes_Equal
-	                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (1)),
-	                  Expected_Blob_Hex),
-	               "git root tree pathspec traversal values");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Commit_Tree_Paths_Matching_Hex
-	                (Repo_Root,
-	                 Read_Hex,
-	                 "nested/",
-	                 Path_List_Names,
-	                 Path_List_Path_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit tree pathspec paths traversed");
-	            Check
-	              (Path_List_Count = 1
-	               and then Bytes_Equal
-	                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (1)),
-	                  Expected_Blob_Hex),
-	               "git commit tree pathspec traversal values");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Ref_Commitish_Tree_Paths_Matching_Hex
-	                (Repo_Root,
-	                 "refs/heads/nested",
-	                 "nested/",
-	                 Path_List_Names,
-	                 Path_List_Path_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git ref commitish tree pathspec paths traversed");
-	            Check
-	              (Path_List_Count = 1
-	               and then Bytes_Equal
-	                 (Path_List_Names
-	                    (Path_List_Names'First .. Path_List_Path_Lasts (1)),
-	                  Bytes_From_String ("nested/hello.txt")),
-	               "git ref commitish tree pathspec traversal values");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Branch_Tree_Paths_Hex
-	                (Repo_Root,
-	                 "nested",
-	                 Path_List_Names,
-	                 Path_List_Path_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git branch tree paths traversed");
-	            Check
-	              (Path_List_Count = 2
-	               and then Bytes_Equal
-	                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (2)),
-	                  Expected_Blob_Hex),
-	               "git branch tree traversal values");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Branch_Tree_Paths_Matching_Hex
-	                (Repo_Root,
-	                 "nested",
-	                 "nested/",
-	                 Path_List_Names,
-	                 Path_List_Path_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git branch tree pathspec paths traversed");
-	            Check
-	              (Path_List_Count = 1
-	               and then Bytes_Equal
-	                 (Path_List_Names
-	                    (Path_List_Names'First .. Path_List_Path_Lasts (1)),
-	                  Bytes_From_String ("nested/hello.txt")),
-	               "git branch tree pathspec traversal values");
-	            Status_Value :=
-	              SSH_Lib.Git.Write_Tag_Ref
-	                (Repo_Root,
-	                 "nested-tree",
-	                 Read_Hex);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested tree tag written");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Tag_Tree_Paths_Hex
-	                (Repo_Root,
-	                 "nested-tree",
-	                 Path_List_Names,
-	                 Path_List_Path_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git tag tree paths traversed");
-	            Check
-	              (Path_List_Count = 2
-	               and then Bytes_Equal
-	                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (2)),
-	                  Expected_Blob_Hex),
-	               "git tag tree traversal values");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Tag_Tree_Paths_Matching_Hex
-	                (Repo_Root,
-	                 "nested-tree",
-	                 "nested/",
-	                 Path_List_Names,
-	                 Path_List_Path_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git tag tree pathspec paths traversed");
-	            Check
-	              (Path_List_Count = 1
-	               and then Bytes_Equal
-	                 (Path_List_Names
-	                    (Path_List_Names'First .. Path_List_Path_Lasts (1)),
-	                  Bytes_From_String ("nested/hello.txt")),
-	               "git tag tree pathspec traversal values");
-	            Status_Value :=
-	              SSH_Lib.Git.Delete_Tag_Ref
-	                (Repo_Root,
-	                 "nested-tree");
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested tree tag deleted");
-	            Status_Value :=
-	              SSH_Lib.Git.List_HEAD_Tree_Paths_Hex
-	                (Repo_Root,
-	                 Path_List_Names,
-	                 Path_List_Path_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git HEAD tree paths traversed");
-	            declare
-	               Head_Path_Count : constant Natural := Path_List_Count;
-	            begin
-	               Check
-	                 (Head_Path_Count >= 1
-	                  and then Path_List_Path_Lasts (1) >= Path_List_Names'First,
-	                  "git HEAD tree traversal values");
-	            Status_Value :=
-	              SSH_Lib.Git.List_HEAD_Tree_Paths_Matching_Hex
-	                (Repo_Root,
-	                 ".",
-	                 Path_List_Names,
-	                 Path_List_Path_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git HEAD tree pathspec paths traversed");
-	               Check
-	                 (Path_List_Count = Head_Path_Count,
-	                  "git HEAD tree pathspec traversal values");
-	            end;
-	            Status_Value :=
-	              SSH_Lib.Git.Checkout_Branch
-	                (Repo_Root, "nested", Worktree_Written_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested branch checked out");
-	            Check
-	              (Worktree_Written_Count = 1,
-	               "git nested branch checkout writes nested blob");
-	            Status_Value :=
-	              SSH_Lib.Git.Find_Index_Entry
-	                (Repo_Root,
-	                 Bytes_From_String ("nested/hello.txt"),
-	                 Parsed_Index_Mode,
-	                 Parsed_Index_Object_ID,
-	                 Parsed_Index_Object_Last,
-	                 Parsed_Index_File_Size,
-	                 Index_Found);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested checkout index entry found");
-	            Check
-	              (Index_Found
-	               and then Parsed_Index_File_Size = Natural (Blob_Data'Length),
-	               "git nested checkout index entry values");
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Worktree_File
-	                (Repo_Root, "nested/hello.txt", Read_Data, Read_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested checkout worktree file read");
-	            Check
-	              (Read_Last = Read_Data'First
-	                 + Ada.Streams.Stream_Element_Offset (Blob_Data'Length)
-	                 - 1
-	               and then Bytes_Equal
-	                 (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
-	               "git nested checkout restores nested blob");
-	            Status_Value :=
-	              SSH_Lib.Git.Checkout_Branch
-	                (Repo_Root, "main", Worktree_Written_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested checkout fixture restores main branch");
-	         end;
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Loose_Object_Validated
-	             (Repo_Root,
-	              SSH_Lib.Git.Pack_Blob,
-	              Blob_Data,
-	              Validated_Stored_Hex,
-	              Validated_Stored_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git validated loose blob stored");
-	         Check
-	           (Validated_Stored_Last = Validated_Stored_Hex'Last
-	            and then Bytes_Equal (Validated_Stored_Hex, Expected_Blob_Hex),
-	            "git validated loose blob object id reported");
-	         Status_Value :=
-	           SSH_Lib.Git.List_Loose_Object_IDs
-	             (Repo_Root,
-	              Listed_Loose_Object_IDs,
-	              Listed_Loose_Object_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git loose object ids listed");
-	         declare
-	            function Has_Loose_Object
-	              (Object_ID : Ada.Streams.Stream_Element_Array)
-	               return Boolean
-	            is
-	            begin
-	               for Index in 1 .. Listed_Loose_Object_Count loop
-	                  if Bytes_Equal
-	                    (Ada.Streams.Stream_Element_Array
-	                       (Listed_Loose_Object_IDs (Index)),
-	                     Object_ID)
-	                  then
-	                     return True;
-	                  end if;
-	               end loop;
-	               return False;
-	            end Has_Loose_Object;
-	         begin
-	            Check
-	              (Listed_Loose_Object_Count >= 1
-	               and then Has_Loose_Object (Expected_Blob_Hex),
-	               "git loose object ids listed values");
-	         end;
+         Status_Value :=
+           SSH_Lib.Git.Write_Worktree_File
+             (Repo_Root,
+              "stage.txt",
+              Bytes_From_String ("dirty"));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git checkout branch dirty worktree written");
+         Status_Value :=
+           SSH_Lib.Git.Checkout_Branch
+             (Repo_Root, "main", Worktree_Written_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch checked out");
+         Check
+           (Worktree_Written_Count = 1,
+            "git branch checkout writes root blob");
+         Status_Value :=
+           SSH_Lib.Git.Read_Current_Branch
+             (Repo_Root, Config_Value, Config_Value_Last, Config_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch checkout current branch read");
+         Check
+           (Config_Found
+            and then Config_Value_Last = Config_Value'First
+              + Ada.Streams.Stream_Element_Offset (String'("main")'Length)
+              - 1
+            and then Bytes_Equal
+              (Config_Value (Config_Value'First .. Config_Value_Last),
+               Bytes_From_String ("main")),
+            "git branch checkout attaches HEAD");
+         Status_Value :=
+           SSH_Lib.Git.Read_Worktree_File
+             (Repo_Root, "stage.txt", Read_Data, Read_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch checkout worktree file read");
+         Check
+           (Read_Last = Read_Data'First
+              + Ada.Streams.Stream_Element_Offset (Blob_Data'Length)
+              - 1
+            and then Bytes_Equal
+              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
+            "git branch checkout restores staged blob");
+         Status_Value :=
+           SSH_Lib.Git.Write_Worktree_File
+             (Repo_Root,
+              "porcelain.txt",
+              Bytes_From_String ("porcelain"));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git porcelain worktree file written");
+         Status_Value :=
+           SSH_Lib.Git.Stage_And_Commit_Worktree_File
+             (Repo_Root,
+              "main",
+              "porcelain.txt",
+              "A <a@example.test> 1 +0000",
+              "A <a@example.test> 1 +0000",
+              "porcelain" & Character'Val (10),
+              Stored_Commit_Hex,
+              Stored_Commit_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git porcelain stage and commit succeeds");
+         Check
+           (Stored_Commit_Last = Stored_Commit_Hex'Last,
+            "git porcelain commit id is returned");
+         Status_Value :=
+           SSH_Lib.Git.Read_Branch
+             (Repo_Root, "main", Read_Hex, Read_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git porcelain committed branch can be read");
+         Check
+           (Read_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Commit_Hex),
+            "git porcelain commit updates target branch");
+         declare
+            Nested_Commit_Data :
+              Ada.Streams.Stream_Element_Array (1 .. 256);
+            Nested_Commit_Last : Ada.Streams.Stream_Element_Offset;
+         begin
+            Status_Value :=
+              SSH_Lib.Git.Store_Loose_Object_Validated
+                (Repo_Root,
+                 SSH_Lib.Git.Pack_Tree,
+                 Tree_Data,
+                 Stored_Tree_Hex,
+                 Stored_Tree_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested checkout leaf tree stored");
+            Status_Value :=
+              SSH_Lib.Git.Parse_Object_ID_Hex
+                (Stored_Tree_Hex, Tree_Object_ID, Tree_Object_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested checkout leaf tree id parsed");
+            Status_Value :=
+              SSH_Lib.Git.Build_Tree_Entry
+                (8#040000#,
+                 "nested",
+                 Tree_Object_ID,
+                 Built_Tree_Entry,
+                 Built_Tree_Entry_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested checkout root tree entry built");
+            Status_Value :=
+              SSH_Lib.Git.Store_Loose_Object_Validated
+                (Repo_Root,
+                 SSH_Lib.Git.Pack_Tree,
+                 Built_Tree_Entry
+                   (Built_Tree_Entry'First .. Built_Tree_Entry_Last),
+                 Commit_Tree_Hex,
+                 Commit_Tree_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested checkout root tree stored");
+            Status_Value :=
+              SSH_Lib.Git.Build_Commit_Object
+                (Commit_Tree_Hex,
+                 False,
+                 Alternate_Hex,
+                 "A <a@example.test> 2 +0000",
+                 "A <a@example.test> 2 +0000",
+                 "nested" & Character'Val (10),
+                 Nested_Commit_Data,
+                 Nested_Commit_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested checkout commit built");
+            Status_Value :=
+              SSH_Lib.Git.Store_Loose_Object_Validated
+                (Repo_Root,
+                 SSH_Lib.Git.Pack_Commit,
+                 Nested_Commit_Data
+                   (Nested_Commit_Data'First .. Nested_Commit_Last),
+                 Read_Hex,
+                 Read_Hex_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested checkout commit stored");
+            Status_Value :=
+              SSH_Lib.Git.Write_Branch
+                (Repo_Root, "nested", Read_Hex);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested checkout branch written");
+            Status_Value :=
+              SSH_Lib.Git.List_Tree_Paths_Hex
+                (Repo_Root,
+                 Commit_Tree_Hex,
+                 Path_List_Names,
+                 Path_List_Path_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git root tree paths traversed");
+            Check
+              (Path_List_Count = 2
+               and then Path_List_Path_Lasts (1) =
+                 Path_List_Names'First
+                 + Ada.Streams.Stream_Element_Offset
+                   (String'("nested")'Length)
+                 - 1
+               and then Path_List_Path_Lasts (2) =
+                 Path_List_Names'First
+                 + Ada.Streams.Stream_Element_Offset
+                   (String'("nested")'Length
+                    + String'("nested/hello.txt")'Length)
+                 - 1
+               and then Bytes_Equal
+                 (Path_List_Names
+                    (Path_List_Names'First .. Path_List_Path_Lasts (1)),
+                  Bytes_From_String ("nested"))
+               and then Bytes_Equal
+                 (Path_List_Names
+                    (Path_List_Path_Lasts (1) + 1
+                     .. Path_List_Path_Lasts (2)),
+                  Bytes_From_String ("nested/hello.txt"))
+               and then Path_List_Modes (1) = 8#040000#
+               and then Path_List_Modes (2) = 8#100644#
+               and then Bytes_Equal
+                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (1)),
+                  Stored_Tree_Hex)
+               and then Bytes_Equal
+                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (2)),
+                  Expected_Blob_Hex),
+               "git root tree paths traversal values");
+            Status_Value :=
+              SSH_Lib.Git.List_Commit_Tree_Paths_Hex
+                (Repo_Root,
+                 Read_Hex,
+                 Path_List_Names,
+                 Path_List_Path_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit tree paths traversed");
+            Check
+              (Path_List_Count = 2
+               and then Bytes_Equal
+                 (Path_List_Names
+                    (Path_List_Path_Lasts (1) + 1
+                     .. Path_List_Path_Lasts (2)),
+                  Bytes_From_String ("nested/hello.txt")),
+               "git commit tree paths traversal values");
+            Status_Value :=
+              SSH_Lib.Git.List_Ref_Commitish_Tree_Paths_Hex
+                (Repo_Root,
+                 "refs/heads/nested",
+                 Path_List_Names,
+                 Path_List_Path_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git ref commitish tree paths traversed");
+            Check
+              (Path_List_Count = 2
+               and then Bytes_Equal
+                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (2)),
+                  Expected_Blob_Hex),
+               "git ref commitish tree paths traversal values");
+            Status_Value :=
+              SSH_Lib.Git.List_Tree_Paths_Matching_Hex
+                (Repo_Root,
+                 Commit_Tree_Hex,
+                 "nested/",
+                 Path_List_Names,
+                 Path_List_Path_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git root tree pathspec paths traversed");
+            Check
+              (Path_List_Count = 1
+               and then Path_List_Path_Lasts (1) =
+                 Path_List_Names'First
+                 + Ada.Streams.Stream_Element_Offset
+                   (String'("nested/hello.txt")'Length)
+                 - 1
+               and then Bytes_Equal
+                 (Path_List_Names
+                    (Path_List_Names'First .. Path_List_Path_Lasts (1)),
+                  Bytes_From_String ("nested/hello.txt"))
+               and then Path_List_Modes (1) = 8#100644#
+               and then Bytes_Equal
+                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (1)),
+                  Expected_Blob_Hex),
+               "git root tree pathspec traversal values");
+            Status_Value :=
+              SSH_Lib.Git.List_Commit_Tree_Paths_Matching_Hex
+                (Repo_Root,
+                 Read_Hex,
+                 "nested/",
+                 Path_List_Names,
+                 Path_List_Path_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit tree pathspec paths traversed");
+            Check
+              (Path_List_Count = 1
+               and then Bytes_Equal
+                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (1)),
+                  Expected_Blob_Hex),
+               "git commit tree pathspec traversal values");
+            Status_Value :=
+              SSH_Lib.Git.List_Ref_Commitish_Tree_Paths_Matching_Hex
+                (Repo_Root,
+                 "refs/heads/nested",
+                 "nested/",
+                 Path_List_Names,
+                 Path_List_Path_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git ref commitish tree pathspec paths traversed");
+            Check
+              (Path_List_Count = 1
+               and then Bytes_Equal
+                 (Path_List_Names
+                    (Path_List_Names'First .. Path_List_Path_Lasts (1)),
+                  Bytes_From_String ("nested/hello.txt")),
+               "git ref commitish tree pathspec traversal values");
+            Status_Value :=
+              SSH_Lib.Git.List_Branch_Tree_Paths_Hex
+                (Repo_Root,
+                 "nested",
+                 Path_List_Names,
+                 Path_List_Path_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git branch tree paths traversed");
+            Check
+              (Path_List_Count = 2
+               and then Bytes_Equal
+                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (2)),
+                  Expected_Blob_Hex),
+               "git branch tree traversal values");
+            Status_Value :=
+              SSH_Lib.Git.List_Branch_Tree_Paths_Matching_Hex
+                (Repo_Root,
+                 "nested",
+                 "nested/",
+                 Path_List_Names,
+                 Path_List_Path_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git branch tree pathspec paths traversed");
+            Check
+              (Path_List_Count = 1
+               and then Bytes_Equal
+                 (Path_List_Names
+                    (Path_List_Names'First .. Path_List_Path_Lasts (1)),
+                  Bytes_From_String ("nested/hello.txt")),
+               "git branch tree pathspec traversal values");
+            Status_Value :=
+              SSH_Lib.Git.Write_Tag_Ref
+                (Repo_Root,
+                 "nested-tree",
+                 Read_Hex);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested tree tag written");
+            Status_Value :=
+              SSH_Lib.Git.List_Tag_Tree_Paths_Hex
+                (Repo_Root,
+                 "nested-tree",
+                 Path_List_Names,
+                 Path_List_Path_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git tag tree paths traversed");
+            Check
+              (Path_List_Count = 2
+               and then Bytes_Equal
+                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (2)),
+                  Expected_Blob_Hex),
+               "git tag tree traversal values");
+            Status_Value :=
+              SSH_Lib.Git.List_Tag_Tree_Paths_Matching_Hex
+                (Repo_Root,
+                 "nested-tree",
+                 "nested/",
+                 Path_List_Names,
+                 Path_List_Path_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git tag tree pathspec paths traversed");
+            Check
+              (Path_List_Count = 1
+               and then Bytes_Equal
+                 (Path_List_Names
+                    (Path_List_Names'First .. Path_List_Path_Lasts (1)),
+                  Bytes_From_String ("nested/hello.txt")),
+               "git tag tree pathspec traversal values");
+            Status_Value :=
+              SSH_Lib.Git.Delete_Tag_Ref
+                (Repo_Root,
+                 "nested-tree");
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested tree tag deleted");
+            Status_Value :=
+              SSH_Lib.Git.List_HEAD_Tree_Paths_Hex
+                (Repo_Root,
+                 Path_List_Names,
+                 Path_List_Path_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git HEAD tree paths traversed");
+            declare
+               Head_Path_Count : constant Natural := Path_List_Count;
+            begin
+               Check
+                 (Head_Path_Count >= 1
+                  and then Path_List_Path_Lasts (1) >= Path_List_Names'First,
+                  "git HEAD tree traversal values");
+            Status_Value :=
+              SSH_Lib.Git.List_HEAD_Tree_Paths_Matching_Hex
+                (Repo_Root,
+                 ".",
+                 Path_List_Names,
+                 Path_List_Path_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git HEAD tree pathspec paths traversed");
+               Check
+                 (Path_List_Count = Head_Path_Count,
+                  "git HEAD tree pathspec traversal values");
+            end;
+            Status_Value :=
+              SSH_Lib.Git.Checkout_Branch
+                (Repo_Root, "nested", Worktree_Written_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested branch checked out");
+            Check
+              (Worktree_Written_Count = 1,
+               "git nested branch checkout writes nested blob");
+            Status_Value :=
+              SSH_Lib.Git.Find_Index_Entry
+                (Repo_Root,
+                 Bytes_From_String ("nested/hello.txt"),
+                 Parsed_Index_Mode,
+                 Parsed_Index_Object_ID,
+                 Parsed_Index_Object_Last,
+                 Parsed_Index_File_Size,
+                 Index_Found);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested checkout index entry found");
+            Check
+              (Index_Found
+               and then Parsed_Index_File_Size = Natural (Blob_Data'Length),
+               "git nested checkout index entry values");
+            Status_Value :=
+              SSH_Lib.Git.Read_Worktree_File
+                (Repo_Root, "nested/hello.txt", Read_Data, Read_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested checkout worktree file read");
+            Check
+              (Read_Last = Read_Data'First
+                 + Ada.Streams.Stream_Element_Offset (Blob_Data'Length)
+                 - 1
+               and then Bytes_Equal
+                 (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
+               "git nested checkout restores nested blob");
+            Status_Value :=
+              SSH_Lib.Git.Checkout_Branch
+                (Repo_Root, "main", Worktree_Written_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested checkout fixture restores main branch");
+         end;
+         Status_Value :=
+           SSH_Lib.Git.Store_Loose_Object_Validated
+             (Repo_Root,
+              SSH_Lib.Git.Pack_Blob,
+              Blob_Data,
+              Validated_Stored_Hex,
+              Validated_Stored_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git validated loose blob stored");
+         Check
+           (Validated_Stored_Last = Validated_Stored_Hex'Last
+            and then Bytes_Equal (Validated_Stored_Hex, Expected_Blob_Hex),
+            "git validated loose blob object id reported");
+         Status_Value :=
+           SSH_Lib.Git.List_Loose_Object_IDs
+             (Repo_Root,
+              Listed_Loose_Object_IDs,
+              Listed_Loose_Object_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git loose object ids listed");
+         declare
+            function Has_Loose_Object
+              (Object_ID : Ada.Streams.Stream_Element_Array)
+               return Boolean
+            is
+            begin
+               for Index in 1 .. Listed_Loose_Object_Count loop
+                  if Bytes_Equal
+                    (Ada.Streams.Stream_Element_Array
+                       (Listed_Loose_Object_IDs (Index)),
+                     Object_ID)
+                  then
+                     return True;
+                  end if;
+               end loop;
+               return False;
+            end Has_Loose_Object;
+         begin
+            Check
+              (Listed_Loose_Object_Count >= 1
+               and then Has_Loose_Object (Expected_Blob_Hex),
+               "git loose object ids listed values");
+         end;
 
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Loose_Object
-	             (Repo_Root,
-	              Stored_Hex,
-	              Read_Kind,
-	              Read_Data,
-	              Read_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git loose blob read");
-	         Check
-		           (Read_Kind = SSH_Lib.Git.Pack_Blob
-		            and then Read_Last = Read_Data'First + Blob_Data'Length - 1
-		            and then Bytes_Equal
-		              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
-		            "git loose blob payload recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Loose_Object
-	             (Repo_Root,
-	              SSH_Lib.Git.Pack_Blob,
-	              Bytes_From_String ("delete me"),
-	              Deleted_Loose_Hex,
-	              Deleted_Loose_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deletable loose object stored");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Loose_Object
-	             (Repo_Root, Deleted_Loose_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git loose object deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Loose_Object
-	             (Repo_Root,
-	              Deleted_Loose_Hex,
-	              Read_Kind,
-	              Read_Data,
-	              Read_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git deleted loose object no longer read");
-		         Status_Value :=
-		           SSH_Lib.Git.Read_Loose_Object_Validated
-		             (Repo_Root,
-		              Stored_Hex,
-		              Read_Kind,
-		              Read_Data,
-		              Read_Last);
-		         Check_Status
-		           (Status_Value, CryptoLib.Errors.Ok,
-		            "git validated loose blob read");
-		         Check
-		           (Read_Kind = SSH_Lib.Git.Pack_Blob
-		            and then Read_Last = Read_Data'First + Blob_Data'Length - 1
-		            and then Bytes_Equal
-		              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
-		            "git validated loose blob payload recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Loose_Object
+             (Repo_Root,
+              Stored_Hex,
+              Read_Kind,
+              Read_Data,
+              Read_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git loose blob read");
+         Check
+           (Read_Kind = SSH_Lib.Git.Pack_Blob
+            and then Read_Last = Read_Data'First + Blob_Data'Length - 1
+            and then Bytes_Equal
+              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
+            "git loose blob payload recovered");
+         Status_Value :=
+           SSH_Lib.Git.Store_Loose_Object
+             (Repo_Root,
+              SSH_Lib.Git.Pack_Blob,
+              Bytes_From_String ("delete me"),
+              Deleted_Loose_Hex,
+              Deleted_Loose_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deletable loose object stored");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Loose_Object
+             (Repo_Root, Deleted_Loose_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git loose object deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Loose_Object
+             (Repo_Root,
+              Deleted_Loose_Hex,
+              Read_Kind,
+              Read_Data,
+              Read_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git deleted loose object no longer read");
+         Status_Value :=
+           SSH_Lib.Git.Read_Loose_Object_Validated
+             (Repo_Root,
+              Stored_Hex,
+              Read_Kind,
+              Read_Data,
+              Read_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git validated loose blob read");
+         Check
+           (Read_Kind = SSH_Lib.Git.Pack_Blob
+            and then Read_Last = Read_Data'First + Blob_Data'Length - 1
+            and then Bytes_Equal
+              (Read_Data (Read_Data'First .. Read_Last), Blob_Data),
+            "git validated loose blob payload recovered");
 
-		         Status_Value :=
-	           SSH_Lib.Git.Parse_Tree_Entry
-	             (Tree_Data,
-	              0,
-	              Tree_Mode,
-	              Tree_Name,
-	              Tree_Name_Last,
-	              Tree_Object_ID,
-	              Tree_Object_Last,
-	              Tree_Next_Offset);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tree entry parsed");
-	         Check
-	           (Tree_Mode = 8#100644#
-	            and then Tree_Name_Last = Tree_Name'First + 8
-	            and then Bytes_Equal
-	              (Tree_Name (Tree_Name'First .. Tree_Name_Last),
-	               [Character'Pos ('h'), Character'Pos ('e'),
-	                Character'Pos ('l'), Character'Pos ('l'),
-	                Character'Pos ('o'), Character'Pos ('.'),
-	                Character'Pos ('t'), Character'Pos ('x'),
-	                Character'Pos ('t')])
-	            and then Tree_Object_Last = Tree_Object_ID'Last
-	            and then Bytes_Equal (Tree_Object_ID, Raw_Blob_ID)
-	            and then Tree_Next_Offset = Natural (Tree_Data'Length),
-	            "git tree entry values");
-	         Status_Value :=
-	           SSH_Lib.Git.Build_Tree_Entry
-	             (8#100644#,
-	              "built.txt",
-	              Built_Tree_Object_ID,
-	              Built_Tree_Entry,
-	              Built_Tree_Entry_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tree entry built");
-	         Status_Value :=
-	           SSH_Lib.Git.Parse_Tree_Entry
-	             (Built_Tree_Entry
-	                (Built_Tree_Entry'First .. Built_Tree_Entry_Last),
-	              0,
-	              Tree_Mode,
-	              Tree_Name,
-	              Tree_Name_Last,
-	              Tree_Object_ID,
-	              Tree_Object_Last,
-	              Tree_Next_Offset);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git built tree entry parsed");
-	         Check
-	           (Tree_Mode = 8#100644#
-	            and then Tree_Name_Last = Tree_Name'First + 8
-	            and then Bytes_Equal
-	              (Tree_Name (Tree_Name'First .. Tree_Name_Last),
-	               Bytes_From_String ("built.txt"))
-	            and then Tree_Object_Last = Tree_Object_ID'Last
-	            and then Bytes_Equal
-	              (Tree_Object_ID (Tree_Object_ID'First .. Tree_Object_Last),
-	               Built_Tree_Object_ID),
-	            "git built tree entry values recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Validate_Tree_Object
-	             (Tree_Data, Tree_Entry_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tree object validated");
-	         Check
-	           (Tree_Entry_Count = 1,
-	            "git tree object entry count");
-	         Status_Value :=
-	           SSH_Lib.Git.Validate_Object_Data
-	             (SSH_Lib.Git.Pack_Blob, Blob_Data);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git blob object data validated");
-	         Status_Value :=
-	           SSH_Lib.Git.Validate_Object_Data
-	             (SSH_Lib.Git.Pack_Tree, Tree_Data);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tree object data validated");
-	         Status_Value :=
-	           SSH_Lib.Git.Find_Tree_Entry
-	             (Tree_Data,
-	              Bytes_From_String ("hello.txt"),
-	              Tree_Found_Mode,
-	              Tree_Found_ID,
-	              Tree_Found_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tree entry found by name");
-	         Check
-	           (Tree_Found_Mode = 8#100644#
-	            and then Tree_Found_Last = Tree_Found_ID'Last
-	            and then Bytes_Equal (Tree_Found_ID, Raw_Blob_ID),
-	            "git tree lookup values");
-	         Status_Value :=
-	           SSH_Lib.Git.Find_Tree_Entry_Hex
-	             (Tree_Data,
-	              Bytes_From_String ("hello.txt"),
-	              Tree_Found_Hex_Mode,
-	              Tree_Found_Hex,
-	              Tree_Found_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tree entry hex found by name");
-	         Check
-	           (Tree_Found_Hex_Mode = 8#100644#
-	            and then Tree_Found_Hex_Last = Tree_Found_Hex'Last
-	            and then Bytes_Equal (Tree_Found_Hex, Expected_Blob_Hex),
-	            "git tree hex lookup values");
-	         Status_Value :=
-	           SSH_Lib.Git.List_Tree_Entries_Hex
-	             (Tree_Data,
-	              Listed_Tree_Names,
-	              Listed_Tree_Name_Lasts,
-	              Listed_Tree_Modes,
-	              Listed_Tree_IDs,
-	              Listed_Tree_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tree entries listed");
-	         Check
-	           (Listed_Tree_Count = 1
-	            and then Listed_Tree_Modes (1) = 8#100644#
-	            and then Listed_Tree_Name_Lasts (1) =
-	              Listed_Tree_Names'First + 8
-	            and then Bytes_Equal
-	              (Listed_Tree_Names
-	                 (Listed_Tree_Names'First
-	                  .. Listed_Tree_Name_Lasts (1)),
-	               Bytes_From_String ("hello.txt"))
-	            and then Bytes_Equal
-	              (Ada.Streams.Stream_Element_Array (Listed_Tree_IDs (1)),
-	               Expected_Blob_Hex),
-	            "git tree entries listed values");
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Loose_Object_Validated
-	             (Repo_Root,
-	              SSH_Lib.Git.Pack_Tree,
-	              Tree_Data,
-	              Stored_Tree_Hex,
-	              Stored_Tree_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git validated loose tree stored");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Tree_Entries_Hex
-	             (Repo_Root,
-	              Stored_Tree_Hex,
-	              Pack_Index_List,
-	              Read_Object_Pack,
-	              Read_Object_Index,
-	              Found_Pack_Checksum_Hex,
-	              Found_Pack_Checksum_Last,
-	              Stored_List_Tree_Data,
-	              Stored_List_Tree_Last,
-	              Stored_List_Names,
-	              Stored_List_Name_Lasts,
-	              Stored_List_Modes,
-	              Stored_List_IDs,
-	              Stored_List_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git stored tree entries listed");
-	         Check
-	           (Stored_List_Count = 1
-	            and then Stored_List_Tree_Last =
-	              Stored_List_Tree_Data'First + Tree_Data'Length - 1
-	            and then Bytes_Equal
-	              (Stored_List_Tree_Data
-	                 (Stored_List_Tree_Data'First .. Stored_List_Tree_Last),
-	               Tree_Data)
-	            and then Stored_List_Modes (1) = 8#100644#
-	            and then Stored_List_Name_Lasts (1) =
-	              Stored_List_Names'First + 8
-	            and then Bytes_Equal
-	              (Stored_List_Names
-	                 (Stored_List_Names'First
-	                  .. Stored_List_Name_Lasts (1)),
-	               Bytes_From_String ("hello.txt"))
-	            and then Bytes_Equal
-	              (Ada.Streams.Stream_Element_Array (Stored_List_IDs (1)),
-	               Expected_Blob_Hex),
-	            "git stored tree entries listed values");
-	         Status_Value :=
-	           SSH_Lib.Git.Parse_Object_ID_Hex
-	             (Stored_Tree_Hex,
-	              Stored_Tree_Raw_ID,
-	              Stored_Tree_Raw_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git stored tree id decoded for nested tree");
-	         declare
-	            Path_List_Root_Tree_Data :
-	              constant Ada.Streams.Stream_Element_Array :=
-	                Bytes_From_String
-	                  ("40000 sub" & Character'Val (0))
-	                & Stored_Tree_Raw_ID;
-	         begin
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Loose_Object_Validated
-	                (Repo_Root,
-	                 SSH_Lib.Git.Pack_Tree,
-	                 Path_List_Root_Tree_Data,
-	                 Path_List_Root_Tree_Hex,
-	                 Path_List_Root_Tree_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git nested root tree stored");
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Path_Tree_Entries_Hex
-	                (Repo_Root,
-	                 Path_List_Root_Tree_Hex,
-	                 Bytes_From_String ("sub"),
-	                 Pack_Index_List,
-	                 Read_Object_Pack,
-	                 Read_Object_Index,
-	                 Found_Pack_Checksum_Hex,
-	                 Found_Pack_Checksum_Last,
-	                 Path_List_Parent_Tree_Data,
-	                 Path_List_Parent_Tree_Last,
-	                 Path_List_Mode,
-	                 Path_List_Tree_Data,
-	                 Path_List_Tree_Last,
-	                 Path_List_Names,
-	                 Path_List_Name_Lasts,
-	                 Path_List_Modes,
-	                 Path_List_IDs,
-	                 Path_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git path tree entries listed");
-	            Check
-	              (Path_List_Root_Tree_Last = Path_List_Root_Tree_Hex'Last
-	               and then Path_List_Mode = 8#040000#
-	               and then Path_List_Parent_Tree_Last =
-	                 Path_List_Parent_Tree_Data'First
-	                 + Path_List_Root_Tree_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Path_List_Parent_Tree_Data
-	                    (Path_List_Parent_Tree_Data'First
-	                     .. Path_List_Parent_Tree_Last),
-	                  Path_List_Root_Tree_Data)
-	               and then Path_List_Tree_Last =
-	                 Path_List_Tree_Data'First + Tree_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Path_List_Tree_Data
-	                    (Path_List_Tree_Data'First .. Path_List_Tree_Last),
-	                  Tree_Data)
-	               and then Path_List_Count = 1
-	               and then Path_List_Modes (1) = 8#100644#
-	               and then Path_List_Name_Lasts (1) =
-	                 Path_List_Names'First + 8
-	               and then Bytes_Equal
-	                 (Path_List_Names
-	                    (Path_List_Names'First
-	                     .. Path_List_Name_Lasts (1)),
-	                  Bytes_From_String ("hello.txt"))
-	               and then Bytes_Equal
-	                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (1)),
-	                  Expected_Blob_Hex),
-	               "git path tree entries listed values");
-	         end;
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Tree_Entry_Object
-	             (Repo_Root,
-	              Stored_Tree_Hex,
-	              Bytes_From_String ("hello.txt"),
-	              Pack_Index_List,
-	              Read_Object_Pack,
-	              Read_Object_Index,
-	              Found_Pack_Checksum_Hex,
-	              Found_Pack_Checksum_Last,
-	              Traversed_Tree_Data,
-	              Traversed_Tree_Last,
-	              Traversed_Mode,
-	              Read_Kind,
-	              Traversed_Data,
-	              Traversed_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tree entry object read");
-	         Check
-	           (Traversed_Mode = 8#100644#
-	            and then Read_Kind = SSH_Lib.Git.Pack_Blob
-	            and then Traversed_Tree_Last =
-	              Traversed_Tree_Data'First + Tree_Data'Length - 1
-	            and then Bytes_Equal
-	              (Traversed_Tree_Data
-	                 (Traversed_Tree_Data'First .. Traversed_Tree_Last),
-	               Tree_Data)
-	            and then Traversed_Last =
-	              Traversed_Data'First + Blob_Data'Length - 1
-	            and then Bytes_Equal
-	              (Traversed_Data (Traversed_Data'First .. Traversed_Last),
-	               Blob_Data),
-	            "git tree entry object read values");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Path_Object
-	             (Repo_Root,
-	              Stored_Tree_Hex,
-	              Bytes_From_String ("hello.txt"),
-	              Pack_Index_List,
-	              Read_Object_Pack,
-	              Read_Object_Index,
-	              Found_Pack_Checksum_Hex,
-	              Found_Pack_Checksum_Last,
-	              Path_Tree_Data,
-	              Path_Tree_Last,
-	              Path_Mode,
-	              Read_Kind,
-	              Path_Data,
-	              Path_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git path object read");
-	         Check
-	           (Path_Mode = 8#100644#
-	            and then Read_Kind = SSH_Lib.Git.Pack_Blob
-	            and then Path_Tree_Last =
-	              Path_Tree_Data'First + Tree_Data'Length - 1
-	            and then Bytes_Equal
-	              (Path_Tree_Data (Path_Tree_Data'First .. Path_Tree_Last),
-	               Tree_Data)
-	            and then Path_Last = Path_Data'First + Blob_Data'Length - 1
-	            and then Bytes_Equal
-	              (Path_Data (Path_Data'First .. Path_Last), Blob_Data),
-	            "git path object read values");
-	         Status_Value :=
-	           SSH_Lib.Git.Resolve_Path_Entry_Hex
-	             (Repo_Root,
-	              Stored_Tree_Hex,
-	              Bytes_From_String ("hello.txt"),
-	              Pack_Index_List,
-	              Read_Object_Pack,
-	              Read_Object_Index,
-	              Found_Pack_Checksum_Hex,
-	              Found_Pack_Checksum_Last,
-	              Resolved_Path_Tree_Data,
-	              Resolved_Path_Tree_Last,
-	              Resolved_Path_Mode,
-	              Resolved_Path_ID,
-	              Resolved_Path_ID_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git path entry resolved");
-	         Check
-	           (Resolved_Path_Mode = 8#100644#
-	            and then Resolved_Path_ID_Last = Resolved_Path_ID'Last
-	            and then Bytes_Equal
-	              (Resolved_Path_ID, Expected_Blob_Hex)
-	            and then Resolved_Path_Tree_Last =
-	              Resolved_Path_Tree_Data'First + Tree_Data'Length - 1
-	            and then Bytes_Equal
-	              (Resolved_Path_Tree_Data
-	                 (Resolved_Path_Tree_Data'First
-	                  .. Resolved_Path_Tree_Last),
-	               Tree_Data),
-	            "git path entry resolved values");
+         Status_Value :=
+           SSH_Lib.Git.Parse_Tree_Entry
+             (Tree_Data,
+              0,
+              Tree_Mode,
+              Tree_Name,
+              Tree_Name_Last,
+              Tree_Object_ID,
+              Tree_Object_Last,
+              Tree_Next_Offset);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tree entry parsed");
+         Check
+           (Tree_Mode = 8#100644#
+            and then Tree_Name_Last = Tree_Name'First + 8
+            and then Bytes_Equal
+              (Tree_Name (Tree_Name'First .. Tree_Name_Last),
+               [Character'Pos ('h'), Character'Pos ('e'),
+                Character'Pos ('l'), Character'Pos ('l'),
+                Character'Pos ('o'), Character'Pos ('.'),
+                Character'Pos ('t'), Character'Pos ('x'),
+                Character'Pos ('t')])
+            and then Tree_Object_Last = Tree_Object_ID'Last
+            and then Bytes_Equal (Tree_Object_ID, Raw_Blob_ID)
+            and then Tree_Next_Offset = Natural (Tree_Data'Length),
+            "git tree entry values");
+         Status_Value :=
+           SSH_Lib.Git.Build_Tree_Entry
+             (8#100644#,
+              "built.txt",
+              Built_Tree_Object_ID,
+              Built_Tree_Entry,
+              Built_Tree_Entry_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tree entry built");
+         Status_Value :=
+           SSH_Lib.Git.Parse_Tree_Entry
+             (Built_Tree_Entry
+                (Built_Tree_Entry'First .. Built_Tree_Entry_Last),
+              0,
+              Tree_Mode,
+              Tree_Name,
+              Tree_Name_Last,
+              Tree_Object_ID,
+              Tree_Object_Last,
+              Tree_Next_Offset);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git built tree entry parsed");
+         Check
+           (Tree_Mode = 8#100644#
+            and then Tree_Name_Last = Tree_Name'First + 8
+            and then Bytes_Equal
+              (Tree_Name (Tree_Name'First .. Tree_Name_Last),
+               Bytes_From_String ("built.txt"))
+            and then Tree_Object_Last = Tree_Object_ID'Last
+            and then Bytes_Equal
+              (Tree_Object_ID (Tree_Object_ID'First .. Tree_Object_Last),
+               Built_Tree_Object_ID),
+            "git built tree entry values recovered");
+         Status_Value :=
+           SSH_Lib.Git.Validate_Tree_Object
+             (Tree_Data, Tree_Entry_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tree object validated");
+         Check
+           (Tree_Entry_Count = 1,
+            "git tree object entry count");
+         Status_Value :=
+           SSH_Lib.Git.Validate_Object_Data
+             (SSH_Lib.Git.Pack_Blob, Blob_Data);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git blob object data validated");
+         Status_Value :=
+           SSH_Lib.Git.Validate_Object_Data
+             (SSH_Lib.Git.Pack_Tree, Tree_Data);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tree object data validated");
+         Status_Value :=
+           SSH_Lib.Git.Find_Tree_Entry
+             (Tree_Data,
+              Bytes_From_String ("hello.txt"),
+              Tree_Found_Mode,
+              Tree_Found_ID,
+              Tree_Found_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tree entry found by name");
+         Check
+           (Tree_Found_Mode = 8#100644#
+            and then Tree_Found_Last = Tree_Found_ID'Last
+            and then Bytes_Equal (Tree_Found_ID, Raw_Blob_ID),
+            "git tree lookup values");
+         Status_Value :=
+           SSH_Lib.Git.Find_Tree_Entry_Hex
+             (Tree_Data,
+              Bytes_From_String ("hello.txt"),
+              Tree_Found_Hex_Mode,
+              Tree_Found_Hex,
+              Tree_Found_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tree entry hex found by name");
+         Check
+           (Tree_Found_Hex_Mode = 8#100644#
+            and then Tree_Found_Hex_Last = Tree_Found_Hex'Last
+            and then Bytes_Equal (Tree_Found_Hex, Expected_Blob_Hex),
+            "git tree hex lookup values");
+         Status_Value :=
+           SSH_Lib.Git.List_Tree_Entries_Hex
+             (Tree_Data,
+              Listed_Tree_Names,
+              Listed_Tree_Name_Lasts,
+              Listed_Tree_Modes,
+              Listed_Tree_IDs,
+              Listed_Tree_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tree entries listed");
+         Check
+           (Listed_Tree_Count = 1
+            and then Listed_Tree_Modes (1) = 8#100644#
+            and then Listed_Tree_Name_Lasts (1) =
+              Listed_Tree_Names'First + 8
+            and then Bytes_Equal
+              (Listed_Tree_Names
+                 (Listed_Tree_Names'First
+                  .. Listed_Tree_Name_Lasts (1)),
+               Bytes_From_String ("hello.txt"))
+            and then Bytes_Equal
+              (Ada.Streams.Stream_Element_Array (Listed_Tree_IDs (1)),
+               Expected_Blob_Hex),
+            "git tree entries listed values");
+         Status_Value :=
+           SSH_Lib.Git.Store_Loose_Object_Validated
+             (Repo_Root,
+              SSH_Lib.Git.Pack_Tree,
+              Tree_Data,
+              Stored_Tree_Hex,
+              Stored_Tree_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git validated loose tree stored");
+         Status_Value :=
+           SSH_Lib.Git.Read_Tree_Entries_Hex
+             (Repo_Root,
+              Stored_Tree_Hex,
+              Pack_Index_List,
+              Read_Object_Pack,
+              Read_Object_Index,
+              Found_Pack_Checksum_Hex,
+              Found_Pack_Checksum_Last,
+              Stored_List_Tree_Data,
+              Stored_List_Tree_Last,
+              Stored_List_Names,
+              Stored_List_Name_Lasts,
+              Stored_List_Modes,
+              Stored_List_IDs,
+              Stored_List_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git stored tree entries listed");
+         Check
+           (Stored_List_Count = 1
+            and then Stored_List_Tree_Last =
+              Stored_List_Tree_Data'First + Tree_Data'Length - 1
+            and then Bytes_Equal
+              (Stored_List_Tree_Data
+                 (Stored_List_Tree_Data'First .. Stored_List_Tree_Last),
+               Tree_Data)
+            and then Stored_List_Modes (1) = 8#100644#
+            and then Stored_List_Name_Lasts (1) =
+              Stored_List_Names'First + 8
+            and then Bytes_Equal
+              (Stored_List_Names
+                 (Stored_List_Names'First
+                  .. Stored_List_Name_Lasts (1)),
+               Bytes_From_String ("hello.txt"))
+            and then Bytes_Equal
+              (Ada.Streams.Stream_Element_Array (Stored_List_IDs (1)),
+               Expected_Blob_Hex),
+            "git stored tree entries listed values");
+         Status_Value :=
+           SSH_Lib.Git.Parse_Object_ID_Hex
+             (Stored_Tree_Hex,
+              Stored_Tree_Raw_ID,
+              Stored_Tree_Raw_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git stored tree id decoded for nested tree");
+         declare
+            Path_List_Root_Tree_Data :
+              constant Ada.Streams.Stream_Element_Array :=
+                Bytes_From_String
+                  ("40000 sub" & Character'Val (0))
+                & Stored_Tree_Raw_ID;
+         begin
+            Status_Value :=
+              SSH_Lib.Git.Store_Loose_Object_Validated
+                (Repo_Root,
+                 SSH_Lib.Git.Pack_Tree,
+                 Path_List_Root_Tree_Data,
+                 Path_List_Root_Tree_Hex,
+                 Path_List_Root_Tree_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git nested root tree stored");
+            Status_Value :=
+              SSH_Lib.Git.Read_Path_Tree_Entries_Hex
+                (Repo_Root,
+                 Path_List_Root_Tree_Hex,
+                 Bytes_From_String ("sub"),
+                 Pack_Index_List,
+                 Read_Object_Pack,
+                 Read_Object_Index,
+                 Found_Pack_Checksum_Hex,
+                 Found_Pack_Checksum_Last,
+                 Path_List_Parent_Tree_Data,
+                 Path_List_Parent_Tree_Last,
+                 Path_List_Mode,
+                 Path_List_Tree_Data,
+                 Path_List_Tree_Last,
+                 Path_List_Names,
+                 Path_List_Name_Lasts,
+                 Path_List_Modes,
+                 Path_List_IDs,
+                 Path_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git path tree entries listed");
+            Check
+              (Path_List_Root_Tree_Last = Path_List_Root_Tree_Hex'Last
+               and then Path_List_Mode = 8#040000#
+               and then Path_List_Parent_Tree_Last =
+                 Path_List_Parent_Tree_Data'First
+                 + Path_List_Root_Tree_Data'Length - 1
+               and then Bytes_Equal
+                 (Path_List_Parent_Tree_Data
+                    (Path_List_Parent_Tree_Data'First
+                     .. Path_List_Parent_Tree_Last),
+                  Path_List_Root_Tree_Data)
+               and then Path_List_Tree_Last =
+                 Path_List_Tree_Data'First + Tree_Data'Length - 1
+               and then Bytes_Equal
+                 (Path_List_Tree_Data
+                    (Path_List_Tree_Data'First .. Path_List_Tree_Last),
+                  Tree_Data)
+               and then Path_List_Count = 1
+               and then Path_List_Modes (1) = 8#100644#
+               and then Path_List_Name_Lasts (1) =
+                 Path_List_Names'First + 8
+               and then Bytes_Equal
+                 (Path_List_Names
+                    (Path_List_Names'First
+                     .. Path_List_Name_Lasts (1)),
+                  Bytes_From_String ("hello.txt"))
+               and then Bytes_Equal
+                 (Ada.Streams.Stream_Element_Array (Path_List_IDs (1)),
+                  Expected_Blob_Hex),
+               "git path tree entries listed values");
+         end;
+         Status_Value :=
+           SSH_Lib.Git.Read_Tree_Entry_Object
+             (Repo_Root,
+              Stored_Tree_Hex,
+              Bytes_From_String ("hello.txt"),
+              Pack_Index_List,
+              Read_Object_Pack,
+              Read_Object_Index,
+              Found_Pack_Checksum_Hex,
+              Found_Pack_Checksum_Last,
+              Traversed_Tree_Data,
+              Traversed_Tree_Last,
+              Traversed_Mode,
+              Read_Kind,
+              Traversed_Data,
+              Traversed_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tree entry object read");
+         Check
+           (Traversed_Mode = 8#100644#
+            and then Read_Kind = SSH_Lib.Git.Pack_Blob
+            and then Traversed_Tree_Last =
+              Traversed_Tree_Data'First + Tree_Data'Length - 1
+            and then Bytes_Equal
+              (Traversed_Tree_Data
+                 (Traversed_Tree_Data'First .. Traversed_Tree_Last),
+               Tree_Data)
+            and then Traversed_Last =
+              Traversed_Data'First + Blob_Data'Length - 1
+            and then Bytes_Equal
+              (Traversed_Data (Traversed_Data'First .. Traversed_Last),
+               Blob_Data),
+            "git tree entry object read values");
+         Status_Value :=
+           SSH_Lib.Git.Read_Path_Object
+             (Repo_Root,
+              Stored_Tree_Hex,
+              Bytes_From_String ("hello.txt"),
+              Pack_Index_List,
+              Read_Object_Pack,
+              Read_Object_Index,
+              Found_Pack_Checksum_Hex,
+              Found_Pack_Checksum_Last,
+              Path_Tree_Data,
+              Path_Tree_Last,
+              Path_Mode,
+              Read_Kind,
+              Path_Data,
+              Path_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git path object read");
+         Check
+           (Path_Mode = 8#100644#
+            and then Read_Kind = SSH_Lib.Git.Pack_Blob
+            and then Path_Tree_Last =
+              Path_Tree_Data'First + Tree_Data'Length - 1
+            and then Bytes_Equal
+              (Path_Tree_Data (Path_Tree_Data'First .. Path_Tree_Last),
+               Tree_Data)
+            and then Path_Last = Path_Data'First + Blob_Data'Length - 1
+            and then Bytes_Equal
+              (Path_Data (Path_Data'First .. Path_Last), Blob_Data),
+            "git path object read values");
+         Status_Value :=
+           SSH_Lib.Git.Resolve_Path_Entry_Hex
+             (Repo_Root,
+              Stored_Tree_Hex,
+              Bytes_From_String ("hello.txt"),
+              Pack_Index_List,
+              Read_Object_Pack,
+              Read_Object_Index,
+              Found_Pack_Checksum_Hex,
+              Found_Pack_Checksum_Last,
+              Resolved_Path_Tree_Data,
+              Resolved_Path_Tree_Last,
+              Resolved_Path_Mode,
+              Resolved_Path_ID,
+              Resolved_Path_ID_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git path entry resolved");
+         Check
+           (Resolved_Path_Mode = 8#100644#
+            and then Resolved_Path_ID_Last = Resolved_Path_ID'Last
+            and then Bytes_Equal
+              (Resolved_Path_ID, Expected_Blob_Hex)
+            and then Resolved_Path_Tree_Last =
+              Resolved_Path_Tree_Data'First + Tree_Data'Length - 1
+            and then Bytes_Equal
+              (Resolved_Path_Tree_Data
+                 (Resolved_Path_Tree_Data'First
+                  .. Resolved_Path_Tree_Last),
+               Tree_Data),
+            "git path entry resolved values");
 
-	         declare
-	            Stored_Commit_Data :
-	              constant Ada.Streams.Stream_Element_Array :=
-	                Bytes_From_String ("tree ")
-	                & Stored_Tree_Hex
-	                & Bytes_From_String
-	                    (Character'Val (10)
-	                     & "author A <a@example.test> 0 +0000"
-	                     & Character'Val (10)
-	                     & "committer A <a@example.test> 0 +0000"
-	                     & Character'Val (10)
-	                     & Character'Val (10)
-	                     & "message"
-	                     & Character'Val (10));
-	         begin
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Loose_Object_Validated
-	                (Repo_Root,
-	                 SSH_Lib.Git.Pack_Commit,
-	                 Stored_Commit_Data,
-	                 Stored_Commit_Hex,
-	                 Stored_Commit_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git validated loose commit stored");
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Commit_Tree_Object
-	                (Repo_Root,
-	                 Stored_Commit_Hex,
-	                 Pack_Index_List,
-	                 Read_Object_Pack,
-	                 Read_Object_Index,
-	                 Found_Pack_Checksum_Hex,
-	                 Found_Pack_Checksum_Last,
-	                 Commit_Tree_Read_Commit_Data,
-	                 Commit_Tree_Read_Commit_Last,
-	                 Commit_Tree_Read_ID,
-	                 Commit_Tree_Read_ID_Last,
-	                 Commit_Tree_Read_Data,
-	                 Commit_Tree_Read_Last,
-	                 Commit_Tree_Read_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit tree object read");
-	            Check
-	              (Commit_Tree_Read_Commit_Last =
-	                 Commit_Tree_Read_Commit_Data'First
-	                 + Stored_Commit_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Commit_Tree_Read_Commit_Data
-	                    (Commit_Tree_Read_Commit_Data'First
-	                     .. Commit_Tree_Read_Commit_Last),
-	                  Stored_Commit_Data)
-	               and then Commit_Tree_Read_ID_Last =
-	                 Commit_Tree_Read_ID'Last
-	               and then Bytes_Equal
-	                 (Commit_Tree_Read_ID, Stored_Tree_Hex)
-	               and then Commit_Tree_Read_Last =
-	                 Commit_Tree_Read_Data'First + Tree_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Commit_Tree_Read_Data
-	                    (Commit_Tree_Read_Data'First
-	                     .. Commit_Tree_Read_Last),
-	                  Tree_Data)
-	               and then Commit_Tree_Read_Count = 1,
-	               "git commit tree object read values");
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Commit_Tree_Entries_Hex
-	                (Repo_Root,
-	                 Stored_Commit_Hex,
-	                 Pack_Index_List,
-	                 Read_Object_Pack,
-	                 Read_Object_Index,
-	                 Found_Pack_Checksum_Hex,
-	                 Found_Pack_Checksum_Last,
-	                 Commit_List_Commit_Data,
-	                 Commit_List_Commit_Last,
-	                 Commit_List_Tree_ID,
-	                 Commit_List_Tree_ID_Last,
-	                 Commit_List_Tree_Data,
-	                 Commit_List_Tree_Last,
-	                 Commit_List_Names,
-	                 Commit_List_Name_Lasts,
-	                 Commit_List_Modes,
-	                 Commit_List_IDs,
-	                 Commit_List_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit tree entries listed");
-	            Check
-	              (Commit_List_Count = 1
-	               and then Commit_List_Commit_Last =
-	                 Commit_List_Commit_Data'First
-	                 + Stored_Commit_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Commit_List_Commit_Data
-	                    (Commit_List_Commit_Data'First
-	                     .. Commit_List_Commit_Last),
-	                  Stored_Commit_Data)
-	               and then Commit_List_Tree_ID_Last =
-	                 Commit_List_Tree_ID'Last
-	               and then Bytes_Equal
-	                 (Commit_List_Tree_ID, Stored_Tree_Hex)
-	               and then Commit_List_Tree_Last =
-	                 Commit_List_Tree_Data'First + Tree_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Commit_List_Tree_Data
-	                    (Commit_List_Tree_Data'First
-	                     .. Commit_List_Tree_Last),
-	                  Tree_Data)
-	               and then Commit_List_Modes (1) = 8#100644#
-	               and then Commit_List_Name_Lasts (1) =
-	                 Commit_List_Names'First + 8
-	               and then Bytes_Equal
-	                 (Commit_List_Names
-	                    (Commit_List_Names'First
-	                     .. Commit_List_Name_Lasts (1)),
-	                  Bytes_From_String ("hello.txt"))
-	               and then Bytes_Equal
-	                 (Ada.Streams.Stream_Element_Array (Commit_List_IDs (1)),
-	                  Expected_Blob_Hex),
-	               "git commit tree entries listed values");
-	            declare
-	               Commit_Path_List_Data :
-	                 constant Ada.Streams.Stream_Element_Array :=
-	                   Bytes_From_String ("tree ")
-	                   & Path_List_Root_Tree_Hex
-	                   & Bytes_From_String
-	                       (Character'Val (10)
-	                        & "author A <a@example.test> 0 +0000"
-	                        & Character'Val (10)
-	                        & "committer A <a@example.test> 0 +0000"
-	                        & Character'Val (10)
-	                        & Character'Val (10)
-	                        & "nested"
-	                        & Character'Val (10));
-	               Path_List_Root_Tree_Data :
-	                 constant Ada.Streams.Stream_Element_Array :=
-	                   Bytes_From_String
-	                     ("40000 sub" & Character'Val (0))
-	                   & Stored_Tree_Raw_ID;
-	            begin
-	               Status_Value :=
-	                 SSH_Lib.Git.Store_Loose_Object_Validated
-	                   (Repo_Root,
-	                    SSH_Lib.Git.Pack_Commit,
-	                    Commit_Path_List_Data,
-	                    Commit_Path_List_Hex,
-	                    Commit_Path_List_Last);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git nested path commit stored");
-	               Status_Value :=
-	                 SSH_Lib.Git.Read_Commit_Path_Tree_Entries_Hex
-	                   (Repo_Root,
-	                    Commit_Path_List_Hex,
-	                    Bytes_From_String ("sub"),
-	                    Pack_Index_List,
-	                    Read_Object_Pack,
-	                    Read_Object_Index,
-	                    Found_Pack_Checksum_Hex,
-	                    Found_Pack_Checksum_Last,
-	                    Commit_Path_List_Commit_Data,
-	                    Commit_Path_List_Commit_Last,
-	                    Commit_Path_List_Tree_ID,
-	                    Commit_Path_List_Tree_ID_Last,
-	                    Commit_Path_List_Parent_Tree_Data,
-	                    Commit_Path_List_Parent_Tree_Last,
-	                    Commit_Path_List_Mode,
-	                    Commit_Path_List_Tree_Data,
-	                    Commit_Path_List_Tree_Last,
-	                    Commit_Path_List_Names,
-	                    Commit_Path_List_Name_Lasts,
-	                    Commit_Path_List_Modes,
-	                    Commit_Path_List_IDs,
-	                    Commit_Path_List_Count);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git commit path tree entries listed");
-	               Check
-	                 (Commit_Path_List_Last = Commit_Path_List_Hex'Last
-	                  and then Commit_Path_List_Commit_Last =
-	                    Commit_Path_List_Commit_Data'First
-	                    + Commit_Path_List_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commit_Path_List_Commit_Data
-	                       (Commit_Path_List_Commit_Data'First
-	                        .. Commit_Path_List_Commit_Last),
-	                     Commit_Path_List_Data)
-	                  and then Commit_Path_List_Tree_ID_Last =
-	                    Commit_Path_List_Tree_ID'Last
-	                  and then Bytes_Equal
-	                    (Commit_Path_List_Tree_ID, Path_List_Root_Tree_Hex)
-	                  and then Commit_Path_List_Mode = 8#040000#
-	                  and then Commit_Path_List_Parent_Tree_Last =
-	                    Commit_Path_List_Parent_Tree_Data'First
-	                    + Path_List_Root_Tree_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commit_Path_List_Parent_Tree_Data
-	                       (Commit_Path_List_Parent_Tree_Data'First
-	                        .. Commit_Path_List_Parent_Tree_Last),
-	                     Path_List_Root_Tree_Data)
-	                  and then Commit_Path_List_Tree_Last =
-	                    Commit_Path_List_Tree_Data'First
-	                    + Tree_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commit_Path_List_Tree_Data
-	                       (Commit_Path_List_Tree_Data'First
-	                        .. Commit_Path_List_Tree_Last),
-	                     Tree_Data)
-	                  and then Commit_Path_List_Count = 1
-	                  and then Commit_Path_List_Modes (1) = 8#100644#
-	                  and then Commit_Path_List_Name_Lasts (1) =
-	                    Commit_Path_List_Names'First + 8
-	                  and then Bytes_Equal
-	                    (Commit_Path_List_Names
-	                       (Commit_Path_List_Names'First
-	                        .. Commit_Path_List_Name_Lasts (1)),
-	                     Bytes_From_String ("hello.txt"))
-	                  and then Bytes_Equal
-	                    (Ada.Streams.Stream_Element_Array
-	                       (Commit_Path_List_IDs (1)),
-	                     Expected_Blob_Hex),
-	                  "git commit path tree entries listed values");
-	               Status_Value :=
-	                 SSH_Lib.Git.Write_Direct_Ref
-	                   (Repo_Root,
-	                    "refs/heads/nested",
-	                    Commit_Path_List_Hex);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git nested commit ref written");
-	               Status_Value :=
-	                 SSH_Lib.Git.Read_Ref_Path_Tree_Entries_Hex
-	                   (Repo_Root,
-	                    "refs/heads/nested",
-	                    Bytes_From_String ("sub"),
-	                    Ref_Path_List_Resolved_ID,
-	                    Ref_Path_List_Resolved_Last,
-	                    Pack_Index_List,
-	                    Read_Object_Pack,
-	                    Read_Object_Index,
-	                    Found_Pack_Checksum_Hex,
-	                    Found_Pack_Checksum_Last,
-	                    Ref_Path_List_Commit_Data,
-	                    Ref_Path_List_Commit_Last,
-	                    Ref_Path_List_Tree_ID,
-	                    Ref_Path_List_Tree_ID_Last,
-	                    Ref_Path_List_Parent_Tree_Data,
-	                    Ref_Path_List_Parent_Tree_Last,
-	                    Ref_Path_List_Mode,
-	                    Ref_Path_List_Tree_Data,
-	                    Ref_Path_List_Tree_Last,
-	                    Ref_Path_List_Names,
-	                    Ref_Path_List_Name_Lasts,
-	                    Ref_Path_List_Modes,
-	                    Ref_Path_List_IDs,
-	                    Ref_Path_List_Count);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git ref path tree entries listed");
-	               Check
-	                 (Ref_Path_List_Resolved_Last =
-	                    Ref_Path_List_Resolved_ID'Last
-	                  and then Bytes_Equal
-	                    (Ref_Path_List_Resolved_ID, Commit_Path_List_Hex)
-	                  and then Ref_Path_List_Commit_Last =
-	                    Ref_Path_List_Commit_Data'First
-	                    + Commit_Path_List_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Ref_Path_List_Commit_Data
-	                       (Ref_Path_List_Commit_Data'First
-	                        .. Ref_Path_List_Commit_Last),
-	                     Commit_Path_List_Data)
-	                  and then Ref_Path_List_Tree_ID_Last =
-	                    Ref_Path_List_Tree_ID'Last
-	                  and then Bytes_Equal
-	                    (Ref_Path_List_Tree_ID, Path_List_Root_Tree_Hex)
-	                  and then Ref_Path_List_Mode = 8#040000#
-	                  and then Ref_Path_List_Parent_Tree_Last =
-	                    Ref_Path_List_Parent_Tree_Data'First
-	                    + Path_List_Root_Tree_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Ref_Path_List_Parent_Tree_Data
-	                       (Ref_Path_List_Parent_Tree_Data'First
-	                        .. Ref_Path_List_Parent_Tree_Last),
-	                     Path_List_Root_Tree_Data)
-	                  and then Ref_Path_List_Tree_Last =
-	                    Ref_Path_List_Tree_Data'First
-	                    + Tree_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Ref_Path_List_Tree_Data
-	                       (Ref_Path_List_Tree_Data'First
-	                        .. Ref_Path_List_Tree_Last),
-	                     Tree_Data)
-	                  and then Ref_Path_List_Count = 1
-	                  and then Ref_Path_List_Modes (1) = 8#100644#
-	                  and then Ref_Path_List_Name_Lasts (1) =
-	                    Ref_Path_List_Names'First + 8
-	                  and then Bytes_Equal
-	                    (Ref_Path_List_Names
-	                       (Ref_Path_List_Names'First
-	                        .. Ref_Path_List_Name_Lasts (1)),
-	                     Bytes_From_String ("hello.txt"))
-	                  and then Bytes_Equal
-	                    (Ada.Streams.Stream_Element_Array
-	                       (Ref_Path_List_IDs (1)),
-	                     Expected_Blob_Hex),
-	                  "git ref path tree entries listed values");
-	               declare
-	                  Tag_Path_List_Data :
-	                    constant Ada.Streams.Stream_Element_Array :=
-	                      Bytes_From_String ("object ")
-	                      & Commit_Path_List_Hex
-	                      & Bytes_From_String
-	                          (Character'Val (10)
-	                           & "type commit"
-	                           & Character'Val (10)
-	                           & "tag nested"
-	                           & Character'Val (10)
-	                           & Character'Val (10));
-	               begin
-	                  Status_Value :=
-	                    SSH_Lib.Git.Store_Loose_Object_Validated
-	                      (Repo_Root,
-	                       SSH_Lib.Git.Pack_Tag,
-	                       Tag_Path_List_Data,
-	                       Tag_Path_List_Hex,
-	                       Tag_Path_List_Last);
-	                  Check_Status
-	                    (Status_Value, CryptoLib.Errors.Ok,
-	                     "git nested path tag stored");
-	                  Status_Value :=
-	                    SSH_Lib.Git.Read_Tag_Path_Tree_Entries_Hex
-	                      (Repo_Root,
-	                       Tag_Path_List_Hex,
-	                       Bytes_From_String ("sub"),
-	                       Tag_Path_List_Peeled_ID,
-	                       Tag_Path_List_Peeled_Last,
-	                       Pack_Index_List,
-	                       Read_Object_Pack,
-	                       Read_Object_Index,
-	                       Found_Pack_Checksum_Hex,
-	                       Found_Pack_Checksum_Last,
-	                       Tag_Path_List_Tag_Data,
-	                       Tag_Path_List_Tag_Last,
-	                       Tag_Path_List_Commit_Data,
-	                       Tag_Path_List_Commit_Last,
-	                       Tag_Path_List_Tree_ID,
-	                       Tag_Path_List_Tree_ID_Last,
-	                       Tag_Path_List_Parent_Tree_Data,
-	                       Tag_Path_List_Parent_Tree_Last,
-	                       Tag_Path_List_Mode,
-	                       Tag_Path_List_Tree_Data,
-	                       Tag_Path_List_Tree_Last,
-	                       Tag_Path_List_Names,
-	                       Tag_Path_List_Name_Lasts,
-	                       Tag_Path_List_Modes,
-	                       Tag_Path_List_IDs,
-	                       Tag_Path_List_Count);
-	                  Check_Status
-	                    (Status_Value, CryptoLib.Errors.Ok,
-	                     "git tag path tree entries listed");
-	                  Check
-	                    (Tag_Path_List_Last = Tag_Path_List_Hex'Last
-	                     and then Tag_Path_List_Peeled_Last =
-	                       Tag_Path_List_Peeled_ID'Last
-	                     and then Bytes_Equal
-	                       (Tag_Path_List_Peeled_ID,
-	                        Commit_Path_List_Hex)
-	                     and then Tag_Path_List_Tag_Last =
-	                       Tag_Path_List_Tag_Data'First
-	                       + Tag_Path_List_Data'Length - 1
-	                     and then Bytes_Equal
-	                       (Tag_Path_List_Tag_Data
-	                          (Tag_Path_List_Tag_Data'First
-	                           .. Tag_Path_List_Tag_Last),
-	                        Tag_Path_List_Data)
-	                     and then Tag_Path_List_Mode = 8#040000#
-	                     and then Tag_Path_List_Count = 1
-	                     and then Tag_Path_List_Modes (1) = 8#100644#
-	                     and then Tag_Path_List_Name_Lasts (1) =
-	                       Tag_Path_List_Names'First + 8
-	                     and then Bytes_Equal
-	                       (Tag_Path_List_Names
-	                          (Tag_Path_List_Names'First
-	                           .. Tag_Path_List_Name_Lasts (1)),
-	                        Bytes_From_String ("hello.txt"))
-	                     and then Bytes_Equal
-	                       (Ada.Streams.Stream_Element_Array
-	                          (Tag_Path_List_IDs (1)),
-	                        Expected_Blob_Hex),
-	                     "git tag path tree entries listed values");
-	                  Status_Value :=
-	                    SSH_Lib.Git.Write_Direct_Ref
-	                      (Repo_Root,
-	                       "refs/tags/nested",
-	                       Tag_Path_List_Hex);
-	                  Check_Status
-	                    (Status_Value, CryptoLib.Errors.Ok,
-	                     "git nested tag ref written");
-	                  Status_Value :=
-	                    SSH_Lib.Git.Read_Ref_Commitish_Path_Tree_Entries_Hex
-	                      (Repo_Root,
-	                       "refs/tags/nested",
-	                       Bytes_From_String ("sub"),
-	                       Ref_Path_List_Resolved_ID,
-	                       Ref_Path_List_Resolved_Last,
-	                       Tag_Path_List_Peeled_ID,
-	                       Tag_Path_List_Peeled_Last,
-	                       Pack_Index_List,
-	                       Read_Object_Pack,
-	                       Read_Object_Index,
-	                       Found_Pack_Checksum_Hex,
-	                       Found_Pack_Checksum_Last,
-	                       Tag_Path_List_Tag_Data,
-	                       Tag_Path_List_Tag_Last,
-	                       Tag_Path_List_Commit_Data,
-	                       Tag_Path_List_Commit_Last,
-	                       Tag_Path_List_Tree_ID,
-	                       Tag_Path_List_Tree_ID_Last,
-	                       Tag_Path_List_Parent_Tree_Data,
-	                       Tag_Path_List_Parent_Tree_Last,
-	                       Tag_Path_List_Mode,
-	                       Tag_Path_List_Tree_Data,
-	                       Tag_Path_List_Tree_Last,
-	                       Tag_Path_List_Names,
-	                       Tag_Path_List_Name_Lasts,
-	                       Tag_Path_List_Modes,
-	                       Tag_Path_List_IDs,
-	                       Tag_Path_List_Count);
-	                  Check_Status
-	                    (Status_Value, CryptoLib.Errors.Ok,
-	                     "git ref commitish path tree entries listed");
-	                  Check
-	                    (Ref_Path_List_Resolved_Last =
-	                       Ref_Path_List_Resolved_ID'Last
-	                     and then Bytes_Equal
-	                       (Ref_Path_List_Resolved_ID,
-	                        Tag_Path_List_Hex)
-	                     and then Tag_Path_List_Peeled_Last =
-	                       Tag_Path_List_Peeled_ID'Last
-	                     and then Bytes_Equal
-	                       (Tag_Path_List_Peeled_ID,
-	                        Commit_Path_List_Hex)
-	                     and then Tag_Path_List_Count = 1
-	                     and then Tag_Path_List_Modes (1) = 8#100644#
-	                     and then Bytes_Equal
-	                       (Ada.Streams.Stream_Element_Array
-	                          (Tag_Path_List_IDs (1)),
-	                        Expected_Blob_Hex),
-	                     "git ref commitish path tree entries listed values");
-	               end;
-	            end;
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Commit_Path_Object
-	                (Repo_Root,
-	                 Stored_Commit_Hex,
-	                 Bytes_From_String ("hello.txt"),
-	                 Pack_Index_List,
-	                 Read_Object_Pack,
-	                 Read_Object_Index,
-	                 Found_Pack_Checksum_Hex,
-	                 Found_Pack_Checksum_Last,
-	                 Commit_Path_Commit_Data,
-	                 Commit_Path_Commit_Last,
-	                 Commit_Path_Tree_ID,
-	                 Commit_Path_Tree_ID_Last,
-	                 Commit_Path_Tree_Data,
-	                 Commit_Path_Tree_Last,
-	                 Commit_Path_Mode,
-	                 Read_Kind,
-	                 Commit_Path_Data,
-	                 Commit_Path_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit path object read");
-	            Check
-	              (Stored_Commit_Last = Stored_Commit_Hex'Last
-	               and then Commit_Path_Commit_Last =
-	                 Commit_Path_Commit_Data'First
-	                 + Stored_Commit_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Commit_Path_Commit_Data
-	                    (Commit_Path_Commit_Data'First
-	                     .. Commit_Path_Commit_Last),
-	                  Stored_Commit_Data)
-	               and then Commit_Path_Tree_ID_Last =
-	                 Commit_Path_Tree_ID'Last
-	               and then Bytes_Equal
-	                 (Commit_Path_Tree_ID, Stored_Tree_Hex)
-	               and then Commit_Path_Mode = 8#100644#
-	               and then Read_Kind = SSH_Lib.Git.Pack_Blob
-	               and then Commit_Path_Tree_Last =
-	                 Commit_Path_Tree_Data'First + Tree_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Commit_Path_Tree_Data
-	                    (Commit_Path_Tree_Data'First
-	                     .. Commit_Path_Tree_Last),
-	                  Tree_Data)
-	               and then Commit_Path_Last =
-	                 Commit_Path_Data'First + Blob_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Commit_Path_Data
-	                    (Commit_Path_Data'First .. Commit_Path_Last),
-	                  Blob_Data),
-	               "git commit path object read values");
-	            Status_Value :=
-	              SSH_Lib.Git.Resolve_Commit_Path_Entry_Hex
-	                (Repo_Root,
-	                 Stored_Commit_Hex,
-	                 Bytes_From_String ("hello.txt"),
-	                 Pack_Index_List,
-	                 Read_Object_Pack,
-	                 Read_Object_Index,
-	                 Found_Pack_Checksum_Hex,
-	                 Found_Pack_Checksum_Last,
-	                 Commit_Resolved_Path_Commit_Data,
-	                 Commit_Resolved_Path_Commit_Last,
-	                 Commit_Resolved_Path_Tree_ID,
-	                 Commit_Resolved_Path_Tree_ID_Last,
-	                 Commit_Resolved_Path_Tree_Data,
-	                 Commit_Resolved_Path_Tree_Last,
-	                 Commit_Resolved_Path_Mode,
-	                 Commit_Resolved_Path_ID,
-	                 Commit_Resolved_Path_ID_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit path entry resolved");
-	            Check
-	              (Commit_Resolved_Path_Commit_Last =
-	                 Commit_Resolved_Path_Commit_Data'First
-	                 + Stored_Commit_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Commit_Resolved_Path_Commit_Data
-	                    (Commit_Resolved_Path_Commit_Data'First
-	                     .. Commit_Resolved_Path_Commit_Last),
-	                  Stored_Commit_Data)
-	               and then Commit_Resolved_Path_Tree_ID_Last =
-	                 Commit_Resolved_Path_Tree_ID'Last
-	               and then Bytes_Equal
-	                 (Commit_Resolved_Path_Tree_ID, Stored_Tree_Hex)
-	               and then Commit_Resolved_Path_Mode = 8#100644#
-	               and then Commit_Resolved_Path_ID_Last =
-	                 Commit_Resolved_Path_ID'Last
-	               and then Bytes_Equal
-	                 (Commit_Resolved_Path_ID, Expected_Blob_Hex)
-	               and then Commit_Resolved_Path_Tree_Last =
-	                 Commit_Resolved_Path_Tree_Data'First
-	                 + Tree_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Commit_Resolved_Path_Tree_Data
-	                    (Commit_Resolved_Path_Tree_Data'First
-	                     .. Commit_Resolved_Path_Tree_Last),
-	                  Tree_Data),
-	               "git commit path entry resolved values");
-	            Status_Value :=
-	              SSH_Lib.Git.Write_Direct_Ref
-	                (Repo_Root, "refs/heads/main", Stored_Commit_Hex);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit ref written");
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Ref_Path_Object
-	                (Repo_Root,
-	                 "refs/heads/main",
-	                 Bytes_From_String ("hello.txt"),
-	                 Ref_Path_Resolved_ID,
-	                 Ref_Path_Resolved_Last,
-	                 Pack_Index_List,
-	                 Read_Object_Pack,
-	                 Read_Object_Index,
-	                 Found_Pack_Checksum_Hex,
-	                 Found_Pack_Checksum_Last,
-	                 Ref_Path_Commit_Data,
-	                 Ref_Path_Commit_Last,
-	                 Ref_Path_Tree_ID,
-	                 Ref_Path_Tree_ID_Last,
-	                 Ref_Path_Tree_Data,
-	                 Ref_Path_Tree_Last,
-	                 Ref_Path_Mode,
-	                 Read_Kind,
-	                 Ref_Path_Data,
-	                 Ref_Path_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git ref path object read");
-	            Check
-	              (Ref_Path_Resolved_Last = Ref_Path_Resolved_ID'Last
-	               and then Bytes_Equal
-	                 (Ref_Path_Resolved_ID, Stored_Commit_Hex)
-	               and then Ref_Path_Commit_Last =
-	                 Ref_Path_Commit_Data'First
-	                 + Stored_Commit_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Ref_Path_Commit_Data
-	                    (Ref_Path_Commit_Data'First
-	                     .. Ref_Path_Commit_Last),
-	                  Stored_Commit_Data)
-	               and then Ref_Path_Tree_ID_Last = Ref_Path_Tree_ID'Last
-	               and then Bytes_Equal (Ref_Path_Tree_ID, Stored_Tree_Hex)
-	               and then Ref_Path_Mode = 8#100644#
-	               and then Read_Kind = SSH_Lib.Git.Pack_Blob
-	               and then Ref_Path_Tree_Last =
-	                 Ref_Path_Tree_Data'First + Tree_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Ref_Path_Tree_Data
-	                    (Ref_Path_Tree_Data'First .. Ref_Path_Tree_Last),
-	                  Tree_Data)
-	               and then Ref_Path_Last =
-	                 Ref_Path_Data'First + Blob_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Ref_Path_Data (Ref_Path_Data'First .. Ref_Path_Last),
-	                  Blob_Data),
-	               "git ref path object read values");
-	            Status_Value :=
-	              SSH_Lib.Git.Resolve_Ref_Path_Entry_Hex
-	                (Repo_Root,
-	                 "refs/heads/main",
-	                 Bytes_From_String ("hello.txt"),
-	                 Ref_Resolved_Path_Resolved_ID,
-	                 Ref_Resolved_Path_Resolved_Last,
-	                 Pack_Index_List,
-	                 Read_Object_Pack,
-	                 Read_Object_Index,
-	                 Found_Pack_Checksum_Hex,
-	                 Found_Pack_Checksum_Last,
-	                 Ref_Resolved_Path_Commit_Data,
-	                 Ref_Resolved_Path_Commit_Last,
-	                 Ref_Resolved_Path_Tree_ID,
-	                 Ref_Resolved_Path_Tree_ID_Last,
-	                 Ref_Resolved_Path_Tree_Data,
-	                 Ref_Resolved_Path_Tree_Last,
-	                 Ref_Resolved_Path_Mode,
-	                 Ref_Resolved_Path_ID,
-	                 Ref_Resolved_Path_ID_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git ref path entry resolved");
-	            Check
-	              (Ref_Resolved_Path_Resolved_Last =
-	                 Ref_Resolved_Path_Resolved_ID'Last
-	               and then Bytes_Equal
-	                 (Ref_Resolved_Path_Resolved_ID, Stored_Commit_Hex)
-	               and then Ref_Resolved_Path_Commit_Last =
-	                 Ref_Resolved_Path_Commit_Data'First
-	                 + Stored_Commit_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Ref_Resolved_Path_Commit_Data
-	                    (Ref_Resolved_Path_Commit_Data'First
-	                     .. Ref_Resolved_Path_Commit_Last),
-	                  Stored_Commit_Data)
-	               and then Ref_Resolved_Path_Tree_ID_Last =
-	                 Ref_Resolved_Path_Tree_ID'Last
-	               and then Bytes_Equal
-	                 (Ref_Resolved_Path_Tree_ID, Stored_Tree_Hex)
-	               and then Ref_Resolved_Path_Mode = 8#100644#
-	               and then Ref_Resolved_Path_ID_Last =
-	                 Ref_Resolved_Path_ID'Last
-	               and then Bytes_Equal
-	                 (Ref_Resolved_Path_ID, Expected_Blob_Hex)
-	               and then Ref_Resolved_Path_Tree_Last =
-	                 Ref_Resolved_Path_Tree_Data'First
-	                 + Tree_Data'Length - 1
-	               and then Bytes_Equal
-	                 (Ref_Resolved_Path_Tree_Data
-	                    (Ref_Resolved_Path_Tree_Data'First
-	                     .. Ref_Resolved_Path_Tree_Last),
-	                  Tree_Data),
-	               "git ref path entry resolved values");
-	            declare
-	               Stored_Tag_Data :
-	                 constant Ada.Streams.Stream_Element_Array :=
-	                   Bytes_From_String ("object ")
-	                   & Stored_Commit_Hex
-	                   & Bytes_From_String
-	                       (Character'Val (10)
-	                        & "type commit"
-	                        & Character'Val (10)
-	                        & "tag v1.0.0"
-	                        & Character'Val (10)
-	                        & "tagger A <a@example.test> 0 +0000"
-	                        & Character'Val (10)
-	                        & Character'Val (10)
-	                        & "message"
-	                        & Character'Val (10));
-	            begin
-	               Status_Value :=
-	                 SSH_Lib.Git.Store_Loose_Object_Validated
-	                   (Repo_Root,
-	                    SSH_Lib.Git.Pack_Tag,
-	                    Stored_Tag_Data,
-	                    Stored_Tag_Hex,
-	                    Stored_Tag_Last);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git validated loose tag stored");
-	               Status_Value :=
-	                 SSH_Lib.Git.Read_Tag_Path_Object
-	                   (Repo_Root,
-	                    Stored_Tag_Hex,
-	                    Bytes_From_String ("hello.txt"),
-	                    Tagged_Path_Peeled_ID,
-	                    Tagged_Path_Peeled_Last,
-	                    Pack_Index_List,
-	                    Read_Object_Pack,
-	                    Read_Object_Index,
-	                    Found_Pack_Checksum_Hex,
-	                    Found_Pack_Checksum_Last,
-	                    Tagged_Path_Tag_Data,
-	                    Tagged_Path_Tag_Last,
-	                    Tagged_Path_Commit_Data,
-	                    Tagged_Path_Commit_Last,
-	                    Tagged_Path_Tree_ID,
-	                    Tagged_Path_Tree_ID_Last,
-	                    Tagged_Path_Tree_Data,
-	                    Tagged_Path_Tree_Last,
-	                    Tagged_Path_Mode,
-	                    Read_Kind,
-	                    Tagged_Path_Data,
-	                    Tagged_Path_Last);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git tag path object read");
-	               Check
-	                 (Stored_Tag_Last = Stored_Tag_Hex'Last
-	                  and then Tagged_Path_Peeled_Last =
-	                    Tagged_Path_Peeled_ID'Last
-	                  and then Bytes_Equal
-	                    (Tagged_Path_Peeled_ID, Stored_Commit_Hex)
-	                  and then Tagged_Path_Tag_Last =
-	                    Tagged_Path_Tag_Data'First
-	                    + Stored_Tag_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Tagged_Path_Tag_Data
-	                       (Tagged_Path_Tag_Data'First
-	                        .. Tagged_Path_Tag_Last),
-	                     Stored_Tag_Data)
-	                  and then Tagged_Path_Commit_Last =
-	                    Tagged_Path_Commit_Data'First
-	                    + Stored_Commit_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Tagged_Path_Commit_Data
-	                       (Tagged_Path_Commit_Data'First
-	                        .. Tagged_Path_Commit_Last),
-	                     Stored_Commit_Data)
-	                  and then Tagged_Path_Tree_ID_Last =
-	                    Tagged_Path_Tree_ID'Last
-	                  and then Bytes_Equal
-	                    (Tagged_Path_Tree_ID, Stored_Tree_Hex)
-	                  and then Tagged_Path_Mode = 8#100644#
-	                  and then Read_Kind = SSH_Lib.Git.Pack_Blob
-	                  and then Tagged_Path_Tree_Last =
-	                    Tagged_Path_Tree_Data'First + Tree_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Tagged_Path_Tree_Data
-	                       (Tagged_Path_Tree_Data'First
-	                        .. Tagged_Path_Tree_Last),
-	                     Tree_Data)
-	                  and then Tagged_Path_Last =
-	                    Tagged_Path_Data'First + Blob_Data'Length - 1
-	                  and then Bytes_Equal
-	                     (Tagged_Path_Data
-	                        (Tagged_Path_Data'First .. Tagged_Path_Last),
-	                     Blob_Data),
-	                  "git tag path object read values");
-	               Status_Value :=
-	                 SSH_Lib.Git.Resolve_Tag_Path_Entry_Hex
-	                   (Repo_Root,
-	                    Stored_Tag_Hex,
-	                    Bytes_From_String ("hello.txt"),
-	                    Tagged_Resolved_Path_Peeled_ID,
-	                    Tagged_Resolved_Path_Peeled_Last,
-	                    Pack_Index_List,
-	                    Read_Object_Pack,
-	                    Read_Object_Index,
-	                    Found_Pack_Checksum_Hex,
-	                    Found_Pack_Checksum_Last,
-	                    Tagged_Resolved_Path_Tag_Data,
-	                    Tagged_Resolved_Path_Tag_Last,
-	                    Tagged_Resolved_Path_Commit_Data,
-	                    Tagged_Resolved_Path_Commit_Last,
-	                    Tagged_Resolved_Path_Tree_ID,
-	                    Tagged_Resolved_Path_Tree_ID_Last,
-	                    Tagged_Resolved_Path_Tree_Data,
-	                    Tagged_Resolved_Path_Tree_Last,
-	                    Tagged_Resolved_Path_Mode,
-	                    Tagged_Resolved_Path_ID,
-	                    Tagged_Resolved_Path_ID_Last);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git tag path entry resolved");
-	               Check
-	                 (Tagged_Resolved_Path_Peeled_Last =
-	                    Tagged_Resolved_Path_Peeled_ID'Last
-	                  and then Bytes_Equal
-	                    (Tagged_Resolved_Path_Peeled_ID,
-	                     Stored_Commit_Hex)
-	                  and then Tagged_Resolved_Path_Tag_Last =
-	                    Tagged_Resolved_Path_Tag_Data'First
-	                    + Stored_Tag_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Tagged_Resolved_Path_Tag_Data
-	                       (Tagged_Resolved_Path_Tag_Data'First
-	                        .. Tagged_Resolved_Path_Tag_Last),
-	                     Stored_Tag_Data)
-	                  and then Tagged_Resolved_Path_Commit_Last =
-	                    Tagged_Resolved_Path_Commit_Data'First
-	                    + Stored_Commit_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Tagged_Resolved_Path_Commit_Data
-	                       (Tagged_Resolved_Path_Commit_Data'First
-	                        .. Tagged_Resolved_Path_Commit_Last),
-	                     Stored_Commit_Data)
-	                  and then Tagged_Resolved_Path_Tree_ID_Last =
-	                    Tagged_Resolved_Path_Tree_ID'Last
-	                  and then Bytes_Equal
-	                    (Tagged_Resolved_Path_Tree_ID, Stored_Tree_Hex)
-	                  and then Tagged_Resolved_Path_Mode = 8#100644#
-	                  and then Tagged_Resolved_Path_ID_Last =
-	                    Tagged_Resolved_Path_ID'Last
-	                  and then Bytes_Equal
-	                    (Tagged_Resolved_Path_ID, Expected_Blob_Hex)
-	                  and then Tagged_Resolved_Path_Tree_Last =
-	                    Tagged_Resolved_Path_Tree_Data'First
-	                    + Tree_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Tagged_Resolved_Path_Tree_Data
-	                       (Tagged_Resolved_Path_Tree_Data'First
-	                        .. Tagged_Resolved_Path_Tree_Last),
-	                     Tree_Data),
-	                  "git tag path entry resolved values");
-	               Status_Value :=
-	                 SSH_Lib.Git.Write_Direct_Ref
-	                   (Repo_Root, "refs/tags/v1.0.0", Stored_Tag_Hex);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git tag ref written");
-	               Status_Value :=
-	                 SSH_Lib.Git.Read_Ref_Commitish_Path_Object
-	                   (Repo_Root,
-	                    "refs/tags/v1.0.0",
-	                    Bytes_From_String ("hello.txt"),
-	                    Commitish_Path_Resolved_ID,
-	                    Commitish_Path_Resolved_Last,
-	                    Commitish_Path_Peeled_ID,
-	                    Commitish_Path_Peeled_Last,
-	                    Pack_Index_List,
-	                    Read_Object_Pack,
-	                    Read_Object_Index,
-	                    Found_Pack_Checksum_Hex,
-	                    Found_Pack_Checksum_Last,
-	                    Commitish_Path_Tag_Data,
-	                    Commitish_Path_Tag_Last,
-	                    Commitish_Path_Commit_Data,
-	                    Commitish_Path_Commit_Last,
-	                    Commitish_Path_Tree_ID,
-	                    Commitish_Path_Tree_ID_Last,
-	                    Commitish_Path_Tree_Data,
-	                    Commitish_Path_Tree_Last,
-	                    Commitish_Path_Mode,
-	                    Read_Kind,
-	                    Commitish_Path_Data,
-	                    Commitish_Path_Last);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git ref commitish path object read");
-	               Check
-	                 (Commitish_Path_Resolved_Last =
-	                    Commitish_Path_Resolved_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_Path_Resolved_ID, Stored_Tag_Hex)
-	                  and then Commitish_Path_Peeled_Last =
-	                    Commitish_Path_Peeled_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_Path_Peeled_ID, Stored_Commit_Hex)
-	                  and then Commitish_Path_Tag_Last =
-	                    Commitish_Path_Tag_Data'First
-	                    + Stored_Tag_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_Path_Tag_Data
-	                       (Commitish_Path_Tag_Data'First
-	                        .. Commitish_Path_Tag_Last),
-	                     Stored_Tag_Data)
-	                  and then Commitish_Path_Commit_Last =
-	                    Commitish_Path_Commit_Data'First
-	                    + Stored_Commit_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_Path_Commit_Data
-	                       (Commitish_Path_Commit_Data'First
-	                        .. Commitish_Path_Commit_Last),
-	                     Stored_Commit_Data)
-	                  and then Commitish_Path_Tree_ID_Last =
-	                    Commitish_Path_Tree_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_Path_Tree_ID, Stored_Tree_Hex)
-	                  and then Commitish_Path_Mode = 8#100644#
-	                  and then Read_Kind = SSH_Lib.Git.Pack_Blob
-	                  and then Commitish_Path_Tree_Last =
-	                    Commitish_Path_Tree_Data'First + Tree_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_Path_Tree_Data
-	                       (Commitish_Path_Tree_Data'First
-	                        .. Commitish_Path_Tree_Last),
-	                     Tree_Data)
-	                  and then Commitish_Path_Last =
-	                    Commitish_Path_Data'First + Blob_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_Path_Data
-	                       (Commitish_Path_Data'First
-	                        .. Commitish_Path_Last),
-	                     Blob_Data),
-	                  "git ref commitish path object read values");
-	               Status_Value :=
-	                 SSH_Lib.Git.Resolve_Ref_Commitish_Path_Entry_Hex
-	                   (Repo_Root,
-	                    "refs/tags/v1.0.0",
-	                    Bytes_From_String ("hello.txt"),
-	                    Commitish_Resolved_Path_Resolved_ID,
-	                    Commitish_Resolved_Path_Resolved_Last,
-	                    Commitish_Resolved_Path_Peeled_ID,
-	                    Commitish_Resolved_Path_Peeled_Last,
-	                    Pack_Index_List,
-	                    Read_Object_Pack,
-	                    Read_Object_Index,
-	                    Found_Pack_Checksum_Hex,
-	                    Found_Pack_Checksum_Last,
-	                    Commitish_Resolved_Path_Tag_Data,
-	                    Commitish_Resolved_Path_Tag_Last,
-	                    Commitish_Resolved_Path_Commit_Data,
-	                    Commitish_Resolved_Path_Commit_Last,
-	                    Commitish_Resolved_Path_Tree_ID,
-	                    Commitish_Resolved_Path_Tree_ID_Last,
-	                    Commitish_Resolved_Path_Tree_Data,
-	                    Commitish_Resolved_Path_Tree_Last,
-	                    Commitish_Resolved_Path_Mode,
-	                    Commitish_Resolved_Path_ID,
-	                    Commitish_Resolved_Path_ID_Last);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git ref commitish path entry resolved");
-	               Check
-	                 (Commitish_Resolved_Path_Resolved_Last =
-	                    Commitish_Resolved_Path_Resolved_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_Resolved_Path_Resolved_ID, Stored_Tag_Hex)
-	                  and then Commitish_Resolved_Path_Peeled_Last =
-	                    Commitish_Resolved_Path_Peeled_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_Resolved_Path_Peeled_ID,
-	                     Stored_Commit_Hex)
-	                  and then Commitish_Resolved_Path_Tag_Last =
-	                    Commitish_Resolved_Path_Tag_Data'First
-	                    + Stored_Tag_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_Resolved_Path_Tag_Data
-	                       (Commitish_Resolved_Path_Tag_Data'First
-	                        .. Commitish_Resolved_Path_Tag_Last),
-	                     Stored_Tag_Data)
-	                  and then Commitish_Resolved_Path_Commit_Last =
-	                    Commitish_Resolved_Path_Commit_Data'First
-	                    + Stored_Commit_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_Resolved_Path_Commit_Data
-	                       (Commitish_Resolved_Path_Commit_Data'First
-	                        .. Commitish_Resolved_Path_Commit_Last),
-	                     Stored_Commit_Data)
-	                  and then Commitish_Resolved_Path_Tree_ID_Last =
-	                    Commitish_Resolved_Path_Tree_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_Resolved_Path_Tree_ID, Stored_Tree_Hex)
-	                  and then Commitish_Resolved_Path_Mode = 8#100644#
-	                  and then Commitish_Resolved_Path_ID_Last =
-	                    Commitish_Resolved_Path_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_Resolved_Path_ID, Expected_Blob_Hex)
-	                  and then Commitish_Resolved_Path_Tree_Last =
-	                    Commitish_Resolved_Path_Tree_Data'First
-	                    + Tree_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_Resolved_Path_Tree_Data
-	                       (Commitish_Resolved_Path_Tree_Data'First
-	                        .. Commitish_Resolved_Path_Tree_Last),
-	                     Tree_Data),
-	                  "git ref commitish path entry resolved values");
-	               Status_Value :=
-	                 SSH_Lib.Git.Read_Ref_Commitish_Tree_Object
-	                   (Repo_Root,
-	                    "refs/tags/v1.0.0",
-	                    Commitish_Tree_Resolved_ID,
-	                    Commitish_Tree_Resolved_Last,
-	                    Commitish_Tree_Peeled_ID,
-	                    Commitish_Tree_Peeled_Last,
-	                    Pack_Index_List,
-	                    Read_Object_Pack,
-	                    Read_Object_Index,
-	                    Found_Pack_Checksum_Hex,
-	                    Found_Pack_Checksum_Last,
-	                    Commitish_Tree_Tag_Data,
-	                    Commitish_Tree_Tag_Last,
-	                    Commitish_Tree_Commit_Data,
-	                    Commitish_Tree_Commit_Last,
-	                    Commitish_Tree_ID,
-	                    Commitish_Tree_ID_Last,
-	                    Commitish_Tree_Data,
-	                    Commitish_Tree_Last,
-	                    Commitish_Tree_Count);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git ref commitish tree object read");
-	               Check
-	                 (Commitish_Tree_Resolved_Last =
-	                    Commitish_Tree_Resolved_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_Tree_Resolved_ID, Stored_Tag_Hex)
-	                  and then Commitish_Tree_Peeled_Last =
-	                    Commitish_Tree_Peeled_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_Tree_Peeled_ID, Stored_Commit_Hex)
-	                  and then Commitish_Tree_Tag_Last =
-	                    Commitish_Tree_Tag_Data'First
-	                    + Stored_Tag_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_Tree_Tag_Data
-	                       (Commitish_Tree_Tag_Data'First
-	                        .. Commitish_Tree_Tag_Last),
-	                     Stored_Tag_Data)
-	                  and then Commitish_Tree_Commit_Last =
-	                    Commitish_Tree_Commit_Data'First
-	                    + Stored_Commit_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_Tree_Commit_Data
-	                       (Commitish_Tree_Commit_Data'First
-	                        .. Commitish_Tree_Commit_Last),
-	                     Stored_Commit_Data)
-	                  and then Commitish_Tree_ID_Last =
-	                    Commitish_Tree_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_Tree_ID, Stored_Tree_Hex)
-	                  and then Commitish_Tree_Last =
-	                    Commitish_Tree_Data'First + Tree_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_Tree_Data
-	                       (Commitish_Tree_Data'First
-	                        .. Commitish_Tree_Last),
-	                     Tree_Data)
-	                  and then Commitish_Tree_Count = 1,
-	                  "git ref commitish tree object read values");
-	               Status_Value :=
-	                 SSH_Lib.Git.Read_Ref_Commitish_Tree_Entries_Hex
-	                   (Repo_Root,
-	                    "refs/tags/v1.0.0",
-	                    Commitish_List_Resolved_ID,
-	                    Commitish_List_Resolved_Last,
-	                    Commitish_List_Peeled_ID,
-	                    Commitish_List_Peeled_Last,
-	                    Pack_Index_List,
-	                    Read_Object_Pack,
-	                    Read_Object_Index,
-	                    Found_Pack_Checksum_Hex,
-	                    Found_Pack_Checksum_Last,
-	                    Commitish_List_Tag_Data,
-	                    Commitish_List_Tag_Last,
-	                    Commitish_List_Commit_Data,
-	                    Commitish_List_Commit_Last,
-	                    Commitish_List_Tree_ID,
-	                    Commitish_List_Tree_ID_Last,
-	                    Commitish_List_Tree_Data,
-	                    Commitish_List_Tree_Last,
-	                    Commitish_List_Names,
-	                    Commitish_List_Name_Lasts,
-	                    Commitish_List_Modes,
-	                    Commitish_List_IDs,
-	                    Commitish_List_Count);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git ref commitish tree entries listed");
-	               Check
-	                 (Commitish_List_Count = 1
-	                  and then Commitish_List_Resolved_Last =
-	                    Commitish_List_Resolved_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_List_Resolved_ID, Stored_Tag_Hex)
-	                  and then Commitish_List_Peeled_Last =
-	                    Commitish_List_Peeled_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_List_Peeled_ID, Stored_Commit_Hex)
-	                  and then Commitish_List_Tag_Last =
-	                    Commitish_List_Tag_Data'First
-	                    + Stored_Tag_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_List_Tag_Data
-	                       (Commitish_List_Tag_Data'First
-	                        .. Commitish_List_Tag_Last),
-	                     Stored_Tag_Data)
-	                  and then Commitish_List_Commit_Last =
-	                    Commitish_List_Commit_Data'First
-	                    + Stored_Commit_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_List_Commit_Data
-	                       (Commitish_List_Commit_Data'First
-	                        .. Commitish_List_Commit_Last),
-	                     Stored_Commit_Data)
-	                  and then Commitish_List_Tree_ID_Last =
-	                    Commitish_List_Tree_ID'Last
-	                  and then Bytes_Equal
-	                    (Commitish_List_Tree_ID, Stored_Tree_Hex)
-	                  and then Commitish_List_Tree_Last =
-	                    Commitish_List_Tree_Data'First + Tree_Data'Length - 1
-	                  and then Bytes_Equal
-	                    (Commitish_List_Tree_Data
-	                       (Commitish_List_Tree_Data'First
-	                        .. Commitish_List_Tree_Last),
-	                     Tree_Data)
-	                  and then Commitish_List_Modes (1) = 8#100644#
-	                  and then Commitish_List_Name_Lasts (1) =
-	                    Commitish_List_Names'First + 8
-	                  and then Bytes_Equal
-	                    (Commitish_List_Names
-	                       (Commitish_List_Names'First
-	                        .. Commitish_List_Name_Lasts (1)),
-	                     Bytes_From_String ("hello.txt"))
-	                  and then Bytes_Equal
-	                    (Ada.Streams.Stream_Element_Array
-	                       (Commitish_List_IDs (1)),
-	                     Expected_Blob_Hex),
-	                  "git ref commitish tree entries listed values");
-	            end;
-	         end;
+         declare
+            Stored_Commit_Data :
+              constant Ada.Streams.Stream_Element_Array :=
+                Bytes_From_String ("tree ")
+                & Stored_Tree_Hex
+                & Bytes_From_String
+                    (Character'Val (10)
+                     & "author A <a@example.test> 0 +0000"
+                     & Character'Val (10)
+                     & "committer A <a@example.test> 0 +0000"
+                     & Character'Val (10)
+                     & Character'Val (10)
+                     & "message"
+                     & Character'Val (10));
+         begin
+            Status_Value :=
+              SSH_Lib.Git.Store_Loose_Object_Validated
+                (Repo_Root,
+                 SSH_Lib.Git.Pack_Commit,
+                 Stored_Commit_Data,
+                 Stored_Commit_Hex,
+                 Stored_Commit_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git validated loose commit stored");
+            Status_Value :=
+              SSH_Lib.Git.Read_Commit_Tree_Object
+                (Repo_Root,
+                 Stored_Commit_Hex,
+                 Pack_Index_List,
+                 Read_Object_Pack,
+                 Read_Object_Index,
+                 Found_Pack_Checksum_Hex,
+                 Found_Pack_Checksum_Last,
+                 Commit_Tree_Read_Commit_Data,
+                 Commit_Tree_Read_Commit_Last,
+                 Commit_Tree_Read_ID,
+                 Commit_Tree_Read_ID_Last,
+                 Commit_Tree_Read_Data,
+                 Commit_Tree_Read_Last,
+                 Commit_Tree_Read_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit tree object read");
+            Check
+              (Commit_Tree_Read_Commit_Last =
+                 Commit_Tree_Read_Commit_Data'First
+                 + Stored_Commit_Data'Length - 1
+               and then Bytes_Equal
+                 (Commit_Tree_Read_Commit_Data
+                    (Commit_Tree_Read_Commit_Data'First
+                     .. Commit_Tree_Read_Commit_Last),
+                  Stored_Commit_Data)
+               and then Commit_Tree_Read_ID_Last =
+                 Commit_Tree_Read_ID'Last
+               and then Bytes_Equal
+                 (Commit_Tree_Read_ID, Stored_Tree_Hex)
+               and then Commit_Tree_Read_Last =
+                 Commit_Tree_Read_Data'First + Tree_Data'Length - 1
+               and then Bytes_Equal
+                 (Commit_Tree_Read_Data
+                    (Commit_Tree_Read_Data'First
+                     .. Commit_Tree_Read_Last),
+                  Tree_Data)
+               and then Commit_Tree_Read_Count = 1,
+               "git commit tree object read values");
+            Status_Value :=
+              SSH_Lib.Git.Read_Commit_Tree_Entries_Hex
+                (Repo_Root,
+                 Stored_Commit_Hex,
+                 Pack_Index_List,
+                 Read_Object_Pack,
+                 Read_Object_Index,
+                 Found_Pack_Checksum_Hex,
+                 Found_Pack_Checksum_Last,
+                 Commit_List_Commit_Data,
+                 Commit_List_Commit_Last,
+                 Commit_List_Tree_ID,
+                 Commit_List_Tree_ID_Last,
+                 Commit_List_Tree_Data,
+                 Commit_List_Tree_Last,
+                 Commit_List_Names,
+                 Commit_List_Name_Lasts,
+                 Commit_List_Modes,
+                 Commit_List_IDs,
+                 Commit_List_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit tree entries listed");
+            Check
+              (Commit_List_Count = 1
+               and then Commit_List_Commit_Last =
+                 Commit_List_Commit_Data'First
+                 + Stored_Commit_Data'Length - 1
+               and then Bytes_Equal
+                 (Commit_List_Commit_Data
+                    (Commit_List_Commit_Data'First
+                     .. Commit_List_Commit_Last),
+                  Stored_Commit_Data)
+               and then Commit_List_Tree_ID_Last =
+                 Commit_List_Tree_ID'Last
+               and then Bytes_Equal
+                 (Commit_List_Tree_ID, Stored_Tree_Hex)
+               and then Commit_List_Tree_Last =
+                 Commit_List_Tree_Data'First + Tree_Data'Length - 1
+               and then Bytes_Equal
+                 (Commit_List_Tree_Data
+                    (Commit_List_Tree_Data'First
+                     .. Commit_List_Tree_Last),
+                  Tree_Data)
+               and then Commit_List_Modes (1) = 8#100644#
+               and then Commit_List_Name_Lasts (1) =
+                 Commit_List_Names'First + 8
+               and then Bytes_Equal
+                 (Commit_List_Names
+                    (Commit_List_Names'First
+                     .. Commit_List_Name_Lasts (1)),
+                  Bytes_From_String ("hello.txt"))
+               and then Bytes_Equal
+                 (Ada.Streams.Stream_Element_Array (Commit_List_IDs (1)),
+                  Expected_Blob_Hex),
+               "git commit tree entries listed values");
+            declare
+               Commit_Path_List_Data :
+                 constant Ada.Streams.Stream_Element_Array :=
+                   Bytes_From_String ("tree ")
+                   & Path_List_Root_Tree_Hex
+                   & Bytes_From_String
+                       (Character'Val (10)
+                        & "author A <a@example.test> 0 +0000"
+                        & Character'Val (10)
+                        & "committer A <a@example.test> 0 +0000"
+                        & Character'Val (10)
+                        & Character'Val (10)
+                        & "nested"
+                        & Character'Val (10));
+               Path_List_Root_Tree_Data :
+                 constant Ada.Streams.Stream_Element_Array :=
+                   Bytes_From_String
+                     ("40000 sub" & Character'Val (0))
+                   & Stored_Tree_Raw_ID;
+            begin
+               Status_Value :=
+                 SSH_Lib.Git.Store_Loose_Object_Validated
+                   (Repo_Root,
+                    SSH_Lib.Git.Pack_Commit,
+                    Commit_Path_List_Data,
+                    Commit_Path_List_Hex,
+                    Commit_Path_List_Last);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git nested path commit stored");
+               Status_Value :=
+                 SSH_Lib.Git.Read_Commit_Path_Tree_Entries_Hex
+                   (Repo_Root,
+                    Commit_Path_List_Hex,
+                    Bytes_From_String ("sub"),
+                    Pack_Index_List,
+                    Read_Object_Pack,
+                    Read_Object_Index,
+                    Found_Pack_Checksum_Hex,
+                    Found_Pack_Checksum_Last,
+                    Commit_Path_List_Commit_Data,
+                    Commit_Path_List_Commit_Last,
+                    Commit_Path_List_Tree_ID,
+                    Commit_Path_List_Tree_ID_Last,
+                    Commit_Path_List_Parent_Tree_Data,
+                    Commit_Path_List_Parent_Tree_Last,
+                    Commit_Path_List_Mode,
+                    Commit_Path_List_Tree_Data,
+                    Commit_Path_List_Tree_Last,
+                    Commit_Path_List_Names,
+                    Commit_Path_List_Name_Lasts,
+                    Commit_Path_List_Modes,
+                    Commit_Path_List_IDs,
+                    Commit_Path_List_Count);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git commit path tree entries listed");
+               Check
+                 (Commit_Path_List_Last = Commit_Path_List_Hex'Last
+                  and then Commit_Path_List_Commit_Last =
+                    Commit_Path_List_Commit_Data'First
+                    + Commit_Path_List_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commit_Path_List_Commit_Data
+                       (Commit_Path_List_Commit_Data'First
+                        .. Commit_Path_List_Commit_Last),
+                     Commit_Path_List_Data)
+                  and then Commit_Path_List_Tree_ID_Last =
+                    Commit_Path_List_Tree_ID'Last
+                  and then Bytes_Equal
+                    (Commit_Path_List_Tree_ID, Path_List_Root_Tree_Hex)
+                  and then Commit_Path_List_Mode = 8#040000#
+                  and then Commit_Path_List_Parent_Tree_Last =
+                    Commit_Path_List_Parent_Tree_Data'First
+                    + Path_List_Root_Tree_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commit_Path_List_Parent_Tree_Data
+                       (Commit_Path_List_Parent_Tree_Data'First
+                        .. Commit_Path_List_Parent_Tree_Last),
+                     Path_List_Root_Tree_Data)
+                  and then Commit_Path_List_Tree_Last =
+                    Commit_Path_List_Tree_Data'First
+                    + Tree_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commit_Path_List_Tree_Data
+                       (Commit_Path_List_Tree_Data'First
+                        .. Commit_Path_List_Tree_Last),
+                     Tree_Data)
+                  and then Commit_Path_List_Count = 1
+                  and then Commit_Path_List_Modes (1) = 8#100644#
+                  and then Commit_Path_List_Name_Lasts (1) =
+                    Commit_Path_List_Names'First + 8
+                  and then Bytes_Equal
+                    (Commit_Path_List_Names
+                       (Commit_Path_List_Names'First
+                        .. Commit_Path_List_Name_Lasts (1)),
+                     Bytes_From_String ("hello.txt"))
+                  and then Bytes_Equal
+                    (Ada.Streams.Stream_Element_Array
+                       (Commit_Path_List_IDs (1)),
+                     Expected_Blob_Hex),
+                  "git commit path tree entries listed values");
+               Status_Value :=
+                 SSH_Lib.Git.Write_Direct_Ref
+                   (Repo_Root,
+                    "refs/heads/nested",
+                    Commit_Path_List_Hex);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git nested commit ref written");
+               Status_Value :=
+                 SSH_Lib.Git.Read_Ref_Path_Tree_Entries_Hex
+                   (Repo_Root,
+                    "refs/heads/nested",
+                    Bytes_From_String ("sub"),
+                    Ref_Path_List_Resolved_ID,
+                    Ref_Path_List_Resolved_Last,
+                    Pack_Index_List,
+                    Read_Object_Pack,
+                    Read_Object_Index,
+                    Found_Pack_Checksum_Hex,
+                    Found_Pack_Checksum_Last,
+                    Ref_Path_List_Commit_Data,
+                    Ref_Path_List_Commit_Last,
+                    Ref_Path_List_Tree_ID,
+                    Ref_Path_List_Tree_ID_Last,
+                    Ref_Path_List_Parent_Tree_Data,
+                    Ref_Path_List_Parent_Tree_Last,
+                    Ref_Path_List_Mode,
+                    Ref_Path_List_Tree_Data,
+                    Ref_Path_List_Tree_Last,
+                    Ref_Path_List_Names,
+                    Ref_Path_List_Name_Lasts,
+                    Ref_Path_List_Modes,
+                    Ref_Path_List_IDs,
+                    Ref_Path_List_Count);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git ref path tree entries listed");
+               Check
+                 (Ref_Path_List_Resolved_Last =
+                    Ref_Path_List_Resolved_ID'Last
+                  and then Bytes_Equal
+                    (Ref_Path_List_Resolved_ID, Commit_Path_List_Hex)
+                  and then Ref_Path_List_Commit_Last =
+                    Ref_Path_List_Commit_Data'First
+                    + Commit_Path_List_Data'Length - 1
+                  and then Bytes_Equal
+                    (Ref_Path_List_Commit_Data
+                       (Ref_Path_List_Commit_Data'First
+                        .. Ref_Path_List_Commit_Last),
+                     Commit_Path_List_Data)
+                  and then Ref_Path_List_Tree_ID_Last =
+                    Ref_Path_List_Tree_ID'Last
+                  and then Bytes_Equal
+                    (Ref_Path_List_Tree_ID, Path_List_Root_Tree_Hex)
+                  and then Ref_Path_List_Mode = 8#040000#
+                  and then Ref_Path_List_Parent_Tree_Last =
+                    Ref_Path_List_Parent_Tree_Data'First
+                    + Path_List_Root_Tree_Data'Length - 1
+                  and then Bytes_Equal
+                    (Ref_Path_List_Parent_Tree_Data
+                       (Ref_Path_List_Parent_Tree_Data'First
+                        .. Ref_Path_List_Parent_Tree_Last),
+                     Path_List_Root_Tree_Data)
+                  and then Ref_Path_List_Tree_Last =
+                    Ref_Path_List_Tree_Data'First
+                    + Tree_Data'Length - 1
+                  and then Bytes_Equal
+                    (Ref_Path_List_Tree_Data
+                       (Ref_Path_List_Tree_Data'First
+                        .. Ref_Path_List_Tree_Last),
+                     Tree_Data)
+                  and then Ref_Path_List_Count = 1
+                  and then Ref_Path_List_Modes (1) = 8#100644#
+                  and then Ref_Path_List_Name_Lasts (1) =
+                    Ref_Path_List_Names'First + 8
+                  and then Bytes_Equal
+                    (Ref_Path_List_Names
+                       (Ref_Path_List_Names'First
+                        .. Ref_Path_List_Name_Lasts (1)),
+                     Bytes_From_String ("hello.txt"))
+                  and then Bytes_Equal
+                    (Ada.Streams.Stream_Element_Array
+                       (Ref_Path_List_IDs (1)),
+                     Expected_Blob_Hex),
+                  "git ref path tree entries listed values");
+               declare
+                  Tag_Path_List_Data :
+                    constant Ada.Streams.Stream_Element_Array :=
+                      Bytes_From_String ("object ")
+                      & Commit_Path_List_Hex
+                      & Bytes_From_String
+                          (Character'Val (10)
+                           & "type commit"
+                           & Character'Val (10)
+                           & "tag nested"
+                           & Character'Val (10)
+                           & Character'Val (10));
+               begin
+                  Status_Value :=
+                    SSH_Lib.Git.Store_Loose_Object_Validated
+                      (Repo_Root,
+                       SSH_Lib.Git.Pack_Tag,
+                       Tag_Path_List_Data,
+                       Tag_Path_List_Hex,
+                       Tag_Path_List_Last);
+                  Check_Status
+                    (Status_Value, CryptoLib.Errors.Ok,
+                     "git nested path tag stored");
+                  Status_Value :=
+                    SSH_Lib.Git.Read_Tag_Path_Tree_Entries_Hex
+                      (Repo_Root,
+                       Tag_Path_List_Hex,
+                       Bytes_From_String ("sub"),
+                       Tag_Path_List_Peeled_ID,
+                       Tag_Path_List_Peeled_Last,
+                       Pack_Index_List,
+                       Read_Object_Pack,
+                       Read_Object_Index,
+                       Found_Pack_Checksum_Hex,
+                       Found_Pack_Checksum_Last,
+                       Tag_Path_List_Tag_Data,
+                       Tag_Path_List_Tag_Last,
+                       Tag_Path_List_Commit_Data,
+                       Tag_Path_List_Commit_Last,
+                       Tag_Path_List_Tree_ID,
+                       Tag_Path_List_Tree_ID_Last,
+                       Tag_Path_List_Parent_Tree_Data,
+                       Tag_Path_List_Parent_Tree_Last,
+                       Tag_Path_List_Mode,
+                       Tag_Path_List_Tree_Data,
+                       Tag_Path_List_Tree_Last,
+                       Tag_Path_List_Names,
+                       Tag_Path_List_Name_Lasts,
+                       Tag_Path_List_Modes,
+                       Tag_Path_List_IDs,
+                       Tag_Path_List_Count);
+                  Check_Status
+                    (Status_Value, CryptoLib.Errors.Ok,
+                     "git tag path tree entries listed");
+                  Check
+                    (Tag_Path_List_Last = Tag_Path_List_Hex'Last
+                     and then Tag_Path_List_Peeled_Last =
+                       Tag_Path_List_Peeled_ID'Last
+                     and then Bytes_Equal
+                       (Tag_Path_List_Peeled_ID,
+                        Commit_Path_List_Hex)
+                     and then Tag_Path_List_Tag_Last =
+                       Tag_Path_List_Tag_Data'First
+                       + Tag_Path_List_Data'Length - 1
+                     and then Bytes_Equal
+                       (Tag_Path_List_Tag_Data
+                          (Tag_Path_List_Tag_Data'First
+                           .. Tag_Path_List_Tag_Last),
+                        Tag_Path_List_Data)
+                     and then Tag_Path_List_Mode = 8#040000#
+                     and then Tag_Path_List_Count = 1
+                     and then Tag_Path_List_Modes (1) = 8#100644#
+                     and then Tag_Path_List_Name_Lasts (1) =
+                       Tag_Path_List_Names'First + 8
+                     and then Bytes_Equal
+                       (Tag_Path_List_Names
+                          (Tag_Path_List_Names'First
+                           .. Tag_Path_List_Name_Lasts (1)),
+                        Bytes_From_String ("hello.txt"))
+                     and then Bytes_Equal
+                       (Ada.Streams.Stream_Element_Array
+                          (Tag_Path_List_IDs (1)),
+                        Expected_Blob_Hex),
+                     "git tag path tree entries listed values");
+                  Status_Value :=
+                    SSH_Lib.Git.Write_Direct_Ref
+                      (Repo_Root,
+                       "refs/tags/nested",
+                       Tag_Path_List_Hex);
+                  Check_Status
+                    (Status_Value, CryptoLib.Errors.Ok,
+                     "git nested tag ref written");
+                  Status_Value :=
+                    SSH_Lib.Git.Read_Ref_Commitish_Path_Tree_Entries_Hex
+                      (Repo_Root,
+                       "refs/tags/nested",
+                       Bytes_From_String ("sub"),
+                       Ref_Path_List_Resolved_ID,
+                       Ref_Path_List_Resolved_Last,
+                       Tag_Path_List_Peeled_ID,
+                       Tag_Path_List_Peeled_Last,
+                       Pack_Index_List,
+                       Read_Object_Pack,
+                       Read_Object_Index,
+                       Found_Pack_Checksum_Hex,
+                       Found_Pack_Checksum_Last,
+                       Tag_Path_List_Tag_Data,
+                       Tag_Path_List_Tag_Last,
+                       Tag_Path_List_Commit_Data,
+                       Tag_Path_List_Commit_Last,
+                       Tag_Path_List_Tree_ID,
+                       Tag_Path_List_Tree_ID_Last,
+                       Tag_Path_List_Parent_Tree_Data,
+                       Tag_Path_List_Parent_Tree_Last,
+                       Tag_Path_List_Mode,
+                       Tag_Path_List_Tree_Data,
+                       Tag_Path_List_Tree_Last,
+                       Tag_Path_List_Names,
+                       Tag_Path_List_Name_Lasts,
+                       Tag_Path_List_Modes,
+                       Tag_Path_List_IDs,
+                       Tag_Path_List_Count);
+                  Check_Status
+                    (Status_Value, CryptoLib.Errors.Ok,
+                     "git ref commitish path tree entries listed");
+                  Check
+                    (Ref_Path_List_Resolved_Last =
+                       Ref_Path_List_Resolved_ID'Last
+                     and then Bytes_Equal
+                       (Ref_Path_List_Resolved_ID,
+                        Tag_Path_List_Hex)
+                     and then Tag_Path_List_Peeled_Last =
+                       Tag_Path_List_Peeled_ID'Last
+                     and then Bytes_Equal
+                       (Tag_Path_List_Peeled_ID,
+                        Commit_Path_List_Hex)
+                     and then Tag_Path_List_Count = 1
+                     and then Tag_Path_List_Modes (1) = 8#100644#
+                     and then Bytes_Equal
+                       (Ada.Streams.Stream_Element_Array
+                          (Tag_Path_List_IDs (1)),
+                        Expected_Blob_Hex),
+                     "git ref commitish path tree entries listed values");
+               end;
+            end;
+            Status_Value :=
+              SSH_Lib.Git.Read_Commit_Path_Object
+                (Repo_Root,
+                 Stored_Commit_Hex,
+                 Bytes_From_String ("hello.txt"),
+                 Pack_Index_List,
+                 Read_Object_Pack,
+                 Read_Object_Index,
+                 Found_Pack_Checksum_Hex,
+                 Found_Pack_Checksum_Last,
+                 Commit_Path_Commit_Data,
+                 Commit_Path_Commit_Last,
+                 Commit_Path_Tree_ID,
+                 Commit_Path_Tree_ID_Last,
+                 Commit_Path_Tree_Data,
+                 Commit_Path_Tree_Last,
+                 Commit_Path_Mode,
+                 Read_Kind,
+                 Commit_Path_Data,
+                 Commit_Path_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit path object read");
+            Check
+              (Stored_Commit_Last = Stored_Commit_Hex'Last
+               and then Commit_Path_Commit_Last =
+                 Commit_Path_Commit_Data'First
+                 + Stored_Commit_Data'Length - 1
+               and then Bytes_Equal
+                 (Commit_Path_Commit_Data
+                    (Commit_Path_Commit_Data'First
+                     .. Commit_Path_Commit_Last),
+                  Stored_Commit_Data)
+               and then Commit_Path_Tree_ID_Last =
+                 Commit_Path_Tree_ID'Last
+               and then Bytes_Equal
+                 (Commit_Path_Tree_ID, Stored_Tree_Hex)
+               and then Commit_Path_Mode = 8#100644#
+               and then Read_Kind = SSH_Lib.Git.Pack_Blob
+               and then Commit_Path_Tree_Last =
+                 Commit_Path_Tree_Data'First + Tree_Data'Length - 1
+               and then Bytes_Equal
+                 (Commit_Path_Tree_Data
+                    (Commit_Path_Tree_Data'First
+                     .. Commit_Path_Tree_Last),
+                  Tree_Data)
+               and then Commit_Path_Last =
+                 Commit_Path_Data'First + Blob_Data'Length - 1
+               and then Bytes_Equal
+                 (Commit_Path_Data
+                    (Commit_Path_Data'First .. Commit_Path_Last),
+                  Blob_Data),
+               "git commit path object read values");
+            Status_Value :=
+              SSH_Lib.Git.Resolve_Commit_Path_Entry_Hex
+                (Repo_Root,
+                 Stored_Commit_Hex,
+                 Bytes_From_String ("hello.txt"),
+                 Pack_Index_List,
+                 Read_Object_Pack,
+                 Read_Object_Index,
+                 Found_Pack_Checksum_Hex,
+                 Found_Pack_Checksum_Last,
+                 Commit_Resolved_Path_Commit_Data,
+                 Commit_Resolved_Path_Commit_Last,
+                 Commit_Resolved_Path_Tree_ID,
+                 Commit_Resolved_Path_Tree_ID_Last,
+                 Commit_Resolved_Path_Tree_Data,
+                 Commit_Resolved_Path_Tree_Last,
+                 Commit_Resolved_Path_Mode,
+                 Commit_Resolved_Path_ID,
+                 Commit_Resolved_Path_ID_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit path entry resolved");
+            Check
+              (Commit_Resolved_Path_Commit_Last =
+                 Commit_Resolved_Path_Commit_Data'First
+                 + Stored_Commit_Data'Length - 1
+               and then Bytes_Equal
+                 (Commit_Resolved_Path_Commit_Data
+                    (Commit_Resolved_Path_Commit_Data'First
+                     .. Commit_Resolved_Path_Commit_Last),
+                  Stored_Commit_Data)
+               and then Commit_Resolved_Path_Tree_ID_Last =
+                 Commit_Resolved_Path_Tree_ID'Last
+               and then Bytes_Equal
+                 (Commit_Resolved_Path_Tree_ID, Stored_Tree_Hex)
+               and then Commit_Resolved_Path_Mode = 8#100644#
+               and then Commit_Resolved_Path_ID_Last =
+                 Commit_Resolved_Path_ID'Last
+               and then Bytes_Equal
+                 (Commit_Resolved_Path_ID, Expected_Blob_Hex)
+               and then Commit_Resolved_Path_Tree_Last =
+                 Commit_Resolved_Path_Tree_Data'First
+                 + Tree_Data'Length - 1
+               and then Bytes_Equal
+                 (Commit_Resolved_Path_Tree_Data
+                    (Commit_Resolved_Path_Tree_Data'First
+                     .. Commit_Resolved_Path_Tree_Last),
+                  Tree_Data),
+               "git commit path entry resolved values");
+            Status_Value :=
+              SSH_Lib.Git.Write_Direct_Ref
+                (Repo_Root, "refs/heads/main", Stored_Commit_Hex);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit ref written");
+            Status_Value :=
+              SSH_Lib.Git.Read_Ref_Path_Object
+                (Repo_Root,
+                 "refs/heads/main",
+                 Bytes_From_String ("hello.txt"),
+                 Ref_Path_Resolved_ID,
+                 Ref_Path_Resolved_Last,
+                 Pack_Index_List,
+                 Read_Object_Pack,
+                 Read_Object_Index,
+                 Found_Pack_Checksum_Hex,
+                 Found_Pack_Checksum_Last,
+                 Ref_Path_Commit_Data,
+                 Ref_Path_Commit_Last,
+                 Ref_Path_Tree_ID,
+                 Ref_Path_Tree_ID_Last,
+                 Ref_Path_Tree_Data,
+                 Ref_Path_Tree_Last,
+                 Ref_Path_Mode,
+                 Read_Kind,
+                 Ref_Path_Data,
+                 Ref_Path_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git ref path object read");
+            Check
+              (Ref_Path_Resolved_Last = Ref_Path_Resolved_ID'Last
+               and then Bytes_Equal
+                 (Ref_Path_Resolved_ID, Stored_Commit_Hex)
+               and then Ref_Path_Commit_Last =
+                 Ref_Path_Commit_Data'First
+                 + Stored_Commit_Data'Length - 1
+               and then Bytes_Equal
+                 (Ref_Path_Commit_Data
+                    (Ref_Path_Commit_Data'First
+                     .. Ref_Path_Commit_Last),
+                  Stored_Commit_Data)
+               and then Ref_Path_Tree_ID_Last = Ref_Path_Tree_ID'Last
+               and then Bytes_Equal (Ref_Path_Tree_ID, Stored_Tree_Hex)
+               and then Ref_Path_Mode = 8#100644#
+               and then Read_Kind = SSH_Lib.Git.Pack_Blob
+               and then Ref_Path_Tree_Last =
+                 Ref_Path_Tree_Data'First + Tree_Data'Length - 1
+               and then Bytes_Equal
+                 (Ref_Path_Tree_Data
+                    (Ref_Path_Tree_Data'First .. Ref_Path_Tree_Last),
+                  Tree_Data)
+               and then Ref_Path_Last =
+                 Ref_Path_Data'First + Blob_Data'Length - 1
+               and then Bytes_Equal
+                 (Ref_Path_Data (Ref_Path_Data'First .. Ref_Path_Last),
+                  Blob_Data),
+               "git ref path object read values");
+            Status_Value :=
+              SSH_Lib.Git.Resolve_Ref_Path_Entry_Hex
+                (Repo_Root,
+                 "refs/heads/main",
+                 Bytes_From_String ("hello.txt"),
+                 Ref_Resolved_Path_Resolved_ID,
+                 Ref_Resolved_Path_Resolved_Last,
+                 Pack_Index_List,
+                 Read_Object_Pack,
+                 Read_Object_Index,
+                 Found_Pack_Checksum_Hex,
+                 Found_Pack_Checksum_Last,
+                 Ref_Resolved_Path_Commit_Data,
+                 Ref_Resolved_Path_Commit_Last,
+                 Ref_Resolved_Path_Tree_ID,
+                 Ref_Resolved_Path_Tree_ID_Last,
+                 Ref_Resolved_Path_Tree_Data,
+                 Ref_Resolved_Path_Tree_Last,
+                 Ref_Resolved_Path_Mode,
+                 Ref_Resolved_Path_ID,
+                 Ref_Resolved_Path_ID_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git ref path entry resolved");
+            Check
+              (Ref_Resolved_Path_Resolved_Last =
+                 Ref_Resolved_Path_Resolved_ID'Last
+               and then Bytes_Equal
+                 (Ref_Resolved_Path_Resolved_ID, Stored_Commit_Hex)
+               and then Ref_Resolved_Path_Commit_Last =
+                 Ref_Resolved_Path_Commit_Data'First
+                 + Stored_Commit_Data'Length - 1
+               and then Bytes_Equal
+                 (Ref_Resolved_Path_Commit_Data
+                    (Ref_Resolved_Path_Commit_Data'First
+                     .. Ref_Resolved_Path_Commit_Last),
+                  Stored_Commit_Data)
+               and then Ref_Resolved_Path_Tree_ID_Last =
+                 Ref_Resolved_Path_Tree_ID'Last
+               and then Bytes_Equal
+                 (Ref_Resolved_Path_Tree_ID, Stored_Tree_Hex)
+               and then Ref_Resolved_Path_Mode = 8#100644#
+               and then Ref_Resolved_Path_ID_Last =
+                 Ref_Resolved_Path_ID'Last
+               and then Bytes_Equal
+                 (Ref_Resolved_Path_ID, Expected_Blob_Hex)
+               and then Ref_Resolved_Path_Tree_Last =
+                 Ref_Resolved_Path_Tree_Data'First
+                 + Tree_Data'Length - 1
+               and then Bytes_Equal
+                 (Ref_Resolved_Path_Tree_Data
+                    (Ref_Resolved_Path_Tree_Data'First
+                     .. Ref_Resolved_Path_Tree_Last),
+                  Tree_Data),
+               "git ref path entry resolved values");
+            declare
+               Stored_Tag_Data :
+                 constant Ada.Streams.Stream_Element_Array :=
+                   Bytes_From_String ("object ")
+                   & Stored_Commit_Hex
+                   & Bytes_From_String
+                       (Character'Val (10)
+                        & "type commit"
+                        & Character'Val (10)
+                        & "tag v1.0.0"
+                        & Character'Val (10)
+                        & "tagger A <a@example.test> 0 +0000"
+                        & Character'Val (10)
+                        & Character'Val (10)
+                        & "message"
+                        & Character'Val (10));
+            begin
+               Status_Value :=
+                 SSH_Lib.Git.Store_Loose_Object_Validated
+                   (Repo_Root,
+                    SSH_Lib.Git.Pack_Tag,
+                    Stored_Tag_Data,
+                    Stored_Tag_Hex,
+                    Stored_Tag_Last);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git validated loose tag stored");
+               Status_Value :=
+                 SSH_Lib.Git.Read_Tag_Path_Object
+                   (Repo_Root,
+                    Stored_Tag_Hex,
+                    Bytes_From_String ("hello.txt"),
+                    Tagged_Path_Peeled_ID,
+                    Tagged_Path_Peeled_Last,
+                    Pack_Index_List,
+                    Read_Object_Pack,
+                    Read_Object_Index,
+                    Found_Pack_Checksum_Hex,
+                    Found_Pack_Checksum_Last,
+                    Tagged_Path_Tag_Data,
+                    Tagged_Path_Tag_Last,
+                    Tagged_Path_Commit_Data,
+                    Tagged_Path_Commit_Last,
+                    Tagged_Path_Tree_ID,
+                    Tagged_Path_Tree_ID_Last,
+                    Tagged_Path_Tree_Data,
+                    Tagged_Path_Tree_Last,
+                    Tagged_Path_Mode,
+                    Read_Kind,
+                    Tagged_Path_Data,
+                    Tagged_Path_Last);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git tag path object read");
+               Check
+                 (Stored_Tag_Last = Stored_Tag_Hex'Last
+                  and then Tagged_Path_Peeled_Last =
+                    Tagged_Path_Peeled_ID'Last
+                  and then Bytes_Equal
+                    (Tagged_Path_Peeled_ID, Stored_Commit_Hex)
+                  and then Tagged_Path_Tag_Last =
+                    Tagged_Path_Tag_Data'First
+                    + Stored_Tag_Data'Length - 1
+                  and then Bytes_Equal
+                    (Tagged_Path_Tag_Data
+                       (Tagged_Path_Tag_Data'First
+                        .. Tagged_Path_Tag_Last),
+                     Stored_Tag_Data)
+                  and then Tagged_Path_Commit_Last =
+                    Tagged_Path_Commit_Data'First
+                    + Stored_Commit_Data'Length - 1
+                  and then Bytes_Equal
+                    (Tagged_Path_Commit_Data
+                       (Tagged_Path_Commit_Data'First
+                        .. Tagged_Path_Commit_Last),
+                     Stored_Commit_Data)
+                  and then Tagged_Path_Tree_ID_Last =
+                    Tagged_Path_Tree_ID'Last
+                  and then Bytes_Equal
+                    (Tagged_Path_Tree_ID, Stored_Tree_Hex)
+                  and then Tagged_Path_Mode = 8#100644#
+                  and then Read_Kind = SSH_Lib.Git.Pack_Blob
+                  and then Tagged_Path_Tree_Last =
+                    Tagged_Path_Tree_Data'First + Tree_Data'Length - 1
+                  and then Bytes_Equal
+                    (Tagged_Path_Tree_Data
+                       (Tagged_Path_Tree_Data'First
+                        .. Tagged_Path_Tree_Last),
+                     Tree_Data)
+                  and then Tagged_Path_Last =
+                    Tagged_Path_Data'First + Blob_Data'Length - 1
+                  and then Bytes_Equal
+                     (Tagged_Path_Data
+                        (Tagged_Path_Data'First .. Tagged_Path_Last),
+                     Blob_Data),
+                  "git tag path object read values");
+               Status_Value :=
+                 SSH_Lib.Git.Resolve_Tag_Path_Entry_Hex
+                   (Repo_Root,
+                    Stored_Tag_Hex,
+                    Bytes_From_String ("hello.txt"),
+                    Tagged_Resolved_Path_Peeled_ID,
+                    Tagged_Resolved_Path_Peeled_Last,
+                    Pack_Index_List,
+                    Read_Object_Pack,
+                    Read_Object_Index,
+                    Found_Pack_Checksum_Hex,
+                    Found_Pack_Checksum_Last,
+                    Tagged_Resolved_Path_Tag_Data,
+                    Tagged_Resolved_Path_Tag_Last,
+                    Tagged_Resolved_Path_Commit_Data,
+                    Tagged_Resolved_Path_Commit_Last,
+                    Tagged_Resolved_Path_Tree_ID,
+                    Tagged_Resolved_Path_Tree_ID_Last,
+                    Tagged_Resolved_Path_Tree_Data,
+                    Tagged_Resolved_Path_Tree_Last,
+                    Tagged_Resolved_Path_Mode,
+                    Tagged_Resolved_Path_ID,
+                    Tagged_Resolved_Path_ID_Last);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git tag path entry resolved");
+               Check
+                 (Tagged_Resolved_Path_Peeled_Last =
+                    Tagged_Resolved_Path_Peeled_ID'Last
+                  and then Bytes_Equal
+                    (Tagged_Resolved_Path_Peeled_ID,
+                     Stored_Commit_Hex)
+                  and then Tagged_Resolved_Path_Tag_Last =
+                    Tagged_Resolved_Path_Tag_Data'First
+                    + Stored_Tag_Data'Length - 1
+                  and then Bytes_Equal
+                    (Tagged_Resolved_Path_Tag_Data
+                       (Tagged_Resolved_Path_Tag_Data'First
+                        .. Tagged_Resolved_Path_Tag_Last),
+                     Stored_Tag_Data)
+                  and then Tagged_Resolved_Path_Commit_Last =
+                    Tagged_Resolved_Path_Commit_Data'First
+                    + Stored_Commit_Data'Length - 1
+                  and then Bytes_Equal
+                    (Tagged_Resolved_Path_Commit_Data
+                       (Tagged_Resolved_Path_Commit_Data'First
+                        .. Tagged_Resolved_Path_Commit_Last),
+                     Stored_Commit_Data)
+                  and then Tagged_Resolved_Path_Tree_ID_Last =
+                    Tagged_Resolved_Path_Tree_ID'Last
+                  and then Bytes_Equal
+                    (Tagged_Resolved_Path_Tree_ID, Stored_Tree_Hex)
+                  and then Tagged_Resolved_Path_Mode = 8#100644#
+                  and then Tagged_Resolved_Path_ID_Last =
+                    Tagged_Resolved_Path_ID'Last
+                  and then Bytes_Equal
+                    (Tagged_Resolved_Path_ID, Expected_Blob_Hex)
+                  and then Tagged_Resolved_Path_Tree_Last =
+                    Tagged_Resolved_Path_Tree_Data'First
+                    + Tree_Data'Length - 1
+                  and then Bytes_Equal
+                    (Tagged_Resolved_Path_Tree_Data
+                       (Tagged_Resolved_Path_Tree_Data'First
+                        .. Tagged_Resolved_Path_Tree_Last),
+                     Tree_Data),
+                  "git tag path entry resolved values");
+               Status_Value :=
+                 SSH_Lib.Git.Write_Direct_Ref
+                   (Repo_Root, "refs/tags/v1.0.0", Stored_Tag_Hex);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git tag ref written");
+               Status_Value :=
+                 SSH_Lib.Git.Read_Ref_Commitish_Path_Object
+                   (Repo_Root,
+                    "refs/tags/v1.0.0",
+                    Bytes_From_String ("hello.txt"),
+                    Commitish_Path_Resolved_ID,
+                    Commitish_Path_Resolved_Last,
+                    Commitish_Path_Peeled_ID,
+                    Commitish_Path_Peeled_Last,
+                    Pack_Index_List,
+                    Read_Object_Pack,
+                    Read_Object_Index,
+                    Found_Pack_Checksum_Hex,
+                    Found_Pack_Checksum_Last,
+                    Commitish_Path_Tag_Data,
+                    Commitish_Path_Tag_Last,
+                    Commitish_Path_Commit_Data,
+                    Commitish_Path_Commit_Last,
+                    Commitish_Path_Tree_ID,
+                    Commitish_Path_Tree_ID_Last,
+                    Commitish_Path_Tree_Data,
+                    Commitish_Path_Tree_Last,
+                    Commitish_Path_Mode,
+                    Read_Kind,
+                    Commitish_Path_Data,
+                    Commitish_Path_Last);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git ref commitish path object read");
+               Check
+                 (Commitish_Path_Resolved_Last =
+                    Commitish_Path_Resolved_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_Path_Resolved_ID, Stored_Tag_Hex)
+                  and then Commitish_Path_Peeled_Last =
+                    Commitish_Path_Peeled_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_Path_Peeled_ID, Stored_Commit_Hex)
+                  and then Commitish_Path_Tag_Last =
+                    Commitish_Path_Tag_Data'First
+                    + Stored_Tag_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_Path_Tag_Data
+                       (Commitish_Path_Tag_Data'First
+                        .. Commitish_Path_Tag_Last),
+                     Stored_Tag_Data)
+                  and then Commitish_Path_Commit_Last =
+                    Commitish_Path_Commit_Data'First
+                    + Stored_Commit_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_Path_Commit_Data
+                       (Commitish_Path_Commit_Data'First
+                        .. Commitish_Path_Commit_Last),
+                     Stored_Commit_Data)
+                  and then Commitish_Path_Tree_ID_Last =
+                    Commitish_Path_Tree_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_Path_Tree_ID, Stored_Tree_Hex)
+                  and then Commitish_Path_Mode = 8#100644#
+                  and then Read_Kind = SSH_Lib.Git.Pack_Blob
+                  and then Commitish_Path_Tree_Last =
+                    Commitish_Path_Tree_Data'First + Tree_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_Path_Tree_Data
+                       (Commitish_Path_Tree_Data'First
+                        .. Commitish_Path_Tree_Last),
+                     Tree_Data)
+                  and then Commitish_Path_Last =
+                    Commitish_Path_Data'First + Blob_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_Path_Data
+                       (Commitish_Path_Data'First
+                        .. Commitish_Path_Last),
+                     Blob_Data),
+                  "git ref commitish path object read values");
+               Status_Value :=
+                 SSH_Lib.Git.Resolve_Ref_Commitish_Path_Entry_Hex
+                   (Repo_Root,
+                    "refs/tags/v1.0.0",
+                    Bytes_From_String ("hello.txt"),
+                    Commitish_Resolved_Path_Resolved_ID,
+                    Commitish_Resolved_Path_Resolved_Last,
+                    Commitish_Resolved_Path_Peeled_ID,
+                    Commitish_Resolved_Path_Peeled_Last,
+                    Pack_Index_List,
+                    Read_Object_Pack,
+                    Read_Object_Index,
+                    Found_Pack_Checksum_Hex,
+                    Found_Pack_Checksum_Last,
+                    Commitish_Resolved_Path_Tag_Data,
+                    Commitish_Resolved_Path_Tag_Last,
+                    Commitish_Resolved_Path_Commit_Data,
+                    Commitish_Resolved_Path_Commit_Last,
+                    Commitish_Resolved_Path_Tree_ID,
+                    Commitish_Resolved_Path_Tree_ID_Last,
+                    Commitish_Resolved_Path_Tree_Data,
+                    Commitish_Resolved_Path_Tree_Last,
+                    Commitish_Resolved_Path_Mode,
+                    Commitish_Resolved_Path_ID,
+                    Commitish_Resolved_Path_ID_Last);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git ref commitish path entry resolved");
+               Check
+                 (Commitish_Resolved_Path_Resolved_Last =
+                    Commitish_Resolved_Path_Resolved_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_Resolved_Path_Resolved_ID, Stored_Tag_Hex)
+                  and then Commitish_Resolved_Path_Peeled_Last =
+                    Commitish_Resolved_Path_Peeled_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_Resolved_Path_Peeled_ID,
+                     Stored_Commit_Hex)
+                  and then Commitish_Resolved_Path_Tag_Last =
+                    Commitish_Resolved_Path_Tag_Data'First
+                    + Stored_Tag_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_Resolved_Path_Tag_Data
+                       (Commitish_Resolved_Path_Tag_Data'First
+                        .. Commitish_Resolved_Path_Tag_Last),
+                     Stored_Tag_Data)
+                  and then Commitish_Resolved_Path_Commit_Last =
+                    Commitish_Resolved_Path_Commit_Data'First
+                    + Stored_Commit_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_Resolved_Path_Commit_Data
+                       (Commitish_Resolved_Path_Commit_Data'First
+                        .. Commitish_Resolved_Path_Commit_Last),
+                     Stored_Commit_Data)
+                  and then Commitish_Resolved_Path_Tree_ID_Last =
+                    Commitish_Resolved_Path_Tree_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_Resolved_Path_Tree_ID, Stored_Tree_Hex)
+                  and then Commitish_Resolved_Path_Mode = 8#100644#
+                  and then Commitish_Resolved_Path_ID_Last =
+                    Commitish_Resolved_Path_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_Resolved_Path_ID, Expected_Blob_Hex)
+                  and then Commitish_Resolved_Path_Tree_Last =
+                    Commitish_Resolved_Path_Tree_Data'First
+                    + Tree_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_Resolved_Path_Tree_Data
+                       (Commitish_Resolved_Path_Tree_Data'First
+                        .. Commitish_Resolved_Path_Tree_Last),
+                     Tree_Data),
+                  "git ref commitish path entry resolved values");
+               Status_Value :=
+                 SSH_Lib.Git.Read_Ref_Commitish_Tree_Object
+                   (Repo_Root,
+                    "refs/tags/v1.0.0",
+                    Commitish_Tree_Resolved_ID,
+                    Commitish_Tree_Resolved_Last,
+                    Commitish_Tree_Peeled_ID,
+                    Commitish_Tree_Peeled_Last,
+                    Pack_Index_List,
+                    Read_Object_Pack,
+                    Read_Object_Index,
+                    Found_Pack_Checksum_Hex,
+                    Found_Pack_Checksum_Last,
+                    Commitish_Tree_Tag_Data,
+                    Commitish_Tree_Tag_Last,
+                    Commitish_Tree_Commit_Data,
+                    Commitish_Tree_Commit_Last,
+                    Commitish_Tree_ID,
+                    Commitish_Tree_ID_Last,
+                    Commitish_Tree_Data,
+                    Commitish_Tree_Last,
+                    Commitish_Tree_Count);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git ref commitish tree object read");
+               Check
+                 (Commitish_Tree_Resolved_Last =
+                    Commitish_Tree_Resolved_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_Tree_Resolved_ID, Stored_Tag_Hex)
+                  and then Commitish_Tree_Peeled_Last =
+                    Commitish_Tree_Peeled_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_Tree_Peeled_ID, Stored_Commit_Hex)
+                  and then Commitish_Tree_Tag_Last =
+                    Commitish_Tree_Tag_Data'First
+                    + Stored_Tag_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_Tree_Tag_Data
+                       (Commitish_Tree_Tag_Data'First
+                        .. Commitish_Tree_Tag_Last),
+                     Stored_Tag_Data)
+                  and then Commitish_Tree_Commit_Last =
+                    Commitish_Tree_Commit_Data'First
+                    + Stored_Commit_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_Tree_Commit_Data
+                       (Commitish_Tree_Commit_Data'First
+                        .. Commitish_Tree_Commit_Last),
+                     Stored_Commit_Data)
+                  and then Commitish_Tree_ID_Last =
+                    Commitish_Tree_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_Tree_ID, Stored_Tree_Hex)
+                  and then Commitish_Tree_Last =
+                    Commitish_Tree_Data'First + Tree_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_Tree_Data
+                       (Commitish_Tree_Data'First
+                        .. Commitish_Tree_Last),
+                     Tree_Data)
+                  and then Commitish_Tree_Count = 1,
+                  "git ref commitish tree object read values");
+               Status_Value :=
+                 SSH_Lib.Git.Read_Ref_Commitish_Tree_Entries_Hex
+                   (Repo_Root,
+                    "refs/tags/v1.0.0",
+                    Commitish_List_Resolved_ID,
+                    Commitish_List_Resolved_Last,
+                    Commitish_List_Peeled_ID,
+                    Commitish_List_Peeled_Last,
+                    Pack_Index_List,
+                    Read_Object_Pack,
+                    Read_Object_Index,
+                    Found_Pack_Checksum_Hex,
+                    Found_Pack_Checksum_Last,
+                    Commitish_List_Tag_Data,
+                    Commitish_List_Tag_Last,
+                    Commitish_List_Commit_Data,
+                    Commitish_List_Commit_Last,
+                    Commitish_List_Tree_ID,
+                    Commitish_List_Tree_ID_Last,
+                    Commitish_List_Tree_Data,
+                    Commitish_List_Tree_Last,
+                    Commitish_List_Names,
+                    Commitish_List_Name_Lasts,
+                    Commitish_List_Modes,
+                    Commitish_List_IDs,
+                    Commitish_List_Count);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git ref commitish tree entries listed");
+               Check
+                 (Commitish_List_Count = 1
+                  and then Commitish_List_Resolved_Last =
+                    Commitish_List_Resolved_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_List_Resolved_ID, Stored_Tag_Hex)
+                  and then Commitish_List_Peeled_Last =
+                    Commitish_List_Peeled_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_List_Peeled_ID, Stored_Commit_Hex)
+                  and then Commitish_List_Tag_Last =
+                    Commitish_List_Tag_Data'First
+                    + Stored_Tag_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_List_Tag_Data
+                       (Commitish_List_Tag_Data'First
+                        .. Commitish_List_Tag_Last),
+                     Stored_Tag_Data)
+                  and then Commitish_List_Commit_Last =
+                    Commitish_List_Commit_Data'First
+                    + Stored_Commit_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_List_Commit_Data
+                       (Commitish_List_Commit_Data'First
+                        .. Commitish_List_Commit_Last),
+                     Stored_Commit_Data)
+                  and then Commitish_List_Tree_ID_Last =
+                    Commitish_List_Tree_ID'Last
+                  and then Bytes_Equal
+                    (Commitish_List_Tree_ID, Stored_Tree_Hex)
+                  and then Commitish_List_Tree_Last =
+                    Commitish_List_Tree_Data'First + Tree_Data'Length - 1
+                  and then Bytes_Equal
+                    (Commitish_List_Tree_Data
+                       (Commitish_List_Tree_Data'First
+                        .. Commitish_List_Tree_Last),
+                     Tree_Data)
+                  and then Commitish_List_Modes (1) = 8#100644#
+                  and then Commitish_List_Name_Lasts (1) =
+                    Commitish_List_Names'First + 8
+                  and then Bytes_Equal
+                    (Commitish_List_Names
+                       (Commitish_List_Names'First
+                        .. Commitish_List_Name_Lasts (1)),
+                     Bytes_From_String ("hello.txt"))
+                  and then Bytes_Equal
+                    (Ada.Streams.Stream_Element_Array
+                       (Commitish_List_IDs (1)),
+                     Expected_Blob_Hex),
+                  "git ref commitish tree entries listed values");
+            end;
+         end;
 
-	         declare
-	            Commit_Data : constant Ada.Streams.Stream_Element_Array :=
-	              Bytes_From_String ("tree ")
-	              & Expected_Blob_Hex
-	              & Bytes_From_String (Character'Val (10) & "parent ")
-	              & Alternate_Hex
-	              & Bytes_From_String
-	                  (Character'Val (10)
-	                   & "author A <a@example.test> 0 +0000"
-	                   & Character'Val (10)
-	                   & "committer A <a@example.test> 0 +0000"
-	                   & Character'Val (10)
-	                   & Character'Val (10)
-	                   & "message"
-	                   & Character'Val (10));
-	            Built_Commit_Data :
-	              Ada.Streams.Stream_Element_Array (1 .. 256);
-	            Built_Commit_Last : Ada.Streams.Stream_Element_Offset;
-	            Conflict_Data :
-	              Ada.Streams.Stream_Element_Array (1 .. 128);
-	            Conflict_Last : Ada.Streams.Stream_Element_Offset;
-	         begin
-	            Status_Value :=
-	              SSH_Lib.Git.Build_Commit_Object
-	                (Expected_Blob_Hex,
-	                 True,
-	                 Alternate_Hex,
-	                 "A <a@example.test> 0 +0000",
-	                 "A <a@example.test> 0 +0000",
-	                 "built message" & Character'Val (10),
-	                 Built_Commit_Data,
-	                 Built_Commit_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit object built");
-	            Status_Value :=
-	              SSH_Lib.Git.Validate_Commit_Object
-	                (Built_Commit_Data
-	                   (Built_Commit_Data'First .. Built_Commit_Last),
-	                 Commit_Parent_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git built commit object validated");
-	            Check
-	              (Commit_Parent_Count = 1,
-	               "git built commit parent count");
-	            Status_Value :=
-	              SSH_Lib.Git.Build_Merge_Conflict_File
-	                ("ours",
-	                 Bytes_From_String ("left"),
-	                 "theirs",
-	                 Bytes_From_String ("right" & Character'Val (10)),
-	                 Conflict_Data,
-	                 Conflict_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git merge conflict file built");
-	            Check
-	              (Conflict_Last = Conflict_Data'First
-	                 + Ada.Streams.Stream_Element_Offset
-	                   (String'("<<<<<<< ours" & Character'Val (10)
-	                    & "left" & Character'Val (10)
-	                    & "=======" & Character'Val (10)
-	                    & "right" & Character'Val (10)
-	                    & ">>>>>>> theirs" & Character'Val (10))'Length)
-	                 - 1
-	               and then Bytes_Equal
-	                 (Conflict_Data (Conflict_Data'First .. Conflict_Last),
-	                  Bytes_From_String
-	                    ("<<<<<<< ours" & Character'Val (10)
-	                     & "left" & Character'Val (10)
-	                     & "=======" & Character'Val (10)
-	                     & "right" & Character'Val (10)
-	                     & ">>>>>>> theirs" & Character'Val (10))),
-	               "git merge conflict file values");
-	            Status_Value :=
-	              SSH_Lib.Git.Build_Merge_Conflict_File
-	                ("bad" & Character'Val (10),
-	                 Bytes_From_String ("left"),
-	                 "theirs",
-	                 Bytes_From_String ("right"),
-	                 Conflict_Data,
-	                 Conflict_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Invalid_Command,
-	               "git merge conflict label rejected");
-	            Status_Value :=
-	              SSH_Lib.Git.Classify_Three_Way_Blob_Merge
-	                (Expected_Blob_Hex,
-	                 Expected_Blob_Hex,
-	                 Expected_Blob_Hex,
-	                 Merge_Result);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git three-way blob merge classified unchanged");
-	            Check
-	              (Merge_Result = SSH_Lib.Git.Merge_Unchanged,
-	               "git three-way blob merge unchanged result");
-	            Status_Value :=
-	              SSH_Lib.Git.Classify_Three_Way_Blob_Merge
-	                (Expected_Blob_Hex,
-	                 Alternate_Hex,
-	                 Expected_Blob_Hex,
-	                 Merge_Result);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git three-way blob merge classified ours");
-	            Check
-	              (Merge_Result = SSH_Lib.Git.Merge_Use_Ours,
-	               "git three-way blob merge ours result");
-	            Status_Value :=
-	              SSH_Lib.Git.Classify_Three_Way_Blob_Merge
-	                (Expected_Blob_Hex,
-	                 Expected_Blob_Hex,
-	                 Alternate_Hex,
-	                 Merge_Result);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git three-way blob merge classified theirs");
-	            Check
-	              (Merge_Result = SSH_Lib.Git.Merge_Use_Theirs,
-	               "git three-way blob merge theirs result");
-	            Status_Value :=
-	              SSH_Lib.Git.Classify_Three_Way_Blob_Merge
-	                ([1 .. 40 => Character'Pos ('0')],
-	                 Expected_Blob_Hex,
-	                 Alternate_Hex,
-	                 Merge_Result);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git three-way blob merge classified conflict");
-	            Check
-	              (Merge_Result = SSH_Lib.Git.Merge_Conflict,
-	               "git three-way blob merge conflict result");
-	            Status_Value :=
-	              SSH_Lib.Git.Build_Sequencer_Pick_Line
-	                (Expected_Blob_Hex,
-	                 "subject",
-	                 Conflict_Data,
-	                 Conflict_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git sequencer pick line built");
-	            Check
-	              (Bytes_Equal
-	                 (Conflict_Data (Conflict_Data'First .. Conflict_Last),
-	                  Bytes_From_String ("pick ")
-	                  & Expected_Blob_Hex
-	                  & Bytes_From_String
-	                      (" subject" & Character'Val (10))),
-	               "git sequencer pick line values");
-	            declare
-	               Todo_IDs : constant SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2) :=
-	                 [1 => SSH_Lib.Git.Object_ID_Hex_Text (Expected_Blob_Hex),
-	                  2 => SSH_Lib.Git.Object_ID_Hex_Text (Alternate_Hex)];
-	               Todo_Subjects : constant Ada.Streams.Stream_Element_Array :=
-	                 Bytes_From_String ("firstsecond");
-	               Todo_Lasts : constant SSH_Lib.Git.Index_Path_Last_Array
-	                 (1 .. 2) := [1 => 5, 2 => 11];
-	            begin
-	               Status_Value :=
-	                 SSH_Lib.Git.Build_Sequencer_Pick_Todo
-	                   (Todo_IDs,
-	                    Todo_Subjects,
-	                    Todo_Lasts,
-	                    2,
-	                    Conflict_Data,
-	                    Conflict_Last);
-	               Check_Status
-	                 (Status_Value, CryptoLib.Errors.Ok,
-	                  "git sequencer multi-pick todo built");
-	               Check
-	                 (Bytes_Equal
-	                    (Conflict_Data
-	                       (Conflict_Data'First .. Conflict_Last),
-	                     Bytes_From_String ("pick ")
-	                     & Expected_Blob_Hex
-	                     & Bytes_From_String
-	                         (" first" & Character'Val (10) & "pick ")
-	                     & Alternate_Hex
-	                     & Bytes_From_String
-	                         (" second" & Character'Val (10))),
-	                  "git sequencer multi-pick todo values");
-	            end;
-	            Status_Value :=
-	              SSH_Lib.Git.Build_Sequencer_Pick_Line
-	                (Expected_Blob_Hex,
-	                 "bad" & Character'Val (10),
-	                 Conflict_Data,
-	                 Conflict_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Invalid_Command,
-	               "git sequencer pick subject rejected");
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Commit_Tree_ID
-	                (Built_Commit_Data
-	                   (Built_Commit_Data'First .. Built_Commit_Last),
-	                 Commit_Tree_Hex,
-	                 Commit_Tree_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git built commit tree id parsed");
-	            Check
-	              (Commit_Tree_Last = Commit_Tree_Hex'Last
-	               and then Bytes_Equal (Commit_Tree_Hex, Expected_Blob_Hex),
-	               "git built commit tree id values");
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Commit_Tree_ID
-	                (Commit_Data, Commit_Tree_Hex, Commit_Tree_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit tree id parsed");
-	            Check
-	              (Commit_Tree_Last = Commit_Tree_Hex'Last
-	               and then Bytes_Equal (Commit_Tree_Hex, Expected_Blob_Hex),
-	               "git commit tree id values");
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Commit_Parent_ID
-	                (Commit_Data, 1, Commit_Parent_Hex, Commit_Parent_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit parent id parsed");
-	            Check
-	              (Commit_Parent_Last = Commit_Parent_Hex'Last
-	               and then Bytes_Equal (Commit_Parent_Hex, Alternate_Hex),
-	               "git commit parent id values");
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Commit_Author_Line
-	                (Commit_Data, Commit_Author_Line, Commit_Author_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit author line parsed");
-	            Check
-	              (Commit_Author_Last = Commit_Author_Line'First + 25
-	               and then Bytes_Equal
-	                 (Commit_Author_Line
-	                    (Commit_Author_Line'First .. Commit_Author_Last),
-	                  Bytes_From_String ("A <a@example.test> 0 +0000")),
-	               "git commit author line values");
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Commit_Committer_Line
-	                (Commit_Data,
-	                 Commit_Committer_Line,
-	                 Commit_Committer_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit committer line parsed");
-	            Check
-	              (Commit_Committer_Last = Commit_Committer_Line'First + 25
-	               and then Bytes_Equal
-	                 (Commit_Committer_Line
-	                    (Commit_Committer_Line'First
-	                     .. Commit_Committer_Last),
-	                  Bytes_From_String ("A <a@example.test> 0 +0000")),
-	               "git commit committer line values");
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Commit_Message_Offset
-	                (Commit_Data, Commit_Message_Offset);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit message offset parsed");
-	            Check
-	              (Commit_Message_Offset < Natural (Commit_Data'Length)
-	               and then Commit_Data
-	                 (Commit_Data'First
-	                  + Ada.Streams.Stream_Element_Offset
-	                      (Commit_Message_Offset))
-	                 = Ada.Streams.Stream_Element (Character'Pos ('m')),
-	               "git commit message offset values");
-	            Status_Value :=
-	              SSH_Lib.Git.Validate_Commit_Object
-	                (Commit_Data, Commit_Parent_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit object validated");
-	            Check
-	              (Commit_Parent_Count = 1,
-	               "git commit parent count");
-	            Status_Value :=
-	              SSH_Lib.Git.Validate_Object_Data
-	                (SSH_Lib.Git.Pack_Commit, Commit_Data);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit object data validated");
-	         end;
+         declare
+            Commit_Data : constant Ada.Streams.Stream_Element_Array :=
+              Bytes_From_String ("tree ")
+              & Expected_Blob_Hex
+              & Bytes_From_String (Character'Val (10) & "parent ")
+              & Alternate_Hex
+              & Bytes_From_String
+                  (Character'Val (10)
+                   & "author A <a@example.test> 0 +0000"
+                   & Character'Val (10)
+                   & "committer A <a@example.test> 0 +0000"
+                   & Character'Val (10)
+                   & Character'Val (10)
+                   & "message"
+                   & Character'Val (10));
+            Built_Commit_Data :
+              Ada.Streams.Stream_Element_Array (1 .. 256);
+            Built_Commit_Last : Ada.Streams.Stream_Element_Offset;
+            Conflict_Data :
+              Ada.Streams.Stream_Element_Array (1 .. 128);
+            Conflict_Last : Ada.Streams.Stream_Element_Offset;
+         begin
+            Status_Value :=
+              SSH_Lib.Git.Build_Commit_Object
+                (Expected_Blob_Hex,
+                 True,
+                 Alternate_Hex,
+                 "A <a@example.test> 0 +0000",
+                 "A <a@example.test> 0 +0000",
+                 "built message" & Character'Val (10),
+                 Built_Commit_Data,
+                 Built_Commit_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit object built");
+            Status_Value :=
+              SSH_Lib.Git.Validate_Commit_Object
+                (Built_Commit_Data
+                   (Built_Commit_Data'First .. Built_Commit_Last),
+                 Commit_Parent_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git built commit object validated");
+            Check
+              (Commit_Parent_Count = 1,
+               "git built commit parent count");
+            Status_Value :=
+              SSH_Lib.Git.Build_Merge_Conflict_File
+                ("ours",
+                 Bytes_From_String ("left"),
+                 "theirs",
+                 Bytes_From_String ("right" & Character'Val (10)),
+                 Conflict_Data,
+                 Conflict_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git merge conflict file built");
+            Check
+              (Conflict_Last = Conflict_Data'First
+                 + Ada.Streams.Stream_Element_Offset
+                   (String'("<<<<<<< ours" & Character'Val (10)
+                    & "left" & Character'Val (10)
+                    & "=======" & Character'Val (10)
+                    & "right" & Character'Val (10)
+                    & ">>>>>>> theirs" & Character'Val (10))'Length)
+                 - 1
+               and then Bytes_Equal
+                 (Conflict_Data (Conflict_Data'First .. Conflict_Last),
+                  Bytes_From_String
+                    ("<<<<<<< ours" & Character'Val (10)
+                     & "left" & Character'Val (10)
+                     & "=======" & Character'Val (10)
+                     & "right" & Character'Val (10)
+                     & ">>>>>>> theirs" & Character'Val (10))),
+               "git merge conflict file values");
+            Status_Value :=
+              SSH_Lib.Git.Build_Merge_Conflict_File
+                ("bad" & Character'Val (10),
+                 Bytes_From_String ("left"),
+                 "theirs",
+                 Bytes_From_String ("right"),
+                 Conflict_Data,
+                 Conflict_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Invalid_Command,
+               "git merge conflict label rejected");
+            Status_Value :=
+              SSH_Lib.Git.Classify_Three_Way_Blob_Merge
+                (Expected_Blob_Hex,
+                 Expected_Blob_Hex,
+                 Expected_Blob_Hex,
+                 Merge_Result);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git three-way blob merge classified unchanged");
+            Check
+              (Merge_Result = SSH_Lib.Git.Merge_Unchanged,
+               "git three-way blob merge unchanged result");
+            Status_Value :=
+              SSH_Lib.Git.Classify_Three_Way_Blob_Merge
+                (Expected_Blob_Hex,
+                 Alternate_Hex,
+                 Expected_Blob_Hex,
+                 Merge_Result);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git three-way blob merge classified ours");
+            Check
+              (Merge_Result = SSH_Lib.Git.Merge_Use_Ours,
+               "git three-way blob merge ours result");
+            Status_Value :=
+              SSH_Lib.Git.Classify_Three_Way_Blob_Merge
+                (Expected_Blob_Hex,
+                 Expected_Blob_Hex,
+                 Alternate_Hex,
+                 Merge_Result);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git three-way blob merge classified theirs");
+            Check
+              (Merge_Result = SSH_Lib.Git.Merge_Use_Theirs,
+               "git three-way blob merge theirs result");
+            Status_Value :=
+              SSH_Lib.Git.Classify_Three_Way_Blob_Merge
+                ([1 .. 40 => Character'Pos ('0')],
+                 Expected_Blob_Hex,
+                 Alternate_Hex,
+                 Merge_Result);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git three-way blob merge classified conflict");
+            Check
+              (Merge_Result = SSH_Lib.Git.Merge_Conflict,
+               "git three-way blob merge conflict result");
+            Status_Value :=
+              SSH_Lib.Git.Build_Sequencer_Pick_Line
+                (Expected_Blob_Hex,
+                 "subject",
+                 Conflict_Data,
+                 Conflict_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git sequencer pick line built");
+            Check
+              (Bytes_Equal
+                 (Conflict_Data (Conflict_Data'First .. Conflict_Last),
+                  Bytes_From_String ("pick ")
+                  & Expected_Blob_Hex
+                  & Bytes_From_String
+                      (" subject" & Character'Val (10))),
+               "git sequencer pick line values");
+            declare
+               Todo_IDs : constant SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2) :=
+                 [1 => SSH_Lib.Git.Object_ID_Hex_Text (Expected_Blob_Hex),
+                  2 => SSH_Lib.Git.Object_ID_Hex_Text (Alternate_Hex)];
+               Todo_Subjects : constant Ada.Streams.Stream_Element_Array :=
+                 Bytes_From_String ("firstsecond");
+               Todo_Lasts : constant SSH_Lib.Git.Index_Path_Last_Array
+                 (1 .. 2) := [1 => 5, 2 => 11];
+            begin
+               Status_Value :=
+                 SSH_Lib.Git.Build_Sequencer_Pick_Todo
+                   (Todo_IDs,
+                    Todo_Subjects,
+                    Todo_Lasts,
+                    2,
+                    Conflict_Data,
+                    Conflict_Last);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git sequencer multi-pick todo built");
+               Check
+                 (Bytes_Equal
+                    (Conflict_Data
+                       (Conflict_Data'First .. Conflict_Last),
+                     Bytes_From_String ("pick ")
+                     & Expected_Blob_Hex
+                     & Bytes_From_String
+                         (" first" & Character'Val (10) & "pick ")
+                     & Alternate_Hex
+                     & Bytes_From_String
+                         (" second" & Character'Val (10))),
+                  "git sequencer multi-pick todo values");
+            end;
+            Status_Value :=
+              SSH_Lib.Git.Build_Sequencer_Pick_Line
+                (Expected_Blob_Hex,
+                 "bad" & Character'Val (10),
+                 Conflict_Data,
+                 Conflict_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Invalid_Command,
+               "git sequencer pick subject rejected");
+            Status_Value :=
+              SSH_Lib.Git.Parse_Commit_Tree_ID
+                (Built_Commit_Data
+                   (Built_Commit_Data'First .. Built_Commit_Last),
+                 Commit_Tree_Hex,
+                 Commit_Tree_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git built commit tree id parsed");
+            Check
+              (Commit_Tree_Last = Commit_Tree_Hex'Last
+               and then Bytes_Equal (Commit_Tree_Hex, Expected_Blob_Hex),
+               "git built commit tree id values");
+            Status_Value :=
+              SSH_Lib.Git.Parse_Commit_Tree_ID
+                (Commit_Data, Commit_Tree_Hex, Commit_Tree_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit tree id parsed");
+            Check
+              (Commit_Tree_Last = Commit_Tree_Hex'Last
+               and then Bytes_Equal (Commit_Tree_Hex, Expected_Blob_Hex),
+               "git commit tree id values");
+            Status_Value :=
+              SSH_Lib.Git.Parse_Commit_Parent_ID
+                (Commit_Data, 1, Commit_Parent_Hex, Commit_Parent_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit parent id parsed");
+            Check
+              (Commit_Parent_Last = Commit_Parent_Hex'Last
+               and then Bytes_Equal (Commit_Parent_Hex, Alternate_Hex),
+               "git commit parent id values");
+            Status_Value :=
+              SSH_Lib.Git.Parse_Commit_Author_Line
+                (Commit_Data, Commit_Author_Line, Commit_Author_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit author line parsed");
+            Check
+              (Commit_Author_Last = Commit_Author_Line'First + 25
+               and then Bytes_Equal
+                 (Commit_Author_Line
+                    (Commit_Author_Line'First .. Commit_Author_Last),
+                  Bytes_From_String ("A <a@example.test> 0 +0000")),
+               "git commit author line values");
+            Status_Value :=
+              SSH_Lib.Git.Parse_Commit_Committer_Line
+                (Commit_Data,
+                 Commit_Committer_Line,
+                 Commit_Committer_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit committer line parsed");
+            Check
+              (Commit_Committer_Last = Commit_Committer_Line'First + 25
+               and then Bytes_Equal
+                 (Commit_Committer_Line
+                    (Commit_Committer_Line'First
+                     .. Commit_Committer_Last),
+                  Bytes_From_String ("A <a@example.test> 0 +0000")),
+               "git commit committer line values");
+            Status_Value :=
+              SSH_Lib.Git.Parse_Commit_Message_Offset
+                (Commit_Data, Commit_Message_Offset);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit message offset parsed");
+            Check
+              (Commit_Message_Offset < Natural (Commit_Data'Length)
+               and then Commit_Data
+                 (Commit_Data'First
+                  + Ada.Streams.Stream_Element_Offset
+                      (Commit_Message_Offset))
+                 = Ada.Streams.Stream_Element (Character'Pos ('m')),
+               "git commit message offset values");
+            Status_Value :=
+              SSH_Lib.Git.Validate_Commit_Object
+                (Commit_Data, Commit_Parent_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit object validated");
+            Check
+              (Commit_Parent_Count = 1,
+               "git commit parent count");
+            Status_Value :=
+              SSH_Lib.Git.Validate_Object_Data
+                (SSH_Lib.Git.Pack_Commit, Commit_Data);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit object data validated");
+         end;
 
-	         declare
-	            Tag_Data : constant Ada.Streams.Stream_Element_Array :=
-	              Bytes_From_String ("object ")
-	              & Expected_Blob_Hex
-	              & Bytes_From_String
-	                  (Character'Val (10)
-	                   & "type blob"
-	                   & Character'Val (10)
-	                   & "tag v1.0.0"
-	                   & Character'Val (10)
-	                   & "tagger A <a@example.test> 0 +0000"
-	                   & Character'Val (10)
-	                   & Character'Val (10)
-	                   & "release"
-	                   & Character'Val (10));
-	            Built_Tag_Data :
-	              Ada.Streams.Stream_Element_Array (1 .. 256);
-	            Built_Tag_Last : Ada.Streams.Stream_Element_Offset;
-	         begin
-	            Status_Value :=
-	              SSH_Lib.Git.Build_Tag_Object
-	                (Expected_Blob_Hex,
-	                 SSH_Lib.Git.Pack_Blob,
-	                 "v1.0.1",
-	                 "A <a@example.test> 0 +0000",
-	                 "built release" & Character'Val (10),
-	                 Built_Tag_Data,
-	                 Built_Tag_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git tag object built");
-	            Status_Value :=
-	              SSH_Lib.Git.Validate_Tag_Object
-	                (Built_Tag_Data
-	                   (Built_Tag_Data'First .. Built_Tag_Last),
-	                 Tag_Target_Kind);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git built tag object validated");
-	            Check
-	              (Tag_Target_Kind = SSH_Lib.Git.Pack_Blob,
-	               "git built tag object kind");
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Tag_Name
-	                (Built_Tag_Data
-	                   (Built_Tag_Data'First .. Built_Tag_Last),
-	                 Tag_Name,
-	                 Tag_Name_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git built tag name parsed");
-	            Check
-	              (Tag_Name_Last = Tag_Name'First + 5
-	               and then Bytes_Equal
-	                 (Tag_Name (Tag_Name'First .. Tag_Name_Last),
-	                  Bytes_From_String ("v1.0.1")),
-	               "git built tag name values");
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Tag_Target
-	                (Tag_Data,
-	                 Tag_Target_Hex,
-	                 Tag_Target_Last,
-	                 Tag_Target_Kind);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git tag target parsed");
-	            Check
-	              (Tag_Target_Last = Tag_Target_Hex'Last
-	               and then Bytes_Equal (Tag_Target_Hex, Expected_Blob_Hex)
-	               and then Tag_Target_Kind = SSH_Lib.Git.Pack_Blob,
-	               "git tag target values");
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Tag_Name
-	                (Tag_Data, Tag_Name, Tag_Name_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git tag name parsed");
-	            Check
-	              (Tag_Name_Last = Tag_Name'First + 5
-	               and then Bytes_Equal
-	                 (Tag_Name (Tag_Name'First .. Tag_Name_Last),
-	                  Bytes_From_String ("v1.0.0")),
-	               "git tag name values");
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Tag_Message_Offset
-	                (Tag_Data, Tag_Message_Offset);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git tag message offset parsed");
-	            Check
-	              (Tag_Message_Offset < Natural (Tag_Data'Length)
-	               and then Tag_Data
-	                 (Tag_Data'First
-	                  + Ada.Streams.Stream_Element_Offset
-	                      (Tag_Message_Offset))
-	                 = Ada.Streams.Stream_Element (Character'Pos ('r')),
-	               "git tag message offset values");
-	            Status_Value :=
-	              SSH_Lib.Git.Validate_Tag_Object
-	                (Tag_Data, Tag_Target_Kind);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git tag object validated");
-	            Check
-	              (Tag_Target_Kind = SSH_Lib.Git.Pack_Blob,
-	               "git tag object kind");
-	            Status_Value :=
-	              SSH_Lib.Git.Validate_Object_Data
-	                (SSH_Lib.Git.Pack_Tag, Tag_Data);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git tag object data validated");
-	         end;
+         declare
+            Tag_Data : constant Ada.Streams.Stream_Element_Array :=
+              Bytes_From_String ("object ")
+              & Expected_Blob_Hex
+              & Bytes_From_String
+                  (Character'Val (10)
+                   & "type blob"
+                   & Character'Val (10)
+                   & "tag v1.0.0"
+                   & Character'Val (10)
+                   & "tagger A <a@example.test> 0 +0000"
+                   & Character'Val (10)
+                   & Character'Val (10)
+                   & "release"
+                   & Character'Val (10));
+            Built_Tag_Data :
+              Ada.Streams.Stream_Element_Array (1 .. 256);
+            Built_Tag_Last : Ada.Streams.Stream_Element_Offset;
+         begin
+            Status_Value :=
+              SSH_Lib.Git.Build_Tag_Object
+                (Expected_Blob_Hex,
+                 SSH_Lib.Git.Pack_Blob,
+                 "v1.0.1",
+                 "A <a@example.test> 0 +0000",
+                 "built release" & Character'Val (10),
+                 Built_Tag_Data,
+                 Built_Tag_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git tag object built");
+            Status_Value :=
+              SSH_Lib.Git.Validate_Tag_Object
+                (Built_Tag_Data
+                   (Built_Tag_Data'First .. Built_Tag_Last),
+                 Tag_Target_Kind);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git built tag object validated");
+            Check
+              (Tag_Target_Kind = SSH_Lib.Git.Pack_Blob,
+               "git built tag object kind");
+            Status_Value :=
+              SSH_Lib.Git.Parse_Tag_Name
+                (Built_Tag_Data
+                   (Built_Tag_Data'First .. Built_Tag_Last),
+                 Tag_Name,
+                 Tag_Name_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git built tag name parsed");
+            Check
+              (Tag_Name_Last = Tag_Name'First + 5
+               and then Bytes_Equal
+                 (Tag_Name (Tag_Name'First .. Tag_Name_Last),
+                  Bytes_From_String ("v1.0.1")),
+               "git built tag name values");
+            Status_Value :=
+              SSH_Lib.Git.Parse_Tag_Target
+                (Tag_Data,
+                 Tag_Target_Hex,
+                 Tag_Target_Last,
+                 Tag_Target_Kind);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git tag target parsed");
+            Check
+              (Tag_Target_Last = Tag_Target_Hex'Last
+               and then Bytes_Equal (Tag_Target_Hex, Expected_Blob_Hex)
+               and then Tag_Target_Kind = SSH_Lib.Git.Pack_Blob,
+               "git tag target values");
+            Status_Value :=
+              SSH_Lib.Git.Parse_Tag_Name
+                (Tag_Data, Tag_Name, Tag_Name_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git tag name parsed");
+            Check
+              (Tag_Name_Last = Tag_Name'First + 5
+               and then Bytes_Equal
+                 (Tag_Name (Tag_Name'First .. Tag_Name_Last),
+                  Bytes_From_String ("v1.0.0")),
+               "git tag name values");
+            Status_Value :=
+              SSH_Lib.Git.Parse_Tag_Message_Offset
+                (Tag_Data, Tag_Message_Offset);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git tag message offset parsed");
+            Check
+              (Tag_Message_Offset < Natural (Tag_Data'Length)
+               and then Tag_Data
+                 (Tag_Data'First
+                  + Ada.Streams.Stream_Element_Offset
+                      (Tag_Message_Offset))
+                 = Ada.Streams.Stream_Element (Character'Pos ('r')),
+               "git tag message offset values");
+            Status_Value :=
+              SSH_Lib.Git.Validate_Tag_Object
+                (Tag_Data, Tag_Target_Kind);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git tag object validated");
+            Check
+              (Tag_Target_Kind = SSH_Lib.Git.Pack_Blob,
+               "git tag object kind");
+            Status_Value :=
+              SSH_Lib.Git.Validate_Object_Data
+                (SSH_Lib.Git.Pack_Tag, Tag_Data);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git tag object data validated");
+         end;
 
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Pack_File
-	             (Repo_Root, Pack_Data, Pack_Checksum_Hex, Pack_Checksum_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pack file stored");
-	         Check
-	           (Pack_Checksum_Last = Pack_Checksum_Hex'Last,
-	            "git pack file checksum reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Pack_File
-	             (Repo_Root,
-	              Pack_Checksum_Hex,
-	              Read_Pack,
-	              Read_Pack_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pack file read");
-	         Check
-	           (Read_Pack_Last = Read_Pack'Last
-	            and then Bytes_Equal (Read_Pack, Pack_Data),
-	            "git pack file payload recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Pack_File
-	             (Repo_Root, Pack_Checksum_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pack file deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Pack_File
-	             (Repo_Root,
-	              Pack_Checksum_Hex,
-	              Read_Pack,
-	              Read_Pack_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git deleted pack file no longer read");
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Pack_File
-	             (Repo_Root, Pack_Data, Pack_Checksum_Hex, Pack_Checksum_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deleted pack file restored");
+         Status_Value :=
+           SSH_Lib.Git.Store_Pack_File
+             (Repo_Root, Pack_Data, Pack_Checksum_Hex, Pack_Checksum_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pack file stored");
+         Check
+           (Pack_Checksum_Last = Pack_Checksum_Hex'Last,
+            "git pack file checksum reported");
+         Status_Value :=
+           SSH_Lib.Git.Read_Pack_File
+             (Repo_Root,
+              Pack_Checksum_Hex,
+              Read_Pack,
+              Read_Pack_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pack file read");
+         Check
+           (Read_Pack_Last = Read_Pack'Last
+            and then Bytes_Equal (Read_Pack, Pack_Data),
+            "git pack file payload recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Pack_File
+             (Repo_Root, Pack_Checksum_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pack file deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Pack_File
+             (Repo_Root,
+              Pack_Checksum_Hex,
+              Read_Pack,
+              Read_Pack_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git deleted pack file no longer read");
+         Status_Value :=
+           SSH_Lib.Git.Store_Pack_File
+             (Repo_Root, Pack_Data, Pack_Checksum_Hex, Pack_Checksum_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deleted pack file restored");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Build_Pack_Index
-	             (Pack_Data,
-	              Pack_Index_Scratch,
-	              Built_Index,
-	              Built_Index_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pack index built");
-	         Check
-	           (Built_Index_Last = Built_Index'First + 1072 - 1,
-	            "git pack index length reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Validate_Pack_Index
-	             (Built_Index (Built_Index'First .. Built_Index_Last),
-	              Pack_Index_Count,
-	              Large_Offset_Count,
-	              Pack_Index_Layout);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git built pack index validates");
-	         Check
-	           (Pack_Index_Count = 0
-	            and then Large_Offset_Count = 0
-	            and then Pack_Index_Layout.Total_Length = 1072,
-	            "git built pack index layout reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Verify_Pack_Index_Pack_Checksum
-	             (Built_Index (Built_Index'First .. Built_Index_Last),
-	              Pack_Data (13 .. 32));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git built pack index embeds pack checksum");
-	         Status_Value :=
-	           SSH_Lib.Git.Verify_Pack_Index_Checksum
-	             (Built_Index (Built_Index'First .. Built_Index_Last));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git built pack index checksum validates");
+         Status_Value :=
+           SSH_Lib.Git.Build_Pack_Index
+             (Pack_Data,
+              Pack_Index_Scratch,
+              Built_Index,
+              Built_Index_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pack index built");
+         Check
+           (Built_Index_Last = Built_Index'First + 1072 - 1,
+            "git pack index length reported");
+         Status_Value :=
+           SSH_Lib.Git.Validate_Pack_Index
+             (Built_Index (Built_Index'First .. Built_Index_Last),
+              Pack_Index_Count,
+              Large_Offset_Count,
+              Pack_Index_Layout);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git built pack index validates");
+         Check
+           (Pack_Index_Count = 0
+            and then Large_Offset_Count = 0
+            and then Pack_Index_Layout.Total_Length = 1072,
+            "git built pack index layout reported");
+         Status_Value :=
+           SSH_Lib.Git.Verify_Pack_Index_Pack_Checksum
+             (Built_Index (Built_Index'First .. Built_Index_Last),
+              Pack_Data (13 .. 32));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git built pack index embeds pack checksum");
+         Status_Value :=
+           SSH_Lib.Git.Verify_Pack_Index_Checksum
+             (Built_Index (Built_Index'First .. Built_Index_Last));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git built pack index checksum validates");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Pack_Index
-	             (Repo_Root,
-	              Pack_Checksum_Hex,
-	              Built_Index (Built_Index'First .. Built_Index_Last));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pack index stored");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Pack_Index
-	             (Repo_Root,
-	              Pack_Checksum_Hex,
-	              Read_Index,
-	              Read_Index_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pack index read");
-	         Check
-	           (Read_Index_Last = Built_Index_Last
-	            and then Bytes_Equal
-	              (Read_Index (Read_Index'First .. Read_Index_Last),
-	               Built_Index (Built_Index'First .. Built_Index_Last)),
-	            "git pack index payload recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Pack_Index
-	             (Repo_Root, Pack_Checksum_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pack index deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Pack_Index
-	             (Repo_Root,
-	              Pack_Checksum_Hex,
-	              Read_Index,
-	              Read_Index_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git deleted pack index no longer read");
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Pack_Index
-	             (Repo_Root,
-	              Pack_Checksum_Hex,
-	              Built_Index (Built_Index'First .. Built_Index_Last));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deleted pack index restored");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Stored_Pack
-	             (Repo_Root,
-	              Pack_Checksum_Hex,
-	              Deleted_Pack_File,
-	              Deleted_Pack_Index);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git stored pack deleted");
-	         Check
-	           (Deleted_Pack_File and then Deleted_Pack_Index,
-	            "git stored pack delete reports files");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Pack_File
-	             (Repo_Root,
-	              Pack_Checksum_Hex,
-	              Read_Pack,
-	              Read_Pack_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git deleted stored pack file no longer read");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Pack_Index
-	             (Repo_Root,
-	              Pack_Checksum_Hex,
-	              Read_Index,
-	              Read_Index_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git deleted stored pack index no longer read");
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Pack_File
-	             (Repo_Root, Pack_Data, Pack_Checksum_Hex, Pack_Checksum_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git stored pack file restored");
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Pack_Index
-	             (Repo_Root,
-	              Pack_Checksum_Hex,
-	              Built_Index (Built_Index'First .. Built_Index_Last));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git stored pack index restored");
+         Status_Value :=
+           SSH_Lib.Git.Store_Pack_Index
+             (Repo_Root,
+              Pack_Checksum_Hex,
+              Built_Index (Built_Index'First .. Built_Index_Last));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pack index stored");
+         Status_Value :=
+           SSH_Lib.Git.Read_Pack_Index
+             (Repo_Root,
+              Pack_Checksum_Hex,
+              Read_Index,
+              Read_Index_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pack index read");
+         Check
+           (Read_Index_Last = Built_Index_Last
+            and then Bytes_Equal
+              (Read_Index (Read_Index'First .. Read_Index_Last),
+               Built_Index (Built_Index'First .. Built_Index_Last)),
+            "git pack index payload recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Pack_Index
+             (Repo_Root, Pack_Checksum_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pack index deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Pack_Index
+             (Repo_Root,
+              Pack_Checksum_Hex,
+              Read_Index,
+              Read_Index_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git deleted pack index no longer read");
+         Status_Value :=
+           SSH_Lib.Git.Store_Pack_Index
+             (Repo_Root,
+              Pack_Checksum_Hex,
+              Built_Index (Built_Index'First .. Built_Index_Last));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deleted pack index restored");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Stored_Pack
+             (Repo_Root,
+              Pack_Checksum_Hex,
+              Deleted_Pack_File,
+              Deleted_Pack_Index);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git stored pack deleted");
+         Check
+           (Deleted_Pack_File and then Deleted_Pack_Index,
+            "git stored pack delete reports files");
+         Status_Value :=
+           SSH_Lib.Git.Read_Pack_File
+             (Repo_Root,
+              Pack_Checksum_Hex,
+              Read_Pack,
+              Read_Pack_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git deleted stored pack file no longer read");
+         Status_Value :=
+           SSH_Lib.Git.Read_Pack_Index
+             (Repo_Root,
+              Pack_Checksum_Hex,
+              Read_Index,
+              Read_Index_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git deleted stored pack index no longer read");
+         Status_Value :=
+           SSH_Lib.Git.Store_Pack_File
+             (Repo_Root, Pack_Data, Pack_Checksum_Hex, Pack_Checksum_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git stored pack file restored");
+         Status_Value :=
+           SSH_Lib.Git.Store_Pack_Index
+             (Repo_Root,
+              Pack_Checksum_Hex,
+              Built_Index (Built_Index'First .. Built_Index_Last));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git stored pack index restored");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Pack_File
-	             (Repo_Root,
-	              Object_Pack,
-	              Object_Pack_Checksum_Hex,
-	              Object_Pack_Checksum_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git object pack file stored");
-	         Check
-	           (Object_Pack_Checksum_Last = Object_Pack_Checksum_Hex'Last,
-	            "git object pack checksum reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Build_Pack_Index
-	             (Object_Pack,
-	              Pack_Index_Scratch,
-	              Object_Index,
-	              Object_Index_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git object pack index built");
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Pack_Index
-	             (Repo_Root,
-	              Object_Pack_Checksum_Hex,
-	              Object_Index (Object_Index'First .. Object_Index_Last));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git object pack index stored");
-	         Status_Value :=
-	           SSH_Lib.Git.List_Packed_Object_IDs
-	             (Repo_Root,
-	              Object_Pack_Checksum_Hex,
-	              Listed_Packed_Index,
-	              Listed_Packed_Index_Last,
-	              Listed_Packed_Object_IDs,
-	              Listed_Packed_Object_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git packed object ids listed");
-	         Check
-	           (Listed_Packed_Object_Count = 1
-	            and then Listed_Packed_Index_Last = Object_Index_Last
-	            and then Bytes_Equal
-	              (Ada.Streams.Stream_Element_Array
-	                 (Listed_Packed_Object_IDs (1)),
-	               Expected_Blob_Hex),
-	            "git packed object ids listed values");
-	         Status_Value :=
-	           SSH_Lib.Git.List_Pack_Index_Checksums
-	             (Repo_Root,
-	              Pack_Index_List,
-	              Pack_Index_List_Last,
-	              Pack_Index_List_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pack index checksums listed");
-	         Check
-	           (Pack_Index_List_Count = 2
-	            and then Pack_Index_List_Last = Pack_Index_List'Last
-	            and then Contains_Checksum
-	              (Pack_Index_List,
-	               Pack_Index_List_Count,
-	               Pack_Checksum_Hex)
-	            and then Contains_Checksum
-	              (Pack_Index_List,
-	               Pack_Index_List_Count,
-	               Object_Pack_Checksum_Hex),
-	            "git pack index checksum list values");
-	         Status_Value :=
-	           SSH_Lib.Git.Stored_Object_Exists
-	             (Repo_Root,
-	              Expected_Blob_Hex,
-	              Exists_Pack_Checksums,
-	              Exists_Pack_Checksums_Last,
-	              Exists_Pack_Checksum,
-	              Exists_Pack_Checksum_Last,
-	              Exists_Pack_Index,
-	              Stored_Object_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git stored object existence checked");
-	         Check
-	           (Stored_Object_Found,
-	            "git stored object existence found loose object");
-	         Status_Value :=
-	           SSH_Lib.Git.Stored_Object_Exists
-	             (Repo_Root,
-	              Alternate_Hex,
-	              Exists_Pack_Checksums,
-	              Exists_Pack_Checksums_Last,
-	              Exists_Pack_Checksum,
-	              Exists_Pack_Checksum_Last,
-	              Exists_Pack_Index,
-	              Stored_Object_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git missing stored object existence checked");
-	         Check
-	           (not Stored_Object_Found
-	            and then Exists_Pack_Checksums_Last =
-	              Exists_Pack_Checksums'Last,
-	            "git missing stored object existence values");
-	         Status_Value :=
-	           SSH_Lib.Git.List_Stored_Object_IDs
-	             (Repo_Root,
-	              Stored_Object_Pack_Checksums,
-	              Stored_Object_Pack_Checksums_Last,
-	              Stored_Object_Index,
-	              Stored_Object_Index_Last,
-	              Stored_Object_IDs,
-	              Stored_Object_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git stored object ids listed");
-	         declare
-	            function Has_Stored_Object
-	              (Object_ID : Ada.Streams.Stream_Element_Array)
-	               return Boolean
-	            is
-	            begin
-	               for Index in 1 .. Stored_Object_Count loop
-	                  if Bytes_Equal
-	                    (Ada.Streams.Stream_Element_Array
-	                       (Stored_Object_IDs (Index)),
-	                     Object_ID)
-	                  then
-	                     return True;
-	                  end if;
-	               end loop;
-	               return False;
-	            end Has_Stored_Object;
-	         begin
-	            Check
-	              (Stored_Object_Count >= 1
-	               and then Stored_Object_Pack_Checksums_Last =
-	                 Stored_Object_Pack_Checksums'Last
-	               and then Has_Stored_Object (Expected_Blob_Hex),
-	               "git stored object ids listed values");
-	         end;
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Packed_Object
-	             (Repo_Root,
-	              Object_Pack_Checksum_Hex,
-	              Expected_Blob_Hex,
-	              Read_Object_Pack,
-	              Read_Object_Index,
-	              Read_Kind,
-	              Packed_Object_Data,
-	              Packed_Object_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git packed object read");
-	         Check
-		           (Read_Kind = SSH_Lib.Git.Pack_Blob
-		            and then Packed_Object_Last =
-		              Packed_Object_Data'First + Blob_Data'Length - 1
-		            and then Bytes_Equal
-		              (Packed_Object_Data
-		                 (Packed_Object_Data'First .. Packed_Object_Last),
-		               Blob_Data),
-		            "git packed object payload recovered");
-		         Status_Value :=
-		           SSH_Lib.Git.Read_Packed_Object_Validated
-		             (Repo_Root,
-		              Object_Pack_Checksum_Hex,
-		              Expected_Blob_Hex,
-		              Read_Object_Pack,
-		              Read_Object_Index,
-		              Read_Kind,
-		              Packed_Object_Data,
-		              Packed_Object_Last);
-		         Check_Status
-		           (Status_Value, CryptoLib.Errors.Ok,
-		            "git validated packed object read");
-		         Check
-		           (Read_Kind = SSH_Lib.Git.Pack_Blob
-		            and then Packed_Object_Last =
-		              Packed_Object_Data'First + Blob_Data'Length - 1
-		            and then Bytes_Equal
-		              (Packed_Object_Data
-		                 (Packed_Object_Data'First .. Packed_Object_Last),
-		               Blob_Data),
-		            "git validated packed object payload recovered");
+         Status_Value :=
+           SSH_Lib.Git.Store_Pack_File
+             (Repo_Root,
+              Object_Pack,
+              Object_Pack_Checksum_Hex,
+              Object_Pack_Checksum_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git object pack file stored");
+         Check
+           (Object_Pack_Checksum_Last = Object_Pack_Checksum_Hex'Last,
+            "git object pack checksum reported");
+         Status_Value :=
+           SSH_Lib.Git.Build_Pack_Index
+             (Object_Pack,
+              Pack_Index_Scratch,
+              Object_Index,
+              Object_Index_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git object pack index built");
+         Status_Value :=
+           SSH_Lib.Git.Store_Pack_Index
+             (Repo_Root,
+              Object_Pack_Checksum_Hex,
+              Object_Index (Object_Index'First .. Object_Index_Last));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git object pack index stored");
+         Status_Value :=
+           SSH_Lib.Git.List_Packed_Object_IDs
+             (Repo_Root,
+              Object_Pack_Checksum_Hex,
+              Listed_Packed_Index,
+              Listed_Packed_Index_Last,
+              Listed_Packed_Object_IDs,
+              Listed_Packed_Object_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git packed object ids listed");
+         Check
+           (Listed_Packed_Object_Count = 1
+            and then Listed_Packed_Index_Last = Object_Index_Last
+            and then Bytes_Equal
+              (Ada.Streams.Stream_Element_Array
+                 (Listed_Packed_Object_IDs (1)),
+               Expected_Blob_Hex),
+            "git packed object ids listed values");
+         Status_Value :=
+           SSH_Lib.Git.List_Pack_Index_Checksums
+             (Repo_Root,
+              Pack_Index_List,
+              Pack_Index_List_Last,
+              Pack_Index_List_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pack index checksums listed");
+         Check
+           (Pack_Index_List_Count = 2
+            and then Pack_Index_List_Last = Pack_Index_List'Last
+            and then Contains_Checksum
+              (Pack_Index_List,
+               Pack_Index_List_Count,
+               Pack_Checksum_Hex)
+            and then Contains_Checksum
+              (Pack_Index_List,
+               Pack_Index_List_Count,
+               Object_Pack_Checksum_Hex),
+            "git pack index checksum list values");
+         Status_Value :=
+           SSH_Lib.Git.Stored_Object_Exists
+             (Repo_Root,
+              Expected_Blob_Hex,
+              Exists_Pack_Checksums,
+              Exists_Pack_Checksums_Last,
+              Exists_Pack_Checksum,
+              Exists_Pack_Checksum_Last,
+              Exists_Pack_Index,
+              Stored_Object_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git stored object existence checked");
+         Check
+           (Stored_Object_Found,
+            "git stored object existence found loose object");
+         Status_Value :=
+           SSH_Lib.Git.Stored_Object_Exists
+             (Repo_Root,
+              Alternate_Hex,
+              Exists_Pack_Checksums,
+              Exists_Pack_Checksums_Last,
+              Exists_Pack_Checksum,
+              Exists_Pack_Checksum_Last,
+              Exists_Pack_Index,
+              Stored_Object_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git missing stored object existence checked");
+         Check
+           (not Stored_Object_Found
+            and then Exists_Pack_Checksums_Last =
+              Exists_Pack_Checksums'Last,
+            "git missing stored object existence values");
+         Status_Value :=
+           SSH_Lib.Git.List_Stored_Object_IDs
+             (Repo_Root,
+              Stored_Object_Pack_Checksums,
+              Stored_Object_Pack_Checksums_Last,
+              Stored_Object_Index,
+              Stored_Object_Index_Last,
+              Stored_Object_IDs,
+              Stored_Object_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git stored object ids listed");
+         declare
+            function Has_Stored_Object
+              (Object_ID : Ada.Streams.Stream_Element_Array)
+               return Boolean
+            is
+            begin
+               for Index in 1 .. Stored_Object_Count loop
+                  if Bytes_Equal
+                    (Ada.Streams.Stream_Element_Array
+                       (Stored_Object_IDs (Index)),
+                     Object_ID)
+                  then
+                     return True;
+                  end if;
+               end loop;
+               return False;
+            end Has_Stored_Object;
+         begin
+            Check
+              (Stored_Object_Count >= 1
+               and then Stored_Object_Pack_Checksums_Last =
+                 Stored_Object_Pack_Checksums'Last
+               and then Has_Stored_Object (Expected_Blob_Hex),
+               "git stored object ids listed values");
+         end;
+         Status_Value :=
+           SSH_Lib.Git.Read_Packed_Object
+             (Repo_Root,
+              Object_Pack_Checksum_Hex,
+              Expected_Blob_Hex,
+              Read_Object_Pack,
+              Read_Object_Index,
+              Read_Kind,
+              Packed_Object_Data,
+              Packed_Object_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git packed object read");
+         Check
+           (Read_Kind = SSH_Lib.Git.Pack_Blob
+            and then Packed_Object_Last =
+              Packed_Object_Data'First + Blob_Data'Length - 1
+            and then Bytes_Equal
+              (Packed_Object_Data
+                 (Packed_Object_Data'First .. Packed_Object_Last),
+               Blob_Data),
+            "git packed object payload recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Packed_Object_Validated
+             (Repo_Root,
+              Object_Pack_Checksum_Hex,
+              Expected_Blob_Hex,
+              Read_Object_Pack,
+              Read_Object_Index,
+              Read_Kind,
+              Packed_Object_Data,
+              Packed_Object_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git validated packed object read");
+         Check
+           (Read_Kind = SSH_Lib.Git.Pack_Blob
+            and then Packed_Object_Last =
+              Packed_Object_Data'First + Blob_Data'Length - 1
+            and then Bytes_Equal
+              (Packed_Object_Data
+                 (Packed_Object_Data'First .. Packed_Object_Last),
+               Blob_Data),
+            "git validated packed object payload recovered");
 
-		         Status_Value :=
-	           SSH_Lib.Git.Initialize_Repository_State (Packed_Repo_Root);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git packed-only repository state initialized");
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Pack_File
-	             (Packed_Repo_Root,
-	              Object_Pack,
-	              Object_Pack_Checksum_Hex,
-	              Object_Pack_Checksum_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git packed-only pack file stored");
-	         Status_Value :=
-	           SSH_Lib.Git.Store_Pack_Index
-	             (Packed_Repo_Root,
-	              Object_Pack_Checksum_Hex,
-	              Object_Index (Object_Index'First .. Object_Index_Last));
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git packed-only pack index stored");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Stored_Object
-	             (Packed_Repo_Root,
-	              Expected_Blob_Hex,
-	              Object_Pack_Checksum_Hex,
-	              Read_Object_Pack,
-	              Read_Object_Index,
-	              Read_Kind,
-	              Packed_Object_Data,
-	              Packed_Object_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git stored object read from packed fallback");
-		         Check
-		           (Read_Kind = SSH_Lib.Git.Pack_Blob
-		            and then Packed_Object_Last =
-		              Packed_Object_Data'First + Blob_Data'Length - 1
-		            and then Bytes_Equal
-		              (Packed_Object_Data
-		                 (Packed_Object_Data'First .. Packed_Object_Last),
-		               Blob_Data),
-		            "git stored object packed fallback payload recovered");
-		         Status_Value :=
-		           SSH_Lib.Git.Read_Stored_Object_Validated
-		             (Packed_Repo_Root,
-		              Expected_Blob_Hex,
-		              Object_Pack_Checksum_Hex,
-		              Read_Object_Pack,
-		              Read_Object_Index,
-		              Read_Kind,
-		              Packed_Object_Data,
-		              Packed_Object_Last);
-		         Check_Status
-		           (Status_Value, CryptoLib.Errors.Ok,
-		            "git validated stored object read from packed fallback");
-		         Check
-		           (Read_Kind = SSH_Lib.Git.Pack_Blob
-		            and then Packed_Object_Last =
-		              Packed_Object_Data'First + Blob_Data'Length - 1
-		            and then Bytes_Equal
-		              (Packed_Object_Data
-		                 (Packed_Object_Data'First .. Packed_Object_Last),
-		               Blob_Data),
-		            "git validated stored object packed fallback payload recovered");
+         Status_Value :=
+           SSH_Lib.Git.Initialize_Repository_State (Packed_Repo_Root);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git packed-only repository state initialized");
+         Status_Value :=
+           SSH_Lib.Git.Store_Pack_File
+             (Packed_Repo_Root,
+              Object_Pack,
+              Object_Pack_Checksum_Hex,
+              Object_Pack_Checksum_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git packed-only pack file stored");
+         Status_Value :=
+           SSH_Lib.Git.Store_Pack_Index
+             (Packed_Repo_Root,
+              Object_Pack_Checksum_Hex,
+              Object_Index (Object_Index'First .. Object_Index_Last));
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git packed-only pack index stored");
+         Status_Value :=
+           SSH_Lib.Git.Read_Stored_Object
+             (Packed_Repo_Root,
+              Expected_Blob_Hex,
+              Object_Pack_Checksum_Hex,
+              Read_Object_Pack,
+              Read_Object_Index,
+              Read_Kind,
+              Packed_Object_Data,
+              Packed_Object_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git stored object read from packed fallback");
+         Check
+           (Read_Kind = SSH_Lib.Git.Pack_Blob
+            and then Packed_Object_Last =
+              Packed_Object_Data'First + Blob_Data'Length - 1
+            and then Bytes_Equal
+              (Packed_Object_Data
+                 (Packed_Object_Data'First .. Packed_Object_Last),
+               Blob_Data),
+            "git stored object packed fallback payload recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Stored_Object_Validated
+             (Packed_Repo_Root,
+              Expected_Blob_Hex,
+              Object_Pack_Checksum_Hex,
+              Read_Object_Pack,
+              Read_Object_Index,
+              Read_Kind,
+              Packed_Object_Data,
+              Packed_Object_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git validated stored object read from packed fallback");
+         Check
+           (Read_Kind = SSH_Lib.Git.Pack_Blob
+            and then Packed_Object_Last =
+              Packed_Object_Data'First + Blob_Data'Length - 1
+            and then Bytes_Equal
+              (Packed_Object_Data
+                 (Packed_Object_Data'First .. Packed_Object_Last),
+               Blob_Data),
+            "git validated stored object packed fallback payload recovered");
 
-		         Status_Value :=
-	           SSH_Lib.Git.Read_Any_Stored_Object
-	             (Packed_Repo_Root,
-	              Expected_Blob_Hex,
-	              Pack_Index_List,
-	              Read_Object_Pack,
-	              Read_Object_Index,
-	              Found_Pack_Checksum_Hex,
-	              Found_Pack_Checksum_Last,
-	              Read_Kind,
-	              Packed_Object_Data,
-	              Packed_Object_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git any stored object read from listed pack");
-	         Check
-		           (Found_Pack_Checksum_Last = Found_Pack_Checksum_Hex'Last
-		            and then Bytes_Equal
-		              (Found_Pack_Checksum_Hex, Object_Pack_Checksum_Hex)
-		            and then Read_Kind = SSH_Lib.Git.Pack_Blob
-		            and then Packed_Object_Last =
-		              Packed_Object_Data'First + Blob_Data'Length - 1
-		            and then Bytes_Equal
-		              (Packed_Object_Data
-		                 (Packed_Object_Data'First .. Packed_Object_Last),
-		               Blob_Data),
-		            "git any stored object listed pack payload recovered");
-		         Status_Value :=
-		           SSH_Lib.Git.Read_Any_Stored_Object_Validated
-		             (Packed_Repo_Root,
-		              Expected_Blob_Hex,
-		              Pack_Index_List,
-		              Read_Object_Pack,
-		              Read_Object_Index,
-		              Found_Pack_Checksum_Hex,
-		              Found_Pack_Checksum_Last,
-		              Read_Kind,
-		              Packed_Object_Data,
-		              Packed_Object_Last);
-		         Check_Status
-		           (Status_Value, CryptoLib.Errors.Ok,
-		            "git validated any stored object read");
-		         Check
-		           (Read_Kind = SSH_Lib.Git.Pack_Blob
-		            and then Packed_Object_Last =
-		              Packed_Object_Data'First + Blob_Data'Length - 1
-		            and then Bytes_Equal
-		              (Packed_Object_Data
-		                 (Packed_Object_Data'First .. Packed_Object_Last),
-		               Blob_Data),
-		            "git validated any stored object payload recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Any_Stored_Object
+             (Packed_Repo_Root,
+              Expected_Blob_Hex,
+              Pack_Index_List,
+              Read_Object_Pack,
+              Read_Object_Index,
+              Found_Pack_Checksum_Hex,
+              Found_Pack_Checksum_Last,
+              Read_Kind,
+              Packed_Object_Data,
+              Packed_Object_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git any stored object read from listed pack");
+         Check
+           (Found_Pack_Checksum_Last = Found_Pack_Checksum_Hex'Last
+            and then Bytes_Equal
+              (Found_Pack_Checksum_Hex, Object_Pack_Checksum_Hex)
+            and then Read_Kind = SSH_Lib.Git.Pack_Blob
+            and then Packed_Object_Last =
+              Packed_Object_Data'First + Blob_Data'Length - 1
+            and then Bytes_Equal
+              (Packed_Object_Data
+                 (Packed_Object_Data'First .. Packed_Object_Last),
+               Blob_Data),
+            "git any stored object listed pack payload recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Any_Stored_Object_Validated
+             (Packed_Repo_Root,
+              Expected_Blob_Hex,
+              Pack_Index_List,
+              Read_Object_Pack,
+              Read_Object_Index,
+              Found_Pack_Checksum_Hex,
+              Found_Pack_Checksum_Last,
+              Read_Kind,
+              Packed_Object_Data,
+              Packed_Object_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git validated any stored object read");
+         Check
+           (Read_Kind = SSH_Lib.Git.Pack_Blob
+            and then Packed_Object_Last =
+              Packed_Object_Data'First + Blob_Data'Length - 1
+            and then Bytes_Equal
+              (Packed_Object_Data
+                 (Packed_Object_Data'First .. Packed_Object_Last),
+               Blob_Data),
+            "git validated any stored object payload recovered");
 
-		         Status_Value :=
-	           SSH_Lib.Git.Write_Direct_Ref
-	             (Repo_Root, "refs/heads/main", Stored_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git direct ref written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Direct_Ref
-	             (Repo_Root, "refs/heads/main", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git direct ref read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Hex),
-	            "git direct ref object id recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Append_Reflog_Entry
-	             (Repo_Root,
-	              "refs/heads/main",
-	              Expected_Blob_Hex,
-	              Stored_Hex,
-	              "Tester <tester@example.invalid> 0 +0000",
-	              "update main");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git reflog entry appended");
-	         Check
-	           (Ada.Directories.Exists
-	              (Repo_Root & "/.git/logs/refs/heads/main"),
-	            "git reflog file created");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Reflog_Last_Entry
-	             (Repo_Root,
-	              "refs/heads/main",
-	              Reflog_Line,
-	              Reflog_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git reflog last entry read");
-	         Check
-	           (Reflog_Last >= Reflog_Line'First
-	            + Ada.Streams.Stream_Element_Offset
-	              (String'("update main")'Length)
-	            - 1
-	            and then Bytes_Equal
-	              (Reflog_Line
-	                 (Reflog_Last
-	                  - Ada.Streams.Stream_Element_Offset
-	                    (String'("update main")'Length)
-	                  + 1
-	                  .. Reflog_Last),
-	               Bytes_From_String ("update main")),
-	            "git reflog last entry values");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Branch
-	             (Repo_Root, "feature/api", Expected_Blob_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Branch
-	             (Repo_Root, "feature/api", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
-	            "git branch object id recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Resolve_Branch
-	             (Repo_Root, "feature/api", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch resolved");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
-	            "git branch resolve values");
-	         Status_Value :=
-	           SSH_Lib.Git.Branch_Exists
-	             (Repo_Root,
-	              "feature/api",
-	              Read_Hex,
-	              Read_Hex_Last,
-	              Ref_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch existence checked");
-	         Check
-	           (Ref_Found
-	            and then Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
-	            "git branch existence values");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Branch (Repo_Root, "feature/api");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Branch_Exists
-	             (Repo_Root,
-	              "feature/api",
-	              Read_Hex,
-	              Read_Hex_Last,
-	              Ref_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deleted branch existence checked");
-	         Check (not Ref_Found, "git deleted branch no longer exists");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Direct_Ref
-	             (Repo_Root, "refs/heads/delete-me", Stored_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deletable direct ref written");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Direct_Ref
-	             (Repo_Root, "refs/heads/delete-me");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git direct ref deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Direct_Ref
-	             (Repo_Root, "refs/heads/delete-me", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git deleted direct ref no longer read");
+         Status_Value :=
+           SSH_Lib.Git.Write_Direct_Ref
+             (Repo_Root, "refs/heads/main", Stored_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git direct ref written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Direct_Ref
+             (Repo_Root, "refs/heads/main", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git direct ref read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Hex),
+            "git direct ref object id recovered");
+         Status_Value :=
+           SSH_Lib.Git.Append_Reflog_Entry
+             (Repo_Root,
+              "refs/heads/main",
+              Expected_Blob_Hex,
+              Stored_Hex,
+              "Tester <tester@example.invalid> 0 +0000",
+              "update main");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git reflog entry appended");
+         Check
+           (Ada.Directories.Exists
+              (Repo_Root & "/.git/logs/refs/heads/main"),
+            "git reflog file created");
+         Status_Value :=
+           SSH_Lib.Git.Read_Reflog_Last_Entry
+             (Repo_Root,
+              "refs/heads/main",
+              Reflog_Line,
+              Reflog_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git reflog last entry read");
+         Check
+           (Reflog_Last >= Reflog_Line'First
+            + Ada.Streams.Stream_Element_Offset
+              (String'("update main")'Length)
+            - 1
+            and then Bytes_Equal
+              (Reflog_Line
+                 (Reflog_Last
+                  - Ada.Streams.Stream_Element_Offset
+                    (String'("update main")'Length)
+                  + 1
+                  .. Reflog_Last),
+               Bytes_From_String ("update main")),
+            "git reflog last entry values");
+         Status_Value :=
+           SSH_Lib.Git.Write_Branch
+             (Repo_Root, "feature/api", Expected_Blob_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Branch
+             (Repo_Root, "feature/api", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
+            "git branch object id recovered");
+         Status_Value :=
+           SSH_Lib.Git.Resolve_Branch
+             (Repo_Root, "feature/api", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch resolved");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
+            "git branch resolve values");
+         Status_Value :=
+           SSH_Lib.Git.Branch_Exists
+             (Repo_Root,
+              "feature/api",
+              Read_Hex,
+              Read_Hex_Last,
+              Ref_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch existence checked");
+         Check
+           (Ref_Found
+            and then Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
+            "git branch existence values");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Branch (Repo_Root, "feature/api");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch deleted");
+         Status_Value :=
+           SSH_Lib.Git.Branch_Exists
+             (Repo_Root,
+              "feature/api",
+              Read_Hex,
+              Read_Hex_Last,
+              Ref_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deleted branch existence checked");
+         Check (not Ref_Found, "git deleted branch no longer exists");
+         Status_Value :=
+           SSH_Lib.Git.Write_Direct_Ref
+             (Repo_Root, "refs/heads/delete-me", Stored_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deletable direct ref written");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Direct_Ref
+             (Repo_Root, "refs/heads/delete-me");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git direct ref deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Direct_Ref
+             (Repo_Root, "refs/heads/delete-me", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git deleted direct ref no longer read");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Symbolic_Ref
-	             (Repo_Root, "HEAD", Target_Ref, Target_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git symbolic HEAD ref read");
-	         Check
-	           (Target_Last = Target_Ref'First
-	            + Ada.Streams.Stream_Element_Offset
-	              (String'("refs/heads/main")'Length)
-	            - 1
-	            and then Bytes_Equal
-	              (Target_Ref (Target_Ref'First .. Target_Last),
-	               Bytes_From_String ("refs/heads/main")),
-	            "git symbolic HEAD target recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Symbolic_Ref
+             (Repo_Root, "HEAD", Target_Ref, Target_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git symbolic HEAD ref read");
+         Check
+           (Target_Last = Target_Ref'First
+            + Ada.Streams.Stream_Element_Offset
+              (String'("refs/heads/main")'Length)
+            - 1
+            and then Bytes_Equal
+              (Target_Ref (Target_Ref'First .. Target_Last),
+               Bytes_From_String ("refs/heads/main")),
+            "git symbolic HEAD target recovered");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Symbolic_Ref
-	             (Repo_Root,
-	              "refs/remotes/origin/HEAD",
-	              "refs/remotes/origin/main");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git symbolic ref written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Symbolic_Ref
-	             (Repo_Root,
-	              "refs/remotes/origin/HEAD",
-	              Target_Ref,
-	              Target_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git symbolic ref read");
-	         Check
-	           (Target_Last = Target_Ref'First
-	            + Ada.Streams.Stream_Element_Offset
-	              (String'("refs/remotes/origin/main")'Length)
-	            - 1
-	            and then Bytes_Equal
-	              (Target_Ref (Target_Ref'First .. Target_Last),
-	               Bytes_From_String ("refs/remotes/origin/main")),
-	            "git symbolic ref target recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Symbolic_Ref
-	             (Repo_Root,
-	              "refs/remotes/origin/HEAD",
-	              Target_Ref,
-	              Target_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git symbolic ref deleted");
-	         Check
-	           (Target_Last = Target_Ref'First
-	            + Ada.Streams.Stream_Element_Offset
-	              (String'("refs/remotes/origin/main")'Length)
-	            - 1
-	            and then Bytes_Equal
-	              (Target_Ref (Target_Ref'First .. Target_Last),
-	               Bytes_From_String ("refs/remotes/origin/main")),
-	            "git deleted symbolic ref target reported");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Symbolic_Ref
-	             (Repo_Root,
-	              "refs/remotes/origin/HEAD",
-	              Target_Ref,
-	              Target_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git deleted symbolic ref no longer read");
+         Status_Value :=
+           SSH_Lib.Git.Write_Symbolic_Ref
+             (Repo_Root,
+              "refs/remotes/origin/HEAD",
+              "refs/remotes/origin/main");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git symbolic ref written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Symbolic_Ref
+             (Repo_Root,
+              "refs/remotes/origin/HEAD",
+              Target_Ref,
+              Target_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git symbolic ref read");
+         Check
+           (Target_Last = Target_Ref'First
+            + Ada.Streams.Stream_Element_Offset
+              (String'("refs/remotes/origin/main")'Length)
+            - 1
+            and then Bytes_Equal
+              (Target_Ref (Target_Ref'First .. Target_Last),
+               Bytes_From_String ("refs/remotes/origin/main")),
+            "git symbolic ref target recovered");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Symbolic_Ref
+             (Repo_Root,
+              "refs/remotes/origin/HEAD",
+              Target_Ref,
+              Target_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git symbolic ref deleted");
+         Check
+           (Target_Last = Target_Ref'First
+            + Ada.Streams.Stream_Element_Offset
+              (String'("refs/remotes/origin/main")'Length)
+            - 1
+            and then Bytes_Equal
+              (Target_Ref (Target_Ref'First .. Target_Last),
+               Bytes_From_String ("refs/remotes/origin/main")),
+            "git deleted symbolic ref target reported");
+         Status_Value :=
+           SSH_Lib.Git.Read_Symbolic_Ref
+             (Repo_Root,
+              "refs/remotes/origin/HEAD",
+              Target_Ref,
+              Target_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git deleted symbolic ref no longer read");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Packed_Ref
-	             (Repo_Root, "refs/tags/v1", Stored_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git packed ref written");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Direct_Ref
-	             (Repo_Root, "refs/remotes/origin/main", Stored_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote tracking ref written");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Tag_Ref
-	             (Repo_Root, "lightweight/v1", Expected_Blob_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tag ref written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Tag_Ref
-	             (Repo_Root, "lightweight/v1", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tag ref read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
-	            "git tag ref object id recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Tag_Ref_Exists
-	             (Repo_Root,
-	              "lightweight/v1",
-	              Read_Hex,
-	              Read_Hex_Last,
-	              Ref_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tag ref existence checked");
-	         Check
-	           (Ref_Found
-	            and then Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
-	            "git tag ref existence values");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Tag_Ref (Repo_Root, "lightweight/v1");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tag ref deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Tag_Ref_Exists
-	             (Repo_Root,
-	              "lightweight/v1",
-	              Read_Hex,
-	              Read_Hex_Last,
-	              Ref_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deleted tag ref existence checked");
-	         Check (not Ref_Found, "git deleted tag ref no longer exists");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Packed_Ref
-	             (Repo_Root, "refs/tags/v1", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git packed ref read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Hex),
-	            "git packed ref object id recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Resolve_Tag_Ref
-	             (Repo_Root, "v1", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git packed tag ref resolved");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Hex),
-	            "git packed tag ref resolve values");
+         Status_Value :=
+           SSH_Lib.Git.Write_Packed_Ref
+             (Repo_Root, "refs/tags/v1", Stored_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git packed ref written");
+         Status_Value :=
+           SSH_Lib.Git.Write_Direct_Ref
+             (Repo_Root, "refs/remotes/origin/main", Stored_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote tracking ref written");
+         Status_Value :=
+           SSH_Lib.Git.Write_Tag_Ref
+             (Repo_Root, "lightweight/v1", Expected_Blob_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tag ref written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Tag_Ref
+             (Repo_Root, "lightweight/v1", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tag ref read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
+            "git tag ref object id recovered");
+         Status_Value :=
+           SSH_Lib.Git.Tag_Ref_Exists
+             (Repo_Root,
+              "lightweight/v1",
+              Read_Hex,
+              Read_Hex_Last,
+              Ref_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tag ref existence checked");
+         Check
+           (Ref_Found
+            and then Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
+            "git tag ref existence values");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Tag_Ref (Repo_Root, "lightweight/v1");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tag ref deleted");
+         Status_Value :=
+           SSH_Lib.Git.Tag_Ref_Exists
+             (Repo_Root,
+              "lightweight/v1",
+              Read_Hex,
+              Read_Hex_Last,
+              Ref_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deleted tag ref existence checked");
+         Check (not Ref_Found, "git deleted tag ref no longer exists");
+         Status_Value :=
+           SSH_Lib.Git.Read_Packed_Ref
+             (Repo_Root, "refs/tags/v1", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git packed ref read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Hex),
+            "git packed ref object id recovered");
+         Status_Value :=
+           SSH_Lib.Git.Resolve_Tag_Ref
+             (Repo_Root, "v1", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git packed tag ref resolved");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Hex),
+            "git packed tag ref resolve values");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Packed_Ref
-	             (Repo_Root, "refs/tags/v1", Expected_Blob_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git packed ref updated");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Packed_Ref
-	             (Repo_Root, "refs/tags/v1", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git updated packed ref read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
-	            "git updated packed ref object id recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Packed_Ref
-	             (Repo_Root, "refs/tags/delete-me", Stored_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git deletable packed ref written");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Packed_Ref
-	             (Repo_Root, "refs/tags/delete-me");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git packed ref deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Packed_Ref
-	             (Repo_Root, "refs/tags/delete-me", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git deleted packed ref no longer read");
+         Status_Value :=
+           SSH_Lib.Git.Write_Packed_Ref
+             (Repo_Root, "refs/tags/v1", Expected_Blob_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git packed ref updated");
+         Status_Value :=
+           SSH_Lib.Git.Read_Packed_Ref
+             (Repo_Root, "refs/tags/v1", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git updated packed ref read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
+            "git updated packed ref object id recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Packed_Ref
+             (Repo_Root, "refs/tags/delete-me", Stored_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git deletable packed ref written");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Packed_Ref
+             (Repo_Root, "refs/tags/delete-me");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git packed ref deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Packed_Ref
+             (Repo_Root, "refs/tags/delete-me", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git deleted packed ref no longer read");
 
-	         Status_Value :=
-	           SSH_Lib.Git.List_Refs
-	             (Repo_Root,
-	              Listed_Ref_Names,
-	              Listed_Ref_Name_Lasts,
-	              Listed_Ref_IDs,
-	              Listed_Ref_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git refs listed");
-	         declare
-	            function Has_Ref
-	              (Ref_Name : Ada.Streams.Stream_Element_Array;
-	               Object_ID : Ada.Streams.Stream_Element_Array)
-	               return Boolean
-	            is
-	               Start : Ada.Streams.Stream_Element_Offset :=
-	                 Listed_Ref_Names'First;
-	            begin
-	               for Index in 1 .. Listed_Ref_Count loop
-	                  if Listed_Ref_Name_Lasts (Index) - Start + 1 =
-	                    Ref_Name'Length
-	                    and then Bytes_Equal
-	                      (Listed_Ref_Names
-	                         (Start .. Listed_Ref_Name_Lasts (Index)),
-	                       Ref_Name)
-	                    and then Bytes_Equal
-	                      (Ada.Streams.Stream_Element_Array
-	                         (Listed_Ref_IDs (Index)),
-	                       Object_ID)
-	                  then
-	                     return True;
-	                  end if;
-	                  Start := Listed_Ref_Name_Lasts (Index) + 1;
-	               end loop;
-	               return False;
-	            end Has_Ref;
-	         begin
-	            Check
-	              (Listed_Ref_Count >= 2
-	               and then Has_Ref
-	                 (Bytes_From_String ("refs/heads/main"), Stored_Hex)
-	               and then Has_Ref
-	                 (Bytes_From_String ("refs/tags/v1"),
-	                  Expected_Blob_Hex),
-	               "git refs listed values");
-	         end;
-	         Status_Value :=
-	           SSH_Lib.Git.List_Branches
-	             (Repo_Root,
-	              Listed_Ref_Names,
-	              Listed_Ref_Name_Lasts,
-	              Listed_Ref_IDs,
-	              Listed_Ref_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branches listed");
-	         declare
-	            function Has_Branch
-	              (Branch_Name : Ada.Streams.Stream_Element_Array;
-	               Object_ID : Ada.Streams.Stream_Element_Array)
-	               return Boolean
-	            is
-	               Start : Ada.Streams.Stream_Element_Offset :=
-	                 Listed_Ref_Names'First;
-	            begin
-	               for Index in 1 .. Listed_Ref_Count loop
-	                  if Listed_Ref_Name_Lasts (Index) - Start + 1 =
-	                    Branch_Name'Length
-	                    and then Bytes_Equal
-	                      (Listed_Ref_Names
-	                         (Start .. Listed_Ref_Name_Lasts (Index)),
-	                       Branch_Name)
-	                    and then Bytes_Equal
-	                      (Ada.Streams.Stream_Element_Array
-	                         (Listed_Ref_IDs (Index)),
-	                       Object_ID)
-	                  then
-	                     return True;
-	                  end if;
-	                  Start := Listed_Ref_Name_Lasts (Index) + 1;
-	               end loop;
-	               return False;
-	            end Has_Branch;
-	         begin
-	            Check
-	              (Listed_Ref_Count >= 1
-	               and then Has_Branch
-	                 (Bytes_From_String ("main"), Stored_Hex),
-	               "git branches listed values");
-	         end;
-	         Status_Value :=
-	           SSH_Lib.Git.List_Tag_Refs
-	             (Repo_Root,
-	              Listed_Ref_Names,
-	              Listed_Ref_Name_Lasts,
-	              Listed_Ref_IDs,
-	              Listed_Ref_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tag refs listed");
-	         declare
-	            function Has_Tag
-	              (Tag_Name : Ada.Streams.Stream_Element_Array;
-	               Object_ID : Ada.Streams.Stream_Element_Array)
-	               return Boolean
-	            is
-	               Start : Ada.Streams.Stream_Element_Offset :=
-	                 Listed_Ref_Names'First;
-	            begin
-	               for Index in 1 .. Listed_Ref_Count loop
-	                  if Listed_Ref_Name_Lasts (Index) - Start + 1 =
-	                    Tag_Name'Length
-	                    and then Bytes_Equal
-	                      (Listed_Ref_Names
-	                         (Start .. Listed_Ref_Name_Lasts (Index)),
-	                       Tag_Name)
-	                    and then Bytes_Equal
-	                      (Ada.Streams.Stream_Element_Array
-	                         (Listed_Ref_IDs (Index)),
-	                       Object_ID)
-	                  then
-	                     return True;
-	                  end if;
-	                  Start := Listed_Ref_Name_Lasts (Index) + 1;
-	               end loop;
-	               return False;
-	            end Has_Tag;
-	         begin
-	            Check
-	              (Listed_Ref_Count >= 1
-	               and then Has_Tag
-	                 (Bytes_From_String ("v1"), Expected_Blob_Hex),
-	               "git tag refs listed values");
-	         end;
-	         Status_Value :=
-	           SSH_Lib.Git.List_Remote_Tracking_Branches
-	             (Repo_Root,
-	              Listed_Ref_Names,
-	              Listed_Ref_Name_Lasts,
-	              Listed_Ref_IDs,
-	              Listed_Ref_Count);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote tracking branches listed");
-	         declare
-	            function Has_Remote_Branch
-	              (Branch_Name : Ada.Streams.Stream_Element_Array;
-	               Object_ID : Ada.Streams.Stream_Element_Array)
-	               return Boolean
-	            is
-	               Start : Ada.Streams.Stream_Element_Offset :=
-	                 Listed_Ref_Names'First;
-	            begin
-	               for Index in 1 .. Listed_Ref_Count loop
-	                  if Listed_Ref_Name_Lasts (Index) - Start + 1 =
-	                    Branch_Name'Length
-	                    and then Bytes_Equal
-	                      (Listed_Ref_Names
-	                         (Start .. Listed_Ref_Name_Lasts (Index)),
-	                       Branch_Name)
-	                    and then Bytes_Equal
-	                      (Ada.Streams.Stream_Element_Array
-	                         (Listed_Ref_IDs (Index)),
-	                       Object_ID)
-	                  then
-	                     return True;
-	                  end if;
-	                  Start := Listed_Ref_Name_Lasts (Index) + 1;
-	               end loop;
-	               return False;
-	            end Has_Remote_Branch;
-	         begin
-	            Check
-	              (Listed_Ref_Count >= 1
-	               and then Has_Remote_Branch
-	                 (Bytes_From_String ("origin/main"), Stored_Hex),
-	               "git remote tracking branches listed values");
-	         end;
+         Status_Value :=
+           SSH_Lib.Git.List_Refs
+             (Repo_Root,
+              Listed_Ref_Names,
+              Listed_Ref_Name_Lasts,
+              Listed_Ref_IDs,
+              Listed_Ref_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git refs listed");
+         declare
+            function Has_Ref
+              (Ref_Name : Ada.Streams.Stream_Element_Array;
+               Object_ID : Ada.Streams.Stream_Element_Array)
+               return Boolean
+            is
+               Start : Ada.Streams.Stream_Element_Offset :=
+                 Listed_Ref_Names'First;
+            begin
+               for Index in 1 .. Listed_Ref_Count loop
+                  if Listed_Ref_Name_Lasts (Index) - Start + 1 =
+                    Ref_Name'Length
+                    and then Bytes_Equal
+                      (Listed_Ref_Names
+                         (Start .. Listed_Ref_Name_Lasts (Index)),
+                       Ref_Name)
+                    and then Bytes_Equal
+                      (Ada.Streams.Stream_Element_Array
+                         (Listed_Ref_IDs (Index)),
+                       Object_ID)
+                  then
+                     return True;
+                  end if;
+                  Start := Listed_Ref_Name_Lasts (Index) + 1;
+               end loop;
+               return False;
+            end Has_Ref;
+         begin
+            Check
+              (Listed_Ref_Count >= 2
+               and then Has_Ref
+                 (Bytes_From_String ("refs/heads/main"), Stored_Hex)
+               and then Has_Ref
+                 (Bytes_From_String ("refs/tags/v1"),
+                  Expected_Blob_Hex),
+               "git refs listed values");
+         end;
+         Status_Value :=
+           SSH_Lib.Git.List_Branches
+             (Repo_Root,
+              Listed_Ref_Names,
+              Listed_Ref_Name_Lasts,
+              Listed_Ref_IDs,
+              Listed_Ref_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branches listed");
+         declare
+            function Has_Branch
+              (Branch_Name : Ada.Streams.Stream_Element_Array;
+               Object_ID : Ada.Streams.Stream_Element_Array)
+               return Boolean
+            is
+               Start : Ada.Streams.Stream_Element_Offset :=
+                 Listed_Ref_Names'First;
+            begin
+               for Index in 1 .. Listed_Ref_Count loop
+                  if Listed_Ref_Name_Lasts (Index) - Start + 1 =
+                    Branch_Name'Length
+                    and then Bytes_Equal
+                      (Listed_Ref_Names
+                         (Start .. Listed_Ref_Name_Lasts (Index)),
+                       Branch_Name)
+                    and then Bytes_Equal
+                      (Ada.Streams.Stream_Element_Array
+                         (Listed_Ref_IDs (Index)),
+                       Object_ID)
+                  then
+                     return True;
+                  end if;
+                  Start := Listed_Ref_Name_Lasts (Index) + 1;
+               end loop;
+               return False;
+            end Has_Branch;
+         begin
+            Check
+              (Listed_Ref_Count >= 1
+               and then Has_Branch
+                 (Bytes_From_String ("main"), Stored_Hex),
+               "git branches listed values");
+         end;
+         Status_Value :=
+           SSH_Lib.Git.List_Tag_Refs
+             (Repo_Root,
+              Listed_Ref_Names,
+              Listed_Ref_Name_Lasts,
+              Listed_Ref_IDs,
+              Listed_Ref_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tag refs listed");
+         declare
+            function Has_Tag
+              (Tag_Name : Ada.Streams.Stream_Element_Array;
+               Object_ID : Ada.Streams.Stream_Element_Array)
+               return Boolean
+            is
+               Start : Ada.Streams.Stream_Element_Offset :=
+                 Listed_Ref_Names'First;
+            begin
+               for Index in 1 .. Listed_Ref_Count loop
+                  if Listed_Ref_Name_Lasts (Index) - Start + 1 =
+                    Tag_Name'Length
+                    and then Bytes_Equal
+                      (Listed_Ref_Names
+                         (Start .. Listed_Ref_Name_Lasts (Index)),
+                       Tag_Name)
+                    and then Bytes_Equal
+                      (Ada.Streams.Stream_Element_Array
+                         (Listed_Ref_IDs (Index)),
+                       Object_ID)
+                  then
+                     return True;
+                  end if;
+                  Start := Listed_Ref_Name_Lasts (Index) + 1;
+               end loop;
+               return False;
+            end Has_Tag;
+         begin
+            Check
+              (Listed_Ref_Count >= 1
+               and then Has_Tag
+                 (Bytes_From_String ("v1"), Expected_Blob_Hex),
+               "git tag refs listed values");
+         end;
+         Status_Value :=
+           SSH_Lib.Git.List_Remote_Tracking_Branches
+             (Repo_Root,
+              Listed_Ref_Names,
+              Listed_Ref_Name_Lasts,
+              Listed_Ref_IDs,
+              Listed_Ref_Count);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote tracking branches listed");
+         declare
+            function Has_Remote_Branch
+              (Branch_Name : Ada.Streams.Stream_Element_Array;
+               Object_ID : Ada.Streams.Stream_Element_Array)
+               return Boolean
+            is
+               Start : Ada.Streams.Stream_Element_Offset :=
+                 Listed_Ref_Names'First;
+            begin
+               for Index in 1 .. Listed_Ref_Count loop
+                  if Listed_Ref_Name_Lasts (Index) - Start + 1 =
+                    Branch_Name'Length
+                    and then Bytes_Equal
+                      (Listed_Ref_Names
+                         (Start .. Listed_Ref_Name_Lasts (Index)),
+                       Branch_Name)
+                    and then Bytes_Equal
+                      (Ada.Streams.Stream_Element_Array
+                         (Listed_Ref_IDs (Index)),
+                       Object_ID)
+                  then
+                     return True;
+                  end if;
+                  Start := Listed_Ref_Name_Lasts (Index) + 1;
+               end loop;
+               return False;
+            end Has_Remote_Branch;
+         begin
+            Check
+              (Listed_Ref_Count >= 1
+               and then Has_Remote_Branch
+                 (Bytes_From_String ("origin/main"), Stored_Hex),
+               "git remote tracking branches listed values");
+         end;
 
-	         Status_Value :=
-	           SSH_Lib.Git.Resolve_Ref
-	             (Repo_Root, "HEAD", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git symbolic HEAD resolved");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Hex),
-	            "git symbolic HEAD resolved object id");
-	         Status_Value :=
-	           SSH_Lib.Git.Resolve_HEAD
-	             (Repo_Root, Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git HEAD convenience resolved");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Hex),
-	            "git HEAD convenience resolved object id");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_HEAD_Target
-	             (Repo_Root, Target_Ref, Target_Last, Head_Attached);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git HEAD target read");
-	         Check
-	           (Head_Attached
-	            and then Target_Last = Target_Ref'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("refs/heads/main")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Target_Ref (Target_Ref'First .. Target_Last),
-	               Bytes_From_String ("refs/heads/main")),
-	            "git HEAD target recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Current_Branch
-	             (Repo_Root, Target_Ref, Target_Last, Ref_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git current branch read");
-	         Check
-	           (Ref_Found
-	            and then Target_Last = Target_Ref'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("main")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Target_Ref (Target_Ref'First .. Target_Last),
-	               Bytes_From_String ("main")),
-	            "git current branch recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Detach_HEAD (Repo_Root, Expected_Blob_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git HEAD detached");
-	         Status_Value :=
-	           SSH_Lib.Git.Resolve_HEAD
-	             (Repo_Root, Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git detached HEAD convenience resolved");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
-	            "git detached HEAD object id");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_HEAD_Target
-	             (Repo_Root, Target_Ref, Target_Last, Head_Attached);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git detached HEAD target read");
-	         Check
-	           (not Head_Attached
-	            and then Target_Last = Target_Ref'First - 1,
-	            "git detached HEAD target absent");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Current_Branch
-	             (Repo_Root, Target_Ref, Target_Last, Ref_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git detached current branch read");
-	         Check
-	           (not Ref_Found
-	            and then Target_Last = Target_Ref'First - 1,
-	            "git detached current branch absent");
-	         Status_Value :=
-	           SSH_Lib.Git.Attach_HEAD (Repo_Root, "refs/heads/main");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git HEAD attached");
-	         Status_Value :=
-	           SSH_Lib.Git.Attach_HEAD_To_Branch (Repo_Root, "bad..name");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git HEAD attach to invalid branch rejected");
-	         Status_Value :=
-	           SSH_Lib.Git.Attach_HEAD_To_Branch (Repo_Root, "main");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git HEAD attached to branch");
-	         Status_Value :=
-	           SSH_Lib.Git.Resolve_HEAD
-	             (Repo_Root, Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git attached HEAD convenience resolved");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Hex),
-	            "git attached HEAD object id");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_HEAD_Target
-	             (Repo_Root, Target_Ref, Target_Last, Head_Attached);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git reattached HEAD target read");
-	         Check
-	           (Head_Attached
-	            and then Target_Last = Target_Ref'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("refs/heads/main")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Target_Ref (Target_Ref'First .. Target_Last),
-	               Bytes_From_String ("refs/heads/main")),
-	            "git reattached HEAD target recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Current_Branch
-	             (Repo_Root, Target_Ref, Target_Last, Ref_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git reattached current branch read");
-	         Check
-	           (Ref_Found
-	            and then Target_Last = Target_Ref'First
-	              + Ada.Streams.Stream_Element_Offset
-	                (String'("main")'Length)
-	              - 1
-	            and then Bytes_Equal
-	              (Target_Ref (Target_Ref'First .. Target_Last),
-	               Bytes_From_String ("main")),
-	            "git reattached current branch recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Create_Branch_From_HEAD
-	             (Repo_Root, "from-head");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch created from HEAD");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Branch
-	             (Repo_Root, "from-head", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git branch from HEAD read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Hex),
-	            "git branch from HEAD object id recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Create_Tag_Ref_From_HEAD
-	             (Repo_Root, "head-tag");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tag ref created from HEAD");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Tag_Ref
-	             (Repo_Root, "head-tag", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git tag ref from HEAD read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Hex),
-	            "git tag ref from HEAD object id recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Create_Remote_Tracking_Branch_From_HEAD
-	             (Repo_Root, "origin/from-head");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote tracking branch created from HEAD");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Remote_Tracking_Branch
-	             (Repo_Root, "origin/from-head", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git remote tracking branch from HEAD read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Hex),
-	            "git remote tracking branch from HEAD object id recovered");
-	         Status_Value :=
-	           SSH_Lib.Git.Create_Remote_Tracking_Branch_From_HEAD
-	             (Repo_Root, "../bad");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git remote tracking branch from HEAD rejects invalid name");
-	         Status_Value :=
-	           SSH_Lib.Git.Create_Tag_Ref_From_HEAD
-	             (Repo_Root, "bad..tag");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git tag ref from HEAD rejects invalid name");
-	         Status_Value :=
-	           SSH_Lib.Git.Create_Branch_From_HEAD
-	             (Repo_Root, "bad..name");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git branch from HEAD rejects invalid name");
+         Status_Value :=
+           SSH_Lib.Git.Resolve_Ref
+             (Repo_Root, "HEAD", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git symbolic HEAD resolved");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Hex),
+            "git symbolic HEAD resolved object id");
+         Status_Value :=
+           SSH_Lib.Git.Resolve_HEAD
+             (Repo_Root, Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git HEAD convenience resolved");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Hex),
+            "git HEAD convenience resolved object id");
+         Status_Value :=
+           SSH_Lib.Git.Read_HEAD_Target
+             (Repo_Root, Target_Ref, Target_Last, Head_Attached);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git HEAD target read");
+         Check
+           (Head_Attached
+            and then Target_Last = Target_Ref'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("refs/heads/main")'Length)
+              - 1
+            and then Bytes_Equal
+              (Target_Ref (Target_Ref'First .. Target_Last),
+               Bytes_From_String ("refs/heads/main")),
+            "git HEAD target recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Current_Branch
+             (Repo_Root, Target_Ref, Target_Last, Ref_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git current branch read");
+         Check
+           (Ref_Found
+            and then Target_Last = Target_Ref'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("main")'Length)
+              - 1
+            and then Bytes_Equal
+              (Target_Ref (Target_Ref'First .. Target_Last),
+               Bytes_From_String ("main")),
+            "git current branch recovered");
+         Status_Value :=
+           SSH_Lib.Git.Detach_HEAD (Repo_Root, Expected_Blob_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git HEAD detached");
+         Status_Value :=
+           SSH_Lib.Git.Resolve_HEAD
+             (Repo_Root, Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git detached HEAD convenience resolved");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
+            "git detached HEAD object id");
+         Status_Value :=
+           SSH_Lib.Git.Read_HEAD_Target
+             (Repo_Root, Target_Ref, Target_Last, Head_Attached);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git detached HEAD target read");
+         Check
+           (not Head_Attached
+            and then Target_Last = Target_Ref'First - 1,
+            "git detached HEAD target absent");
+         Status_Value :=
+           SSH_Lib.Git.Read_Current_Branch
+             (Repo_Root, Target_Ref, Target_Last, Ref_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git detached current branch read");
+         Check
+           (not Ref_Found
+            and then Target_Last = Target_Ref'First - 1,
+            "git detached current branch absent");
+         Status_Value :=
+           SSH_Lib.Git.Attach_HEAD (Repo_Root, "refs/heads/main");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git HEAD attached");
+         Status_Value :=
+           SSH_Lib.Git.Attach_HEAD_To_Branch (Repo_Root, "bad..name");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git HEAD attach to invalid branch rejected");
+         Status_Value :=
+           SSH_Lib.Git.Attach_HEAD_To_Branch (Repo_Root, "main");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git HEAD attached to branch");
+         Status_Value :=
+           SSH_Lib.Git.Resolve_HEAD
+             (Repo_Root, Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git attached HEAD convenience resolved");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Hex),
+            "git attached HEAD object id");
+         Status_Value :=
+           SSH_Lib.Git.Read_HEAD_Target
+             (Repo_Root, Target_Ref, Target_Last, Head_Attached);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git reattached HEAD target read");
+         Check
+           (Head_Attached
+            and then Target_Last = Target_Ref'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("refs/heads/main")'Length)
+              - 1
+            and then Bytes_Equal
+              (Target_Ref (Target_Ref'First .. Target_Last),
+               Bytes_From_String ("refs/heads/main")),
+            "git reattached HEAD target recovered");
+         Status_Value :=
+           SSH_Lib.Git.Read_Current_Branch
+             (Repo_Root, Target_Ref, Target_Last, Ref_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git reattached current branch read");
+         Check
+           (Ref_Found
+            and then Target_Last = Target_Ref'First
+              + Ada.Streams.Stream_Element_Offset
+                (String'("main")'Length)
+              - 1
+            and then Bytes_Equal
+              (Target_Ref (Target_Ref'First .. Target_Last),
+               Bytes_From_String ("main")),
+            "git reattached current branch recovered");
+         Status_Value :=
+           SSH_Lib.Git.Create_Branch_From_HEAD
+             (Repo_Root, "from-head");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch created from HEAD");
+         Status_Value :=
+           SSH_Lib.Git.Read_Branch
+             (Repo_Root, "from-head", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git branch from HEAD read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Hex),
+            "git branch from HEAD object id recovered");
+         Status_Value :=
+           SSH_Lib.Git.Create_Tag_Ref_From_HEAD
+             (Repo_Root, "head-tag");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tag ref created from HEAD");
+         Status_Value :=
+           SSH_Lib.Git.Read_Tag_Ref
+             (Repo_Root, "head-tag", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git tag ref from HEAD read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Hex),
+            "git tag ref from HEAD object id recovered");
+         Status_Value :=
+           SSH_Lib.Git.Create_Remote_Tracking_Branch_From_HEAD
+             (Repo_Root, "origin/from-head");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote tracking branch created from HEAD");
+         Status_Value :=
+           SSH_Lib.Git.Read_Remote_Tracking_Branch
+             (Repo_Root, "origin/from-head", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git remote tracking branch from HEAD read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Hex),
+            "git remote tracking branch from HEAD object id recovered");
+         Status_Value :=
+           SSH_Lib.Git.Create_Remote_Tracking_Branch_From_HEAD
+             (Repo_Root, "../bad");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git remote tracking branch from HEAD rejects invalid name");
+         Status_Value :=
+           SSH_Lib.Git.Create_Tag_Ref_From_HEAD
+             (Repo_Root, "bad..tag");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git tag ref from HEAD rejects invalid name");
+         Status_Value :=
+           SSH_Lib.Git.Create_Branch_From_HEAD
+             (Repo_Root, "bad..name");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git branch from HEAD rejects invalid name");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Resolve_Ref
-	             (Repo_Root, "refs/tags/v1", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git packed ref resolved");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
-	            "git packed ref resolved object id");
-	         Status_Value :=
-	           SSH_Lib.Git.Ref_Exists
-	             (Repo_Root,
-	              "refs/tags/v1",
-	              Read_Hex,
-	              Read_Hex_Last,
-	              Ref_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git existing ref probed");
-	         Check
-	           (Ref_Found
-	            and then Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
-	            "git existing ref probe values");
-	         Status_Value :=
-	           SSH_Lib.Git.Ref_Exists
-	             (Repo_Root,
-	              "refs/heads/missing",
-	              Read_Hex,
-	              Read_Hex_Last,
-	              Ref_Found);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git missing ref probed");
-	         Check
-	           (not Ref_Found and then Read_Hex_Last < Read_Hex'First,
-	            "git missing ref probe values");
+         Status_Value :=
+           SSH_Lib.Git.Resolve_Ref
+             (Repo_Root, "refs/tags/v1", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git packed ref resolved");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
+            "git packed ref resolved object id");
+         Status_Value :=
+           SSH_Lib.Git.Ref_Exists
+             (Repo_Root,
+              "refs/tags/v1",
+              Read_Hex,
+              Read_Hex_Last,
+              Ref_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git existing ref probed");
+         Check
+           (Ref_Found
+            and then Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Expected_Blob_Hex),
+            "git existing ref probe values");
+         Status_Value :=
+           SSH_Lib.Git.Ref_Exists
+             (Repo_Root,
+              "refs/heads/missing",
+              Read_Hex,
+              Read_Hex_Last,
+              Ref_Found);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git missing ref probed");
+         Check
+           (not Ref_Found and then Read_Hex_Last < Read_Hex'First,
+            "git missing ref probe values");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Direct_Ref
-	             (Repo_Root, "refs/heads/bad..name", Stored_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git direct ref rejects invalid ref name");
+         Status_Value :=
+           SSH_Lib.Git.Write_Direct_Ref
+             (Repo_Root, "refs/heads/bad..name", Stored_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git direct ref rejects invalid ref name");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Symbolic_Ref
-	             (Repo_Root,
-	              "refs/remotes/origin/HEAD",
-	              "refs/heads/bad..name");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git symbolic ref rejects invalid target");
+         Status_Value :=
+           SSH_Lib.Git.Write_Symbolic_Ref
+             (Repo_Root,
+              "refs/remotes/origin/HEAD",
+              "refs/heads/bad..name");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git symbolic ref rejects invalid target");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Packed_Ref
-	             (Repo_Root, "HEAD", Stored_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git packed ref rejects HEAD");
+         Status_Value :=
+           SSH_Lib.Git.Write_Packed_Ref
+             (Repo_Root, "HEAD", Stored_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git packed ref rejects HEAD");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Symbolic_Ref
-	             (Repo_Root, "refs/heads/loop-a", "refs/heads/loop-b");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git symbolic cycle first ref written");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Symbolic_Ref
-	             (Repo_Root, "refs/heads/loop-b", "refs/heads/loop-a");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git symbolic cycle second ref written");
-	         Status_Value :=
-	           SSH_Lib.Git.Resolve_Ref
-	             (Repo_Root, "refs/heads/loop-a", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Unsupported_Feature,
-	            "git ref resolution rejects symbolic cycle");
+         Status_Value :=
+           SSH_Lib.Git.Write_Symbolic_Ref
+             (Repo_Root, "refs/heads/loop-a", "refs/heads/loop-b");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git symbolic cycle first ref written");
+         Status_Value :=
+           SSH_Lib.Git.Write_Symbolic_Ref
+             (Repo_Root, "refs/heads/loop-b", "refs/heads/loop-a");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git symbolic cycle second ref written");
+         Status_Value :=
+           SSH_Lib.Git.Resolve_Ref
+             (Repo_Root, "refs/heads/loop-a", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Unsupported_Feature,
+            "git ref resolution rejects symbolic cycle");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Direct_Ref_Atomic
-	             (Repo_Root, "refs/heads/atomic", Alternate_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git atomic direct ref written");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Direct_Ref
-	             (Repo_Root, "refs/heads/atomic", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git atomic direct ref read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Alternate_Hex),
-	            "git atomic direct ref object id recovered");
+         Status_Value :=
+           SSH_Lib.Git.Write_Direct_Ref_Atomic
+             (Repo_Root, "refs/heads/atomic", Alternate_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git atomic direct ref written");
+         Status_Value :=
+           SSH_Lib.Git.Read_Direct_Ref
+             (Repo_Root, "refs/heads/atomic", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git atomic direct ref read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Alternate_Hex),
+            "git atomic direct ref object id recovered");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Compare_And_Swap_Direct_Ref
-	             (Repo_Root,
-	              "refs/heads/atomic",
-	              Alternate_Hex,
-	              Stored_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git direct ref compare-and-swap updated");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Direct_Ref
-	             (Repo_Root, "refs/heads/atomic", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git compare-and-swap ref read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Hex),
-	            "git compare-and-swap object id recovered");
+         Status_Value :=
+           SSH_Lib.Git.Compare_And_Swap_Direct_Ref
+             (Repo_Root,
+              "refs/heads/atomic",
+              Alternate_Hex,
+              Stored_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git direct ref compare-and-swap updated");
+         Status_Value :=
+           SSH_Lib.Git.Read_Direct_Ref
+             (Repo_Root, "refs/heads/atomic", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git compare-and-swap ref read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Hex),
+            "git compare-and-swap object id recovered");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Compare_And_Swap_Direct_Ref
-	             (Repo_Root,
-	              "refs/heads/atomic",
-	              Alternate_Hex,
-	              Expected_Blob_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git direct ref compare-and-swap rejects mismatch");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Direct_Ref
-	             (Repo_Root, "refs/heads/atomic", Read_Hex, Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git failed compare-and-swap ref read");
-	         Check
-	           (Read_Hex_Last = Read_Hex'Last
-	            and then Bytes_Equal (Read_Hex, Stored_Hex),
-	            "git failed compare-and-swap preserves object id");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Direct_Ref_Atomic
-	             (Repo_Root, "refs/heads/delete-atomic", Alternate_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git atomic deletable direct ref written");
-	         Status_Value :=
-	           SSH_Lib.Git.Compare_And_Delete_Direct_Ref
-	             (Repo_Root,
-	              "refs/heads/delete-atomic",
-	              Stored_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git direct ref compare-and-delete rejects mismatch");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Direct_Ref
-	             (Repo_Root,
-	              "refs/heads/delete-atomic",
-	              Read_Hex,
-	              Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git failed compare-and-delete preserves ref");
-	         Status_Value :=
-	           SSH_Lib.Git.Compare_And_Delete_Direct_Ref
-	             (Repo_Root,
-	              "refs/heads/delete-atomic",
-	              Alternate_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git direct ref compare-and-delete removed");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Direct_Ref
-	             (Repo_Root,
-	              "refs/heads/delete-atomic",
-	              Read_Hex,
-	              Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git compare-and-deleted ref no longer read");
-	         Status_Value :=
-	           SSH_Lib.Git.Write_Direct_Ref_Atomic
-	             (Repo_Root, "refs/heads/delete-atomic", Alternate_Hex);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git atomic delete direct ref rewritten");
-	         Status_Value :=
-	           SSH_Lib.Git.Delete_Direct_Ref_Atomic
-	             (Repo_Root, "refs/heads/delete-atomic");
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git atomic direct ref deleted");
-	         Status_Value :=
-	           SSH_Lib.Git.Read_Direct_Ref
-	             (Repo_Root,
-	              "refs/heads/delete-atomic",
-	              Read_Hex,
-	              Read_Hex_Last);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Read_Failed,
-	            "git atomic deleted ref no longer read");
+         Status_Value :=
+           SSH_Lib.Git.Compare_And_Swap_Direct_Ref
+             (Repo_Root,
+              "refs/heads/atomic",
+              Alternate_Hex,
+              Expected_Blob_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git direct ref compare-and-swap rejects mismatch");
+         Status_Value :=
+           SSH_Lib.Git.Read_Direct_Ref
+             (Repo_Root, "refs/heads/atomic", Read_Hex, Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git failed compare-and-swap ref read");
+         Check
+           (Read_Hex_Last = Read_Hex'Last
+            and then Bytes_Equal (Read_Hex, Stored_Hex),
+            "git failed compare-and-swap preserves object id");
+         Status_Value :=
+           SSH_Lib.Git.Write_Direct_Ref_Atomic
+             (Repo_Root, "refs/heads/delete-atomic", Alternate_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git atomic deletable direct ref written");
+         Status_Value :=
+           SSH_Lib.Git.Compare_And_Delete_Direct_Ref
+             (Repo_Root,
+              "refs/heads/delete-atomic",
+              Stored_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git direct ref compare-and-delete rejects mismatch");
+         Status_Value :=
+           SSH_Lib.Git.Read_Direct_Ref
+             (Repo_Root,
+              "refs/heads/delete-atomic",
+              Read_Hex,
+              Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git failed compare-and-delete preserves ref");
+         Status_Value :=
+           SSH_Lib.Git.Compare_And_Delete_Direct_Ref
+             (Repo_Root,
+              "refs/heads/delete-atomic",
+              Alternate_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git direct ref compare-and-delete removed");
+         Status_Value :=
+           SSH_Lib.Git.Read_Direct_Ref
+             (Repo_Root,
+              "refs/heads/delete-atomic",
+              Read_Hex,
+              Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git compare-and-deleted ref no longer read");
+         Status_Value :=
+           SSH_Lib.Git.Write_Direct_Ref_Atomic
+             (Repo_Root, "refs/heads/delete-atomic", Alternate_Hex);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git atomic delete direct ref rewritten");
+         Status_Value :=
+           SSH_Lib.Git.Delete_Direct_Ref_Atomic
+             (Repo_Root, "refs/heads/delete-atomic");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git atomic direct ref deleted");
+         Status_Value :=
+           SSH_Lib.Git.Read_Direct_Ref
+             (Repo_Root,
+              "refs/heads/delete-atomic",
+              Read_Hex,
+              Read_Hex_Last);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Read_Failed,
+            "git atomic deleted ref no longer read");
 
-	         if Ada.Directories.Exists (Repo_Root) then
-	            Ada.Directories.Delete_Tree (Repo_Root);
-	         end if;
-	      end;
+         if Ada.Directories.Exists (Repo_Root) then
+            Ada.Directories.Delete_Tree (Repo_Root);
+         end if;
+      end;
 
-	      Status_Value :=
-	        SSH_Lib.Git.Parse_Pack_Index_Header
+      Status_Value :=
+        SSH_Lib.Git.Parse_Pack_Index_Header
           ([16#FF#, Character'Pos ('t'), Character'Pos ('O'),
             Character'Pos ('c'), 0, 0, 0, 2],
            Pack_Index_Version);
@@ -9424,7 +9424,7 @@ package body SSH_Lib.Tests.Legacy is
          "git pack index truncated fanout consistency rejected");
 
       declare
-         Fanout : Ada.Streams.Stream_Element_Array (1 .. 1024) :=
+         Fanout : constant Ada.Streams.Stream_Element_Array (1 .. 1024) :=
            [others => 0];
       begin
          Status_Value :=
@@ -9570,41 +9570,41 @@ package body SSH_Lib.Tests.Legacy is
          Check_Status
            (Status_Value, CryptoLib.Errors.Ok,
             "git pack index object lookup found small offset");
-	         Check
-	           (Pack_Object_Index = 0 and then Pack_Offset = 16#34#,
-	            "git pack index object lookup small offset values");
+         Check
+           (Pack_Object_Index = 0 and then Pack_Offset = 16#34#,
+            "git pack index object lookup small offset values");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Find_Pack_Index_Object_Hex
-	             (Index_Data,
-	              [Character'Pos ('0'), Character'Pos ('0'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1'),
-	               Character'Pos ('0'), Character'Pos ('1')],
-	              Pack_Object_Index,
-	              Pack_Offset);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pack index hex object lookup found small offset");
-	         Check
-	           (Pack_Object_Index = 0 and then Pack_Offset = 16#34#,
-	            "git pack index hex object lookup small offset values");
+         Status_Value :=
+           SSH_Lib.Git.Find_Pack_Index_Object_Hex
+             (Index_Data,
+              [Character'Pos ('0'), Character'Pos ('0'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1'),
+               Character'Pos ('0'), Character'Pos ('1')],
+              Pack_Object_Index,
+              Pack_Offset);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pack index hex object lookup found small offset");
+         Check
+           (Pack_Object_Index = 0 and then Pack_Offset = 16#34#,
+            "git pack index hex object lookup small offset values");
 
          Status_Value :=
            SSH_Lib.Git.List_Pack_Index_Object_IDs
@@ -9649,8 +9649,8 @@ package body SSH_Lib.Tests.Legacy is
                "git pack index object ids listed values");
          end;
 
-	         Status_Value :=
-	           SSH_Lib.Git.Find_Pack_Index_Object
+         Status_Value :=
+           SSH_Lib.Git.Find_Pack_Index_Object
              (Index_Data,
               [1 => 16#80#, 2 .. 20 => 1],
               Pack_Object_Index,
@@ -9668,22 +9668,22 @@ package body SSH_Lib.Tests.Legacy is
               [1 => 16#7F#, 2 .. 20 => 1],
               Pack_Object_Index,
               Pack_Offset);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git pack index missing object lookup rejected");
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git pack index missing object lookup rejected");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Find_Pack_Index_Object_Hex
-	             (Index_Data,
-	              [1 => Character'Pos ('x'),
-	               2 => Character'Pos ('0'),
-	               3 .. 40 => Character'Pos ('1')],
-	              Pack_Object_Index,
-	              Pack_Offset);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Invalid_Command,
-	            "git pack index malformed hex object lookup rejected");
-	      end;
+         Status_Value :=
+           SSH_Lib.Git.Find_Pack_Index_Object_Hex
+             (Index_Data,
+              [1 => Character'Pos ('x'),
+               2 => Character'Pos ('0'),
+               3 .. 40 => Character'Pos ('1')],
+              Pack_Object_Index,
+              Pack_Offset);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Invalid_Command,
+            "git pack index malformed hex object lookup rejected");
+      end;
 
       declare
          procedure Store_SHA1
@@ -10327,30 +10327,28 @@ package body SSH_Lib.Tests.Legacy is
             end loop;
          end Store_SHA1;
 
-	         procedure Store_U32
-	           (Value  : Interfaces.Unsigned_32;
-	            Target : in out Ada.Streams.Stream_Element_Array)
-	         is
-	            use type Interfaces.Unsigned_32;
-	         begin
-	            Target (Target'First) :=
-	              Ada.Streams.Stream_Element
-	                (Interfaces.Shift_Right (Value, 24) and 16#FF#);
-	            Target (Target'First + 1) :=
-	              Ada.Streams.Stream_Element
-	                (Interfaces.Shift_Right (Value, 16) and 16#FF#);
-	            Target (Target'First + 2) :=
-	              Ada.Streams.Stream_Element
-	                (Interfaces.Shift_Right (Value, 8) and 16#FF#);
-	            Target (Target'First + 3) :=
-	              Ada.Streams.Stream_Element (Value and 16#FF#);
-	         end Store_U32;
-
-	         function CRC32
-	           (Data : Ada.Streams.Stream_Element_Array)
-	            return Interfaces.Unsigned_32
+         procedure Store_U32
+           (Value  : Interfaces.Unsigned_32;
+            Target : in out Ada.Streams.Stream_Element_Array)
          is
-            use type Interfaces.Unsigned_32;
+         begin
+            Target (Target'First) :=
+              Ada.Streams.Stream_Element
+                (Interfaces.Shift_Right (Value, 24) and 16#FF#);
+            Target (Target'First + 1) :=
+              Ada.Streams.Stream_Element
+                (Interfaces.Shift_Right (Value, 16) and 16#FF#);
+            Target (Target'First + 2) :=
+              Ada.Streams.Stream_Element
+                (Interfaces.Shift_Right (Value, 8) and 16#FF#);
+            Target (Target'First + 3) :=
+              Ada.Streams.Stream_Element (Value and 16#FF#);
+         end Store_U32;
+
+         function CRC32
+           (Data : Ada.Streams.Stream_Element_Array)
+            return Interfaces.Unsigned_32
+         is
             CRC : Interfaces.Unsigned_32 := 16#FFFF_FFFF#;
          begin
             for B of Data loop
@@ -10364,8 +10362,8 @@ package body SSH_Lib.Tests.Legacy is
                   end if;
                end loop;
             end loop;
-	            return not CRC;
-	         end CRC32;
+            return not CRC;
+         end CRC32;
 
          Chain_Pack : Ada.Streams.Stream_Element_Array (1 .. 90) :=
            [Character'Pos ('P'), Character'Pos ('A'), Character'Pos ('C'),
@@ -10494,462 +10492,462 @@ package body SSH_Lib.Tests.Legacy is
          Check_Status
            (Status_Value, CryptoLib.Errors.Ok,
             "git pack integrity validated");
-	         Check
-	           (Pack_Count = 3
-	            and then Pack_Verified_Count = 1
-	            and then Pack_Resolved_Count = 2
-	            and then Pack_Offset = 70,
-	            "git pack integrity count and trailer offset");
+         Check
+           (Pack_Count = 3
+            and then Pack_Verified_Count = 1
+            and then Pack_Resolved_Count = 2
+            and then Pack_Offset = 70,
+            "git pack integrity count and trailer offset");
 
-	         Status_Value :=
-	           SSH_Lib.Git.Inventory_Pack_Objects
-	             (Chain_Pack,
-	              Pack_Inflated,
-	              Pack_Object_Counts,
-	              Pack_Count,
-	              Pack_Offset);
-	         Check_Status
-	           (Status_Value, CryptoLib.Errors.Ok,
-	            "git pack object inventory counted");
-	         Check
-	           (Pack_Count = 3
-	            and then Pack_Offset = 70
-	            and then Pack_Object_Counts.Commits = 0
-	            and then Pack_Object_Counts.Trees = 0
-	            and then Pack_Object_Counts.Blobs = 1
-	            and then Pack_Object_Counts.Tags = 0
-	            and then Pack_Object_Counts.OFS_Deltas = 2
-	            and then Pack_Object_Counts.REF_Deltas = 0,
-	            "git pack object inventory values");
+         Status_Value :=
+           SSH_Lib.Git.Inventory_Pack_Objects
+             (Chain_Pack,
+              Pack_Inflated,
+              Pack_Object_Counts,
+              Pack_Count,
+              Pack_Offset);
+         Check_Status
+           (Status_Value, CryptoLib.Errors.Ok,
+            "git pack object inventory counted");
+         Check
+           (Pack_Count = 3
+            and then Pack_Offset = 70
+            and then Pack_Object_Counts.Commits = 0
+            and then Pack_Object_Counts.Trees = 0
+            and then Pack_Object_Counts.Blobs = 1
+            and then Pack_Object_Counts.Tags = 0
+            and then Pack_Object_Counts.OFS_Deltas = 2
+            and then Pack_Object_Counts.REF_Deltas = 0,
+            "git pack object inventory values");
 
-	         declare
-	            Delta_Repo_Root : constant String :=
-	              SSH_Lib.Tests.Fixtures.Temp_Paths.Path
-	                ("git_delta_read_repo");
-	            Pack_Raw : Ada.Streams.Stream_Element_Array (1 .. 20);
-	            Pack_Raw_Last : Ada.Streams.Stream_Element_Offset;
-	            Pack_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	            Pack_Hex_Last : Ada.Streams.Stream_Element_Offset;
-	            Pack_List : Ada.Streams.Stream_Element_Array (1 .. 40);
-	            Found_Pack_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	            Found_Pack_Last : Ada.Streams.Stream_Element_Offset;
-	            Delta_Object_Hex : constant Ada.Streams.Stream_Element_Array :=
-	              Bytes_From_String
-	                ("a85cffd7ad5039ce9beb98b6486dde199ea69956");
-	            Stored_Pack : Ada.Streams.Stream_Element_Array (1 .. 128);
-	            Stored_Index : Ada.Streams.Stream_Element_Array (1 .. 1200);
-	            Base_Read : Ada.Streams.Stream_Element_Array (1 .. 64);
-	            Delta_Read : Ada.Streams.Stream_Element_Array (1 .. 64);
-	            Delta_Workspace : Ada.Streams.Stream_Element_Array (1 .. 64);
-	            Resolved_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
-	            Resolved_Last : Ada.Streams.Stream_Element_Offset;
-	            Resolved_Kind : SSH_Lib.Git.Pack_Object_Kind :=
-	              SSH_Lib.Git.Pack_Tree;
-	         begin
-	            Store_SHA1 (Pack_Digest, Pack_Raw);
-	            Pack_Raw_Last := Pack_Raw'Last;
-	            Status_Value :=
-	              SSH_Lib.Git.Encode_Object_ID_Hex
-	                (Pack_Raw, Pack_Hex, Pack_Hex_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git delta pack checksum hex encoded");
-	            Check (Pack_Hex_Last = Pack_Hex'Last,
-	                   "git delta pack checksum hex complete");
+         declare
+            Delta_Repo_Root : constant String :=
+              SSH_Lib.Tests.Fixtures.Temp_Paths.Path
+                ("git_delta_read_repo");
+            Pack_Raw : Ada.Streams.Stream_Element_Array (1 .. 20);
+            Pack_Raw_Last : Ada.Streams.Stream_Element_Offset;
+            Pack_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+            Pack_Hex_Last : Ada.Streams.Stream_Element_Offset;
+            Pack_List : Ada.Streams.Stream_Element_Array (1 .. 40);
+            Found_Pack_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+            Found_Pack_Last : Ada.Streams.Stream_Element_Offset;
+            Delta_Object_Hex : constant Ada.Streams.Stream_Element_Array :=
+              Bytes_From_String
+                ("a85cffd7ad5039ce9beb98b6486dde199ea69956");
+            Stored_Pack : Ada.Streams.Stream_Element_Array (1 .. 128);
+            Stored_Index : Ada.Streams.Stream_Element_Array (1 .. 1200);
+            Base_Read : Ada.Streams.Stream_Element_Array (1 .. 64);
+            Delta_Read : Ada.Streams.Stream_Element_Array (1 .. 64);
+            Delta_Workspace : Ada.Streams.Stream_Element_Array (1 .. 64);
+            Resolved_Data : Ada.Streams.Stream_Element_Array (1 .. 64);
+            Resolved_Last : Ada.Streams.Stream_Element_Offset;
+            Resolved_Kind : SSH_Lib.Git.Pack_Object_Kind :=
+              SSH_Lib.Git.Pack_Tree;
+         begin
+            Store_SHA1 (Pack_Digest, Pack_Raw);
+            Pack_Raw_Last := Pack_Raw'Last;
+            Status_Value :=
+              SSH_Lib.Git.Encode_Object_ID_Hex
+                (Pack_Raw, Pack_Hex, Pack_Hex_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git delta pack checksum hex encoded");
+            Check (Pack_Hex_Last = Pack_Hex'Last,
+                   "git delta pack checksum hex complete");
 
-	            Status_Value :=
-	              SSH_Lib.Git.Initialize_Repository_State (Delta_Repo_Root);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git delta repository state initialized");
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Pack_File
-	                (Delta_Repo_Root, Chain_Pack, Pack_Hex, Pack_Hex_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git delta pack stored");
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Pack_Index
-	                (Delta_Repo_Root, Pack_Hex, Index_Data);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git delta pack index stored");
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Packed_Object_Resolved
-	                (Delta_Repo_Root,
-	                 Pack_Hex,
-	                 Delta_Object_Hex,
-	                 Stored_Pack,
-	                 Stored_Index,
-	                 Base_Read,
-	                 Delta_Read,
-	                 Delta_Workspace,
-	                 Resolved_Kind,
-	                 Resolved_Data,
-	                 Resolved_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git resolved packed delta object read");
-	            Check
-	              (Resolved_Kind = SSH_Lib.Git.Pack_Blob
-	               and then Resolved_Last >= Resolved_Data'First,
-	               "git resolved packed delta object kind and payload");
-	            Resolved_Kind := SSH_Lib.Git.Pack_Tree;
-	            Resolved_Last := Resolved_Data'First - 1;
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Packed_Object_Resolved_Validated
-	                (Delta_Repo_Root,
-	                 Pack_Hex,
-	                 Delta_Object_Hex,
-	                 Stored_Pack,
-	                 Stored_Index,
-	                 Base_Read,
-	                 Delta_Read,
-	                 Delta_Workspace,
-	                 Resolved_Kind,
-	                 Resolved_Data,
-	                 Resolved_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git validated resolved packed delta object read");
-	            Check
-	              (Resolved_Kind = SSH_Lib.Git.Pack_Blob
-	               and then Resolved_Last >= Resolved_Data'First,
-	               "git validated resolved packed delta object values");
-	            Resolved_Kind := SSH_Lib.Git.Pack_Tree;
-	            Resolved_Last := Resolved_Data'First - 1;
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Stored_Object_Resolved
-	                (Delta_Repo_Root,
-	                 Delta_Object_Hex,
-	                 Pack_Hex,
-	                 Stored_Pack,
-	                 Stored_Index,
-	                 Base_Read,
-	                 Delta_Read,
-	                 Delta_Workspace,
-	                 Resolved_Kind,
-	                 Resolved_Data,
-	                 Resolved_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git resolved stored delta object read");
-	            Check
-	              (Resolved_Kind = SSH_Lib.Git.Pack_Blob
-	               and then Resolved_Last >= Resolved_Data'First,
-	               "git resolved stored delta object kind and payload");
-	            Resolved_Kind := SSH_Lib.Git.Pack_Tree;
-	            Resolved_Last := Resolved_Data'First - 1;
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Stored_Object_Resolved_Validated
-	                (Delta_Repo_Root,
-	                 Delta_Object_Hex,
-	                 Pack_Hex,
-	                 Stored_Pack,
-	                 Stored_Index,
-	                 Base_Read,
-	                 Delta_Read,
-	                 Delta_Workspace,
-	                 Resolved_Kind,
-	                 Resolved_Data,
-	                 Resolved_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git validated resolved stored delta object read");
-	            Check
-	              (Resolved_Kind = SSH_Lib.Git.Pack_Blob
-	               and then Resolved_Last >= Resolved_Data'First,
-	               "git validated resolved stored delta object values");
-	            Resolved_Kind := SSH_Lib.Git.Pack_Tree;
-	            Resolved_Last := Resolved_Data'First - 1;
-	            Found_Pack_Last := Found_Pack_Hex'First - 1;
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Any_Stored_Object_Resolved
-	                (Delta_Repo_Root,
-	                 Delta_Object_Hex,
-	                 Pack_List,
-	                 Stored_Pack,
-	                 Stored_Index,
-	                 Base_Read,
-	                 Delta_Read,
-	                 Delta_Workspace,
-	                 Found_Pack_Hex,
-	                 Found_Pack_Last,
-	                 Resolved_Kind,
-	                 Resolved_Data,
-	                 Resolved_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git any resolved stored delta object read");
-	            Check
-	              (Resolved_Kind = SSH_Lib.Git.Pack_Blob
-	               and then Resolved_Last >= Resolved_Data'First
-	               and then Found_Pack_Last = Found_Pack_Hex'Last
-	               and then Bytes_Equal (Found_Pack_Hex, Pack_Hex),
-	               "git any resolved stored delta object values");
-	            Resolved_Kind := SSH_Lib.Git.Pack_Tree;
-	            Resolved_Last := Resolved_Data'First - 1;
-	            Found_Pack_Last := Found_Pack_Hex'First - 1;
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Any_Stored_Object_Resolved_Validated
-	                (Delta_Repo_Root,
-	                 Delta_Object_Hex,
-	                 Pack_List,
-	                 Stored_Pack,
-	                 Stored_Index,
-	                 Base_Read,
-	                 Delta_Read,
-	                 Delta_Workspace,
-	                 Found_Pack_Hex,
-	                 Found_Pack_Last,
-	                 Resolved_Kind,
-	                 Resolved_Data,
-	                 Resolved_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git validated any resolved stored delta object read");
-	            Check
-	              (Resolved_Kind = SSH_Lib.Git.Pack_Blob
-	               and then Resolved_Last >= Resolved_Data'First
-	               and then Found_Pack_Last = Found_Pack_Hex'Last
-	               and then Bytes_Equal (Found_Pack_Hex, Pack_Hex),
-	               "git validated any resolved stored delta object values");
-	         end;
+            Status_Value :=
+              SSH_Lib.Git.Initialize_Repository_State (Delta_Repo_Root);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git delta repository state initialized");
+            Status_Value :=
+              SSH_Lib.Git.Store_Pack_File
+                (Delta_Repo_Root, Chain_Pack, Pack_Hex, Pack_Hex_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git delta pack stored");
+            Status_Value :=
+              SSH_Lib.Git.Store_Pack_Index
+                (Delta_Repo_Root, Pack_Hex, Index_Data);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git delta pack index stored");
+            Status_Value :=
+              SSH_Lib.Git.Read_Packed_Object_Resolved
+                (Delta_Repo_Root,
+                 Pack_Hex,
+                 Delta_Object_Hex,
+                 Stored_Pack,
+                 Stored_Index,
+                 Base_Read,
+                 Delta_Read,
+                 Delta_Workspace,
+                 Resolved_Kind,
+                 Resolved_Data,
+                 Resolved_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git resolved packed delta object read");
+            Check
+              (Resolved_Kind = SSH_Lib.Git.Pack_Blob
+               and then Resolved_Last >= Resolved_Data'First,
+               "git resolved packed delta object kind and payload");
+            Resolved_Kind := SSH_Lib.Git.Pack_Tree;
+            Resolved_Last := Resolved_Data'First - 1;
+            Status_Value :=
+              SSH_Lib.Git.Read_Packed_Object_Resolved_Validated
+                (Delta_Repo_Root,
+                 Pack_Hex,
+                 Delta_Object_Hex,
+                 Stored_Pack,
+                 Stored_Index,
+                 Base_Read,
+                 Delta_Read,
+                 Delta_Workspace,
+                 Resolved_Kind,
+                 Resolved_Data,
+                 Resolved_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git validated resolved packed delta object read");
+            Check
+              (Resolved_Kind = SSH_Lib.Git.Pack_Blob
+               and then Resolved_Last >= Resolved_Data'First,
+               "git validated resolved packed delta object values");
+            Resolved_Kind := SSH_Lib.Git.Pack_Tree;
+            Resolved_Last := Resolved_Data'First - 1;
+            Status_Value :=
+              SSH_Lib.Git.Read_Stored_Object_Resolved
+                (Delta_Repo_Root,
+                 Delta_Object_Hex,
+                 Pack_Hex,
+                 Stored_Pack,
+                 Stored_Index,
+                 Base_Read,
+                 Delta_Read,
+                 Delta_Workspace,
+                 Resolved_Kind,
+                 Resolved_Data,
+                 Resolved_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git resolved stored delta object read");
+            Check
+              (Resolved_Kind = SSH_Lib.Git.Pack_Blob
+               and then Resolved_Last >= Resolved_Data'First,
+               "git resolved stored delta object kind and payload");
+            Resolved_Kind := SSH_Lib.Git.Pack_Tree;
+            Resolved_Last := Resolved_Data'First - 1;
+            Status_Value :=
+              SSH_Lib.Git.Read_Stored_Object_Resolved_Validated
+                (Delta_Repo_Root,
+                 Delta_Object_Hex,
+                 Pack_Hex,
+                 Stored_Pack,
+                 Stored_Index,
+                 Base_Read,
+                 Delta_Read,
+                 Delta_Workspace,
+                 Resolved_Kind,
+                 Resolved_Data,
+                 Resolved_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git validated resolved stored delta object read");
+            Check
+              (Resolved_Kind = SSH_Lib.Git.Pack_Blob
+               and then Resolved_Last >= Resolved_Data'First,
+               "git validated resolved stored delta object values");
+            Resolved_Kind := SSH_Lib.Git.Pack_Tree;
+            Resolved_Last := Resolved_Data'First - 1;
+            Found_Pack_Last := Found_Pack_Hex'First - 1;
+            Status_Value :=
+              SSH_Lib.Git.Read_Any_Stored_Object_Resolved
+                (Delta_Repo_Root,
+                 Delta_Object_Hex,
+                 Pack_List,
+                 Stored_Pack,
+                 Stored_Index,
+                 Base_Read,
+                 Delta_Read,
+                 Delta_Workspace,
+                 Found_Pack_Hex,
+                 Found_Pack_Last,
+                 Resolved_Kind,
+                 Resolved_Data,
+                 Resolved_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git any resolved stored delta object read");
+            Check
+              (Resolved_Kind = SSH_Lib.Git.Pack_Blob
+               and then Resolved_Last >= Resolved_Data'First
+               and then Found_Pack_Last = Found_Pack_Hex'Last
+               and then Bytes_Equal (Found_Pack_Hex, Pack_Hex),
+               "git any resolved stored delta object values");
+            Resolved_Kind := SSH_Lib.Git.Pack_Tree;
+            Resolved_Last := Resolved_Data'First - 1;
+            Found_Pack_Last := Found_Pack_Hex'First - 1;
+            Status_Value :=
+              SSH_Lib.Git.Read_Any_Stored_Object_Resolved_Validated
+                (Delta_Repo_Root,
+                 Delta_Object_Hex,
+                 Pack_List,
+                 Stored_Pack,
+                 Stored_Index,
+                 Base_Read,
+                 Delta_Read,
+                 Delta_Workspace,
+                 Found_Pack_Hex,
+                 Found_Pack_Last,
+                 Resolved_Kind,
+                 Resolved_Data,
+                 Resolved_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git validated any resolved stored delta object read");
+            Check
+              (Resolved_Kind = SSH_Lib.Git.Pack_Blob
+               and then Resolved_Last >= Resolved_Data'First
+               and then Found_Pack_Last = Found_Pack_Hex'Last
+               and then Bytes_Equal (Found_Pack_Hex, Pack_Hex),
+               "git validated any resolved stored delta object values");
+         end;
 
-	         declare
-	            Delta_Tree_Repo_Root : constant String :=
-	              SSH_Lib.Tests.Fixtures.Temp_Paths.Path
-	                ("git_delta_tree_traversal_repo");
-	            Delta_Tree_Object_Hex : constant Ada.Streams.Stream_Element_Array :=
-	              Bytes_From_String
-	                ("d035306f8025100de61b1e7af19c222d70b7fda3");
-	            Delta_Tree_Pack : Ada.Streams.Stream_Element_Array (1 .. 84) :=
-	              [16#50#, 16#41#, 16#43#, 16#4B#,
-	               16#00#, 16#00#, 16#00#, 16#02#,
-	               16#00#, 16#00#, 16#00#, 16#02#,
-	               16#A1#, 16#02#, 16#78#, 16#9C#,
-	               16#33#, 16#34#, 16#30#, 16#30#,
-	               16#33#, 16#31#, 16#51#, 16#48#,
-	               16#D4#, 16#2B#, 16#A9#, 16#28#,
-	               16#61#, 16#60#, 16#54#, 16#76#,
-	               16#4D#, 16#EF#, 16#5C#, 16#7D#,
-	               16#F6#, 16#3D#, 16#32#, 16#0D#,
-	               16#00#, 16#A9#, 16#78#, 16#0B#,
-	               16#8F#, 16#69#, 16#21#, 16#78#,
-	               16#9C#, 16#53#, 16#54#, 16#9C#,
-	               16#C0#, 16#CE#, 16#98#, 16#34#,
-	               16#91#, 16#43#, 16#12#, 16#00#,
-	               16#09#, 16#BD#, 16#01#, 16#EF#,
-	               16#70#, 16#99#, 16#DF#, 16#F2#,
-	               16#3A#, 16#72#, 16#81#, 16#5F#,
-	               16#0D#, 16#7E#, 16#9F#, 16#11#,
-	               16#8F#, 16#B2#, 16#0C#, 16#E7#,
-	               16#49#, 16#D7#, 16#A1#, 16#15#];
-	            Delta_Tree_Index_Scratch :
-	              Ada.Streams.Stream_Element_Array (1 .. 256);
-	            Delta_Tree_Index : Ada.Streams.Stream_Element_Array (1 .. 1200);
-	            Delta_Tree_Index_Last : Ada.Streams.Stream_Element_Offset;
-	            Delta_Tree_Pack_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	            Delta_Tree_Pack_Hex_Last : Ada.Streams.Stream_Element_Offset;
-	            Delta_Tree_Paths : Ada.Streams.Stream_Element_Array (1 .. 64);
-	            Delta_Tree_Path_Lasts :
-	              SSH_Lib.Git.Index_Path_Last_Array (1 .. 2);
-	            Delta_Tree_Modes : SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
-	            Delta_Tree_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
-	            Delta_Tree_Count : Natural := 0;
-	            Delta_Tree_Commit_Data :
-	              Ada.Streams.Stream_Element_Array (1 .. 512);
-	            Delta_Tree_Commit_Last : Ada.Streams.Stream_Element_Offset;
-	            Delta_Tree_Commit_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	            Delta_Tree_Commit_Hex_Last : Ada.Streams.Stream_Element_Offset;
-	            function Hex_Text
-	              (Text : String)
-	               return SSH_Lib.Git.Object_ID_Hex_Text
-	            is
-	               Result : SSH_Lib.Git.Object_ID_Hex_Text;
-	            begin
-	               for Index in Result'Range loop
-	                  Result (Index) :=
-	                    Ada.Streams.Stream_Element
-	                      (Character'Pos (Text (Text'First + Index - 1)));
-	               end loop;
-	               return Result;
-	            end Hex_Text;
-	            function Hex_Text_Equal
-	              (Left  : SSH_Lib.Git.Object_ID_Hex_Text;
-	               Right : SSH_Lib.Git.Object_ID_Hex_Text)
-	               return Boolean
-	            is
-	            begin
-	               for Index in Left'Range loop
-	                  if Left (Index) /= Right (Index) then
-	                     return False;
-	                  end if;
-	               end loop;
-	               return True;
-	            end Hex_Text_Equal;
-	         begin
-	            Status_Value :=
-	              SSH_Lib.Git.Initialize_Repository_State
-	                (Delta_Tree_Repo_Root);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git delta tree traversal repository initialized");
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Pack_File
-	                (Delta_Tree_Repo_Root,
-	                 Delta_Tree_Pack,
-	                 Delta_Tree_Pack_Hex,
-	                 Delta_Tree_Pack_Hex_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git delta tree traversal pack stored");
-	            Delta_Tree_Index := [others => 0];
-	            Delta_Tree_Index (1 .. 8) :=
-	              [16#FF#, Character'Pos ('t'), Character'Pos ('O'),
-	               Character'Pos ('c'), 0, 0, 0, 2];
-	            for Bucket in 0 .. 255 loop
-	               declare
-	                  Value : constant Interfaces.Unsigned_32 :=
-	                    (if Bucket < 16#07# then 0
-	                     elsif Bucket < 16#D0# then 1
-	                     else 2);
-	                  Base : constant Ada.Streams.Stream_Element_Offset :=
-	                    Ada.Streams.Stream_Element_Offset (9 + Bucket * 4);
-	               begin
-	                  Store_U32 (Value, Delta_Tree_Index (Base .. Base + 3));
-	               end;
-	            end loop;
-	            Delta_Tree_Index (1033 .. 1052) :=
-	              [16#07#, 16#50#, 16#85#, 16#27#, 16#7C#,
-	               16#95#, 16#D2#, 16#5D#, 16#3B#, 16#FD#,
-	               16#BE#, 16#AA#, 16#58#, 16#C9#, 16#A1#,
-	               16#0E#, 16#24#, 16#FD#, 16#F1#, 16#7E#];
-	            Delta_Tree_Index (1053 .. 1072) :=
-	              [16#D0#, 16#35#, 16#30#, 16#6F#, 16#80#,
-	               16#25#, 16#10#, 16#0D#, 16#E6#, 16#1B#,
-	               16#1E#, 16#7A#, 16#F1#, 16#9C#, 16#22#,
-	               16#2D#, 16#70#, 16#B7#, 16#FD#, 16#A3#];
-	            Store_U32
-	              (CRC32 (Delta_Tree_Pack (13 .. 45)),
-	               Delta_Tree_Index (1073 .. 1076));
-	            Store_U32
-	              (CRC32 (Delta_Tree_Pack (46 .. 64)),
-	               Delta_Tree_Index (1077 .. 1080));
-	            Store_U32 (12, Delta_Tree_Index (1081 .. 1084));
-	            Store_U32 (45, Delta_Tree_Index (1085 .. 1088));
-	            Delta_Tree_Index (1089 .. 1108) :=
-	              Delta_Tree_Pack (65 .. 84);
-	            Store_SHA1
-	              (CryptoLib.Hashes.SHA1 (Delta_Tree_Index (1 .. 1108)),
-	               Delta_Tree_Index (1109 .. 1128));
-	            Delta_Tree_Index_Last := 1128;
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Pack_Index
-	                (Delta_Tree_Repo_Root,
-	                 Delta_Tree_Pack_Hex,
-	                 Delta_Tree_Index
-	                   (Delta_Tree_Index'First .. Delta_Tree_Index_Last));
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git delta tree traversal pack index stored");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Tree_Paths_Hex
-	                (Delta_Tree_Repo_Root,
-	                 Delta_Tree_Object_Hex,
-	                 Delta_Tree_Paths,
-	                 Delta_Tree_Path_Lasts,
-	                 Delta_Tree_Modes,
-	                 Delta_Tree_IDs,
-	                 Delta_Tree_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git resolved packed delta tree paths traversed");
-	            Check
-	              (Delta_Tree_Count = 1
-	               and then Bytes_Equal
-	                 (Delta_Tree_Paths
-	                    (Delta_Tree_Paths'First .. Delta_Tree_Path_Lasts (1)),
-	                  Bytes_From_String ("b.txt"))
-	               and then Delta_Tree_Modes (1) = 8#100644#
-	               and then Hex_Text_Equal
-	                 (Delta_Tree_IDs (1),
-	                  Hex_Text ("0123456789abcdef0123456789abcdef01234567")),
-	               "git resolved packed delta tree path values");
-	            Status_Value :=
-	              SSH_Lib.Git.Build_Commit_Object
-	                (Delta_Tree_Object_Hex,
-	                 False,
-	                 Delta_Tree_Object_Hex,
-	                 "A <a@example.test> 3 +0000",
-	                 "A <a@example.test> 3 +0000",
-	                 "delta tree" & Character'Val (10),
-	                 Delta_Tree_Commit_Data,
-	                 Delta_Tree_Commit_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git delta tree traversal commit built");
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Loose_Object_Validated
-	                (Delta_Tree_Repo_Root,
-	                 SSH_Lib.Git.Pack_Commit,
-	                 Delta_Tree_Commit_Data
-	                   (Delta_Tree_Commit_Data'First
-	                    .. Delta_Tree_Commit_Last),
-	                 Delta_Tree_Commit_Hex,
-	                 Delta_Tree_Commit_Hex_Last);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git delta tree traversal commit stored");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Commit_Tree_Paths_Hex
-	                (Delta_Tree_Repo_Root,
-	                 Delta_Tree_Commit_Hex,
-	                 Delta_Tree_Paths,
-	                 Delta_Tree_Path_Lasts,
-	                 Delta_Tree_Modes,
-	                 Delta_Tree_IDs,
-	                 Delta_Tree_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git commit resolved packed delta tree paths traversed");
-	            Check
-	              (Delta_Tree_Count = 1
-	               and then Bytes_Equal
-	                 (Delta_Tree_Paths
-	                    (Delta_Tree_Paths'First .. Delta_Tree_Path_Lasts (1)),
-	                  Bytes_From_String ("b.txt")),
-	               "git commit resolved packed delta tree path values");
-	            Status_Value :=
-	              SSH_Lib.Git.Write_Branch
-	                (Delta_Tree_Repo_Root,
-	                 "delta-tree",
-	                 Delta_Tree_Commit_Hex);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git delta tree traversal branch written");
-	            Status_Value :=
-	              SSH_Lib.Git.List_Branch_Tree_Paths_Hex
-	                (Delta_Tree_Repo_Root,
-	                 "delta-tree",
-	                 Delta_Tree_Paths,
-	                 Delta_Tree_Path_Lasts,
-	                 Delta_Tree_Modes,
-	                 Delta_Tree_IDs,
-	                 Delta_Tree_Count);
-	            Check_Status
-	              (Status_Value, CryptoLib.Errors.Ok,
-	               "git branch resolved packed delta tree paths traversed");
-	            Check
-	              (Delta_Tree_Count = 1
-	               and then Bytes_Equal
-	                 (Delta_Tree_Paths
-	                    (Delta_Tree_Paths'First .. Delta_Tree_Path_Lasts (1)),
-	                  Bytes_From_String ("b.txt")),
-	               "git branch resolved packed delta tree path values");
-	         end;
+         declare
+            Delta_Tree_Repo_Root : constant String :=
+              SSH_Lib.Tests.Fixtures.Temp_Paths.Path
+                ("git_delta_tree_traversal_repo");
+            Delta_Tree_Object_Hex : constant Ada.Streams.Stream_Element_Array :=
+              Bytes_From_String
+                ("d035306f8025100de61b1e7af19c222d70b7fda3");
+            Delta_Tree_Pack : constant Ada.Streams.Stream_Element_Array (1 .. 84) :=
+              [16#50#, 16#41#, 16#43#, 16#4B#,
+               16#00#, 16#00#, 16#00#, 16#02#,
+               16#00#, 16#00#, 16#00#, 16#02#,
+               16#A1#, 16#02#, 16#78#, 16#9C#,
+               16#33#, 16#34#, 16#30#, 16#30#,
+               16#33#, 16#31#, 16#51#, 16#48#,
+               16#D4#, 16#2B#, 16#A9#, 16#28#,
+               16#61#, 16#60#, 16#54#, 16#76#,
+               16#4D#, 16#EF#, 16#5C#, 16#7D#,
+               16#F6#, 16#3D#, 16#32#, 16#0D#,
+               16#00#, 16#A9#, 16#78#, 16#0B#,
+               16#8F#, 16#69#, 16#21#, 16#78#,
+               16#9C#, 16#53#, 16#54#, 16#9C#,
+               16#C0#, 16#CE#, 16#98#, 16#34#,
+               16#91#, 16#43#, 16#12#, 16#00#,
+               16#09#, 16#BD#, 16#01#, 16#EF#,
+               16#70#, 16#99#, 16#DF#, 16#F2#,
+               16#3A#, 16#72#, 16#81#, 16#5F#,
+               16#0D#, 16#7E#, 16#9F#, 16#11#,
+               16#8F#, 16#B2#, 16#0C#, 16#E7#,
+               16#49#, 16#D7#, 16#A1#, 16#15#];
+            Delta_Tree_Index_Scratch :
+              Ada.Streams.Stream_Element_Array (1 .. 256);
+            Delta_Tree_Index : Ada.Streams.Stream_Element_Array (1 .. 1200);
+            Delta_Tree_Index_Last : Ada.Streams.Stream_Element_Offset;
+            Delta_Tree_Pack_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+            Delta_Tree_Pack_Hex_Last : Ada.Streams.Stream_Element_Offset;
+            Delta_Tree_Paths : Ada.Streams.Stream_Element_Array (1 .. 64);
+            Delta_Tree_Path_Lasts :
+              SSH_Lib.Git.Index_Path_Last_Array (1 .. 2);
+            Delta_Tree_Modes : SSH_Lib.Git.Tree_Entry_Mode_Array (1 .. 2);
+            Delta_Tree_IDs : SSH_Lib.Git.Object_ID_Hex_Array (1 .. 2);
+            Delta_Tree_Count : Natural := 0;
+            Delta_Tree_Commit_Data :
+              Ada.Streams.Stream_Element_Array (1 .. 512);
+            Delta_Tree_Commit_Last : Ada.Streams.Stream_Element_Offset;
+            Delta_Tree_Commit_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+            Delta_Tree_Commit_Hex_Last : Ada.Streams.Stream_Element_Offset;
+            function Hex_Text
+              (Text : String)
+               return SSH_Lib.Git.Object_ID_Hex_Text
+            is
+               Result : SSH_Lib.Git.Object_ID_Hex_Text;
+            begin
+               for Index in Result'Range loop
+                  Result (Index) :=
+                    Ada.Streams.Stream_Element
+                      (Character'Pos (Text (Text'First + Index - 1)));
+               end loop;
+               return Result;
+            end Hex_Text;
+            function Hex_Text_Equal
+              (Left  : SSH_Lib.Git.Object_ID_Hex_Text;
+               Right : SSH_Lib.Git.Object_ID_Hex_Text)
+               return Boolean
+            is
+            begin
+               for Index in Left'Range loop
+                  if Left (Index) /= Right (Index) then
+                     return False;
+                  end if;
+               end loop;
+               return True;
+            end Hex_Text_Equal;
+         begin
+            Status_Value :=
+              SSH_Lib.Git.Initialize_Repository_State
+                (Delta_Tree_Repo_Root);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git delta tree traversal repository initialized");
+            Status_Value :=
+              SSH_Lib.Git.Store_Pack_File
+                (Delta_Tree_Repo_Root,
+                 Delta_Tree_Pack,
+                 Delta_Tree_Pack_Hex,
+                 Delta_Tree_Pack_Hex_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git delta tree traversal pack stored");
+            Delta_Tree_Index := [others => 0];
+            Delta_Tree_Index (1 .. 8) :=
+              [16#FF#, Character'Pos ('t'), Character'Pos ('O'),
+               Character'Pos ('c'), 0, 0, 0, 2];
+            for Bucket in 0 .. 255 loop
+               declare
+                  Value : constant Interfaces.Unsigned_32 :=
+                    (if Bucket < 16#07# then 0
+                     elsif Bucket < 16#D0# then 1
+                     else 2);
+                  Base : constant Ada.Streams.Stream_Element_Offset :=
+                    Ada.Streams.Stream_Element_Offset (9 + Bucket * 4);
+               begin
+                  Store_U32 (Value, Delta_Tree_Index (Base .. Base + 3));
+               end;
+            end loop;
+            Delta_Tree_Index (1033 .. 1052) :=
+              [16#07#, 16#50#, 16#85#, 16#27#, 16#7C#,
+               16#95#, 16#D2#, 16#5D#, 16#3B#, 16#FD#,
+               16#BE#, 16#AA#, 16#58#, 16#C9#, 16#A1#,
+               16#0E#, 16#24#, 16#FD#, 16#F1#, 16#7E#];
+            Delta_Tree_Index (1053 .. 1072) :=
+              [16#D0#, 16#35#, 16#30#, 16#6F#, 16#80#,
+               16#25#, 16#10#, 16#0D#, 16#E6#, 16#1B#,
+               16#1E#, 16#7A#, 16#F1#, 16#9C#, 16#22#,
+               16#2D#, 16#70#, 16#B7#, 16#FD#, 16#A3#];
+            Store_U32
+              (CRC32 (Delta_Tree_Pack (13 .. 45)),
+               Delta_Tree_Index (1073 .. 1076));
+            Store_U32
+              (CRC32 (Delta_Tree_Pack (46 .. 64)),
+               Delta_Tree_Index (1077 .. 1080));
+            Store_U32 (12, Delta_Tree_Index (1081 .. 1084));
+            Store_U32 (45, Delta_Tree_Index (1085 .. 1088));
+            Delta_Tree_Index (1089 .. 1108) :=
+              Delta_Tree_Pack (65 .. 84);
+            Store_SHA1
+              (CryptoLib.Hashes.SHA1 (Delta_Tree_Index (1 .. 1108)),
+               Delta_Tree_Index (1109 .. 1128));
+            Delta_Tree_Index_Last := 1128;
+            Status_Value :=
+              SSH_Lib.Git.Store_Pack_Index
+                (Delta_Tree_Repo_Root,
+                 Delta_Tree_Pack_Hex,
+                 Delta_Tree_Index
+                   (Delta_Tree_Index'First .. Delta_Tree_Index_Last));
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git delta tree traversal pack index stored");
+            Status_Value :=
+              SSH_Lib.Git.List_Tree_Paths_Hex
+                (Delta_Tree_Repo_Root,
+                 Delta_Tree_Object_Hex,
+                 Delta_Tree_Paths,
+                 Delta_Tree_Path_Lasts,
+                 Delta_Tree_Modes,
+                 Delta_Tree_IDs,
+                 Delta_Tree_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git resolved packed delta tree paths traversed");
+            Check
+              (Delta_Tree_Count = 1
+               and then Bytes_Equal
+                 (Delta_Tree_Paths
+                    (Delta_Tree_Paths'First .. Delta_Tree_Path_Lasts (1)),
+                  Bytes_From_String ("b.txt"))
+               and then Delta_Tree_Modes (1) = 8#100644#
+               and then Hex_Text_Equal
+                 (Delta_Tree_IDs (1),
+                  Hex_Text ("0123456789abcdef0123456789abcdef01234567")),
+               "git resolved packed delta tree path values");
+            Status_Value :=
+              SSH_Lib.Git.Build_Commit_Object
+                (Delta_Tree_Object_Hex,
+                 False,
+                 Delta_Tree_Object_Hex,
+                 "A <a@example.test> 3 +0000",
+                 "A <a@example.test> 3 +0000",
+                 "delta tree" & Character'Val (10),
+                 Delta_Tree_Commit_Data,
+                 Delta_Tree_Commit_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git delta tree traversal commit built");
+            Status_Value :=
+              SSH_Lib.Git.Store_Loose_Object_Validated
+                (Delta_Tree_Repo_Root,
+                 SSH_Lib.Git.Pack_Commit,
+                 Delta_Tree_Commit_Data
+                   (Delta_Tree_Commit_Data'First
+                    .. Delta_Tree_Commit_Last),
+                 Delta_Tree_Commit_Hex,
+                 Delta_Tree_Commit_Hex_Last);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git delta tree traversal commit stored");
+            Status_Value :=
+              SSH_Lib.Git.List_Commit_Tree_Paths_Hex
+                (Delta_Tree_Repo_Root,
+                 Delta_Tree_Commit_Hex,
+                 Delta_Tree_Paths,
+                 Delta_Tree_Path_Lasts,
+                 Delta_Tree_Modes,
+                 Delta_Tree_IDs,
+                 Delta_Tree_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git commit resolved packed delta tree paths traversed");
+            Check
+              (Delta_Tree_Count = 1
+               and then Bytes_Equal
+                 (Delta_Tree_Paths
+                    (Delta_Tree_Paths'First .. Delta_Tree_Path_Lasts (1)),
+                  Bytes_From_String ("b.txt")),
+               "git commit resolved packed delta tree path values");
+            Status_Value :=
+              SSH_Lib.Git.Write_Branch
+                (Delta_Tree_Repo_Root,
+                 "delta-tree",
+                 Delta_Tree_Commit_Hex);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git delta tree traversal branch written");
+            Status_Value :=
+              SSH_Lib.Git.List_Branch_Tree_Paths_Hex
+                (Delta_Tree_Repo_Root,
+                 "delta-tree",
+                 Delta_Tree_Paths,
+                 Delta_Tree_Path_Lasts,
+                 Delta_Tree_Modes,
+                 Delta_Tree_IDs,
+                 Delta_Tree_Count);
+            Check_Status
+              (Status_Value, CryptoLib.Errors.Ok,
+               "git branch resolved packed delta tree paths traversed");
+            Check
+              (Delta_Tree_Count = 1
+               and then Bytes_Equal
+                 (Delta_Tree_Paths
+                    (Delta_Tree_Paths'First .. Delta_Tree_Path_Lasts (1)),
+                  Bytes_From_String ("b.txt")),
+               "git branch resolved packed delta tree path values");
+         end;
 
-	         Index_Data (1092) := 16#57#;
+         Index_Data (1092) := 16#57#;
          Status_Value :=
            SSH_Lib.Git.Validate_Pack_Delta_Chain_Object_IDs
              (Index_Data,
@@ -24855,7 +24853,6 @@ package body SSH_Lib.Tests.Legacy is
          Options_Item.Control_Persist := To_Unbounded_String ("10m");
       end;
       declare
-         use type SSH_Lib.Config_Apply.Control_Master_Action;
          Planned_Path    : Unbounded_String;
          Persist_Seconds : Natural := 0;
          Control_Action  : SSH_Lib.Config_Apply.Control_Master_Action;

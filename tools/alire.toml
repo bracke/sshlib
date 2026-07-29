@@ -6,9 +6,40 @@ authors = ["Bent Bracke"]
 maintainers = ["Bent Bracke <bent@bracke.dk>"]
 maintainers-logins = ["bracke"]
 licenses = "MIT OR Apache-2.0 WITH LLVM-exception"
-website = ""
-tags = []
+website = "https://github.com/bracke/sshlib"
+tags = ["ssh", "tools", "checks"]
 project-files = ["tools.gpr"]
+
+executables = [
+  "check_public_api",
+  "check_package_tree",
+  "check_release",
+  "check_phase17_regressions",
+  "check_release_manifest",
+  "check_release_package",
+  "check_release_toolchain",
+  "check_release_artifacts",
+  "check_release_sequence",
+  "check_release_runner",
+  "check_security",
+  "check_no_subprocess",
+  "check_binary_paths",
+  "check_sensitive_logging",
+  "check_side_channel_assurance",
+  "check_formal_side_channel_proof",
+  "check_pq_hybrid_state",
+  "check_hybrid_pq_readiness",
+  "check_compile_preflight",
+  "check_phase19_context",
+  "check_runtime_boundaries",
+  "check_live_git_matrix_report",
+  "check_live_proxycommand_report",
+  "run_release_validation",
+  "run_sftp_fuzzer_seed_corpus",
+  "run_sftp_v4_v6_interop",
+  "check_sftp_v4_v6_interop_report",
+  "local_sshd_fixture",
+]
 
 [[depends-on]]
 gnat_native = "^15"
@@ -22,6 +53,11 @@ project_tools = "~0.1.0"
 # Local development overrides; dev-only, not for publication.
 [[pins]]
 ssh_lib = { path = ".." }
-
-[[pins]]
 project_tools = { path = "../../project_tools" }
+# Pins are root-only in Alire: this root transitively builds zlib and hostkit.
+cryptolib = { path = "../../cryptolib" }
+zlib = { path = "../../zlib" }
+hostkit = { path = "../../hostkit" }
+
+[build-profiles]
+"*" = "development"

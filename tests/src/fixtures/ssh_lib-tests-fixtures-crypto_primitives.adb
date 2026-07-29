@@ -170,10 +170,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
    Ed25519_Message : constant Stream_Element_Array (1 .. 1) :=
      [1 => 16#72#];
 
-
-
-
-
    ECDSA_Public_Blob : constant Stream_Element_Array (1 .. 104) :=
      [
       1 => 16#00#, 2 => 16#00#, 3 => 16#00#, 4 => 16#13#,
@@ -237,7 +233,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
       29 => 16#72#, 30 => 16#69#, 31 => 16#66#, 32 => 16#69#,
       33 => 16#63#, 34 => 16#61#, 35 => 16#74#, 36 => 16#69#,
       37 => 16#6F#, 38 => 16#6E#];
-
 
    ECDSA_Private_Scalar_Mpint : constant Stream_Element_Array (1 .. 31) :=
      [
@@ -451,7 +446,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
              "X25519 failed raw compute clears shared-secret output");
    end Assert_Curve25519_RFC7748_Vectors;
 
-
    procedure Assert_Group14_Diffie_Hellman is
       Source_A : CryptoLib.Random.Random_Source;
       Source_B : CryptoLib.Random.Random_Source;
@@ -528,7 +522,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
       Check (SSH_Lib.Protocol.Buffers.Length (Group1_Shared) > 0,
              "group1 shared secret emits mpint output");
    end Assert_Group14_Diffie_Hellman;
-
 
    procedure Assert_ECDH_Nistp256_Diffie_Hellman is
       Source_A : CryptoLib.Random.Random_Source;
@@ -739,8 +732,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
          "crypto primitives", "RSA SHA-512 rejects a SHA-256 fixture signature");
    end Assert_RSA_SHA2_256_Verification;
 
-
-
    procedure Assert_RSA_SHA2_512_Verification is
       Mutated_Signature : Stream_Element_Array := RSA_SHA512_Signature;
       Mutated_Message   : Stream_Element_Array := RSA_SHA512_Message;
@@ -782,7 +773,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
          CryptoLib.Errors.Handshake_Failed,
          "crypto primitives", "RSA SHA-256 rejects a SHA-512 fixture signature");
    end Assert_RSA_SHA2_512_Verification;
-
 
    procedure Assert_Ed25519_Verification is
       Mutated_Signature : Stream_Element_Array := Ed25519_Signature;
@@ -828,7 +818,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
          CryptoLib.Errors.Handshake_Failed,
          "crypto primitives", "mutated Ed25519 signed message is rejected");
    end Assert_Ed25519_Verification;
-
 
    procedure Assert_ECDSA_Nistp256_Verification is
       Mutated_Signature : Stream_Element_Array := ECDSA_Signature;
@@ -1097,7 +1086,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
          "crypto primitives", "legacy unsupported cipher is rejected");
    end Assert_AES_CTR_Cipher;
 
-
    procedure Assert_MLKEM768_Core_Arithmetic is
       use CryptoLib.MLKEM768_Core;
       Zero_Poly       : constant Polynomial := [others => 0];
@@ -1160,7 +1148,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
       Check (Decrypted'Length = Message'Length,
              "ML-KEM CPA-PKE decrypt returns a 32-byte message boundary");
    end Assert_MLKEM768_Core_Arithmetic;
-
 
    procedure Assert_MLKEM768_CCA_KEM is
       use CryptoLib.MLKEM768;
@@ -1267,7 +1254,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
       Check (Shared_Bad /= Shared_Right,
              "SNTRUP761 KEM invalid ciphertext uses fallback secret");
    end Assert_SNTRUP761_KEM_Boundary;
-
 
    procedure Assert_Crypto_Primitives is
    begin

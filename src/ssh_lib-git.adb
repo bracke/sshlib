@@ -28,7 +28,6 @@ package body SSH_Lib.Git is
    Maximum_Worktree_File_Length : constant Natural := 1_048_576;
    Maximum_Credential_Helper_Output_Length : constant Natural := 65_536;
 
-
    type Tree_Traversal_Scratch is record
       Pack_Checksums_Hex : Stream_Element_Array
         (1 .. Stream_Element_Offset (Object_ID_SHA1_Hex_Length * 16));

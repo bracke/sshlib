@@ -334,7 +334,6 @@ package body SSH_Lib.Tests.Fixtures.Auth_Security is
       return SSH_Lib.Protocol.Buffers.To_Array (Result);
    end Identities_Answer;
 
-
    function Userauth_Password_Change_Request return Stream_Element_Array is
       Result : SSH_Lib.Protocol.Buffers.Packet_Buffer;
       Prompt_Buffer : constant SSH_Lib.Protocol.Buffers.Packet_Buffer :=
@@ -776,7 +775,6 @@ package body SSH_Lib.Tests.Fixtures.Auth_Security is
                 "rejected SK ECDSA certificate leaves identity without certificate");
       end;
    end Assert_Malformed_Agent_And_Identity_Fixtures;
-
 
    procedure Assert_None_Userauth_Request_Encodes is
       Request_Buffer : constant SSH_Lib.Protocol.Buffers.Packet_Buffer :=

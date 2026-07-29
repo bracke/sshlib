@@ -175,7 +175,9 @@ begin
    Require_Absent ("README.md", "still-missing live KEX/NEWKEYS boundary");
    Require_Absent ("README.md", "OpenSSH bcrypt-encrypted keys currently fail closed");
    Require_Absent ("README.md", "future full KDF implementation");
-   Require_Absent ("docs/RUNTIME_BOUNDARIES.md", "This is still not a complete arbitrary-host SSH session implementation");
+   Require_Absent
+        ("docs/RUNTIME_BOUNDARIES.md",
+         "This is still not a complete arbitrary-host SSH session implementation");
    Require_Absent ("docs/THREAT_MODEL.md", "per-channel data/EOF/close path, which still needs to be wired");
 
    if Failure_Count = 0 then

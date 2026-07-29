@@ -185,7 +185,8 @@ procedure Check_Sensitive_Logging is
 
             Previous_Last := Natural'Min (Code_Line'Length, Previous_Code_Line'Length);
             if Previous_Last > 0 then
-               Previous_Code_Line (1 .. Previous_Last) := Code_Line (Code_Line'First .. Code_Line'First + Previous_Last - 1);
+               Previous_Code_Line (1 .. Previous_Last) :=
+                 Code_Line (Code_Line'First .. Code_Line'First + Previous_Last - 1);
             end if;
          end;
       end loop;

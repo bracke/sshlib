@@ -73,7 +73,6 @@ procedure Test_ECDSA_Nistp256 is
       33 => 16#63#, 34 => 16#61#, 35 => 16#74#, 36 => 16#69#,
       37 => 16#6F#, 38 => 16#6E#];
 
-
    ECDSA_Private_Scalar_Mpint : constant Stream_Element_Array (1 .. 31) :=
      [
       1 => 16#1F#, 2 => 16#1E#, 3 => 16#1D#, 4 => 16#1C#,

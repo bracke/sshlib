@@ -171,7 +171,6 @@ package body SSH_Lib.Protocol.Negative_Tests is
       return Result;
    end Case_Label;
 
-
    function Category_Label
      (Category_Item : Negative_Category)
       return String

@@ -149,7 +149,6 @@ begin
    Require_File ("PHASE_19_COMPLETENESS_PASS_34.md");
    Require_File ("PHASE_19_COMPLETENESS_PASS_35.md");
 
-
    Require_File ("tools/check_runtime_boundaries.adb");
    Require_File ("docs/RUNTIME_BOUNDARIES.md");
    Require_File ("src/ssh_lib-sessions-userauth_io.ads");

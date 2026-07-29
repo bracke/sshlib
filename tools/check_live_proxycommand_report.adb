@@ -417,7 +417,8 @@ procedure Check_Live_Proxycommand_Report is
 begin
    if not Require_Report then
       Ada.Text_IO.Put_Line
-        ("live ProxyCommand report guard skipped: set SSH_LIB_REQUIRE_LIVE_PROXYCOMMAND_REPORT=1 to require an archived report");
+        ("live ProxyCommand report guard skipped: set SSH_LIB_REQUIRE_LIVE_PROXYCOMMAND_REPORT=1 to require an arch"
+         & "ived report");
       return;
    end if;
 

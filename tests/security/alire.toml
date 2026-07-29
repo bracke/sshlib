@@ -1,0 +1,75 @@
+name = "ssh_lib_security_tests"
+description = "Security and negative-path test suite for ssh_lib"
+version = "0.1.0-dev"
+licenses = "MIT"
+
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+website = "https://github.com/bracke/sshlib"
+tags = ["ssh", "tests"]
+
+project-files = ["security_tests.gpr"]
+
+executables = [
+  "test_host_key_negative",
+  "test_algorithm_negative",
+  "test_algorithm_security",
+  "test_crypto_primitives",
+  "test_pq_external_kats",
+  "test_hybrid_pq_readiness",
+  "test_hybrid_pq_openssh_transcripts",
+  "test_side_channel_assurance",
+  "test_auth_negative",
+  "test_packet_protection_negative",
+  "test_command_quoting_negative",
+  "test_binary_stream_negative",
+  "test_timeout_dirty_negative",
+  "test_resource_bounds",
+  "test_exception_mapping",
+  "test_config_security",
+  "test_auth_security",
+  "test_auth_malformed_inputs",
+  "test_agent_transport_security",
+  "test_live_channel_transport",
+  "test_live_git_e2e",
+  "test_live_git_interop_matrix",
+  "test_live_proxycommand_transport",
+  "test_live_proxyjump_transport",
+  "test_live_rekey_transport",
+  "test_transport_messages",
+  "test_fuzz_lite",
+  "test_hostile_transcripts",
+  "test_session_open_success_security",
+  "test_open_runtime_security",
+  "test_phase19_matrix_coverage",
+  "test_phase19_invariant_coverage",
+  "test_status_mapping_matrix",
+  "test_phase19_context_compliance",
+]
+
+[[depends-on]]
+gnat_native = "=15.2.1"
+
+# White-box suite: it withs ../ssh_lib_internal.gpr, which recompiles the library
+# sources directly, so this root must NOT depend on ssh_lib (that would put the same
+# sources in two projects). It declares the library's own dependencies instead.
+[[depends-on]]
+aunit = "^26.0.0"
+
+[[depends-on]]
+cryptolib = "*"
+
+[[depends-on]]
+zlib = "*"
+
+[[depends-on]]
+hostkit = "*"
+
+[[pins]]
+cryptolib = { path = "../../../cryptolib" }
+zlib = { path = "../../../zlib" }
+hostkit = { path = "../../../hostkit" }
+
+[build-profiles]
+"*" = "development"

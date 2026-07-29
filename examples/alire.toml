@@ -1,0 +1,46 @@
+name = "ssh_lib_examples"
+description = "Runnable examples for the ssh_lib crate"
+version = "0.1.0-dev"
+licenses = "MIT"
+
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+website = "https://github.com/bracke/sshlib"
+tags = ["ssh", "examples"]
+
+# manual_examples.gpr is deliberately NOT listed: its single main,
+# manual_git_upload_pack_probe.adb, does not compile (missing use clauses for
+# CryptoLib.Errors."=" and Stream_Element_Offset arithmetic). That breakage is
+# pre-existing and switch-independent -- see report -- and is left untouched here.
+project-files = ["examples.gpr"]
+
+executables = [
+  "git_remote_prepare",
+  "git_remote_resolve",
+  "git_command_quote",
+  "local_fixture_upload_pack",
+  "sftp_upload_download",
+  "sftp_v4_v6_metadata",
+  "sftp_status_diagnostics",
+  "sftp_check_file",
+]
+
+[[depends-on]]
+gnat_native = "=15.2.1"
+
+[[depends-on]]
+ssh_lib = "*"
+
+[[depends-on]]
+cryptolib = "*"
+
+[[pins]]
+ssh_lib = { path = ".." }
+cryptolib = { path = "../../cryptolib" }
+# Pins are root-only in Alire: this root transitively builds zlib and hostkit.
+zlib = { path = "../../zlib" }
+hostkit = { path = "../../hostkit" }
+
+[build-profiles]
+"*" = "development"

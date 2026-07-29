@@ -135,8 +135,6 @@ procedure Check_Live_Git_Matrix_Report is
       return Result_Text;
    end Canonical_Scenario;
 
-
-
    function Is_Known_Scenario (Scenario_Name : String) return Boolean is
       Canonical_Name : constant String := Canonical_Scenario (Scenario_Name);
    begin
@@ -190,7 +188,6 @@ procedure Check_Live_Git_Matrix_Report is
       when others =>
          return False;
    end Positive_Bytes_Field;
-
 
    function Scenario_Metadata_Matches
      (Line_Text     : String;
@@ -739,7 +736,8 @@ begin
       Require_Text (Report_Path, "scenario_list=");
       if not Report_Has_One_Well_Formed_Scenario_List (Report_Path) then
          Fail
-           ("live Git matrix report must contain exactly one well-formed scenario_list line with no duplicate scenario names");
+           ("live Git matrix report must contain exactly one well-formed scenario_list line with no duplicate scena"
+            & "rio names");
       end if;
       if not Report_Scenario_Lines_Are_Declared (Report_Path) then
          Fail
@@ -747,7 +745,8 @@ begin
       end if;
       if not Report_Declared_Scenarios_Have_Exactly_One_Record (Report_Path) then
          Fail
-           ("live Git matrix report must contain exactly one record for every declared scenario and none for undeclared scenarios");
+           ("live Git matrix report must contain exactly one record for every declared scenario and none for undecl"
+            & "ared scenarios");
       end if;
       Require_Exact_Line (Report_Path, "result=PASS");
       Reject_Text (Report_Path, "result=FAIL");

@@ -6,24 +6,47 @@ licenses = "MIT"
 authors = ["Bent Bracke"]
 maintainers = ["Bent Bracke <bent@bracke.dk>"]
 maintainers-logins = ["bracke"]
+website = "https://github.com/bracke/sshlib"
+tags = ["ssh", "tests"]
 
+# Only tests.gpr is a buildable root. ssh_lib_internal.gpr belongs to this crate too
+# (it withs config/tests_config.gpr), but it is a helper project withed by tests.gpr and
+# by the sibling white-box suites -- it is not listed here because building it standalone
+# would compile every file under ../src, including two orphan units that have never been
+# in any build closure and do not compile (see report).
 project-files = ["tests.gpr"]
+
+executables = [
+  "main",
+  "test_ecdsa_nistp256",
+  "test_crypto_primitives",
+  "test_sftp_fake_subsystem",
+  "test_file_transfer_workflows",
+]
 
 [[depends-on]]
 gnat_native = "=15.2.1"
 
 [[depends-on]]
-ssh_lib = "*"
+aunit = "^26.0.0"
+
+# This root deliberately does NOT depend on ssh_lib: ssh_lib_internal.gpr rebuilds the
+# library sources white-box (assertions on, no Library_Interface restriction), so withing
+# SSH_Lib.gpr as well would put the same source files in two projects. The library's own
+# dependencies are therefore declared here directly.
+[[depends-on]]
+cryptolib = "*"
 
 [[depends-on]]
-aunit = "^26.0.0"
+zlib = "*"
 
 [[depends-on]]
 hostkit = "*"
 
 [[pins]]
+cryptolib = { path = "../../cryptolib" }
+zlib = { path = "../../zlib" }
 hostkit = { path = "../../hostkit" }
-ssh_lib = { path = ".." }
 
 [build-profiles]
 "*" = "development"

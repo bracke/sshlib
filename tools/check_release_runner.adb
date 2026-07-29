@@ -85,7 +85,6 @@ begin
    Require_Text ("tools/run_sftp_v4_v6_interop.adb", "SSH_LIB_TEST_SFTP_V4_ENABLE");
    Require_Text ("tools/check_sftp_v4_v6_interop_report.adb", "SSH_LIB_REQUIRE_SFTP_V4_REPORT");
 
-
    if Failure_Count = 0 then
       Ada.Text_IO.Put_Line ("release runner guard passed");
    else

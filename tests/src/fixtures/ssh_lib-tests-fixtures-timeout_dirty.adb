@@ -41,7 +41,6 @@ package body SSH_Lib.Tests.Fixtures.Timeout_Dirty is
               4 => 16#80#, 5 => 16#FF#, 6 => 16#42#];
    end Sample_Data;
 
-
    function Open_Confirmation
      (Local_Channel  : Interfaces.Unsigned_32;
       Remote_Channel : Interfaces.Unsigned_32)

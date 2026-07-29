@@ -1,0 +1,33 @@
+name = "ssh_lib_package_smoke"
+description = "Packaged-library smoke test for ssh_lib"
+version = "0.1.0-dev"
+licenses = "MIT"
+
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+website = "https://github.com/bracke/sshlib"
+tags = ["ssh", "tests"]
+
+project-files = ["package_smoke.gpr"]
+
+executables = ["package_smoke_main"]
+
+[[depends-on]]
+gnat_native = "=15.2.1"
+
+[[depends-on]]
+ssh_lib = "*"
+
+[[depends-on]]
+cryptolib = "*"
+
+[[pins]]
+ssh_lib = { path = "../.." }
+cryptolib = { path = "../../../cryptolib" }
+# Pins are root-only in Alire: this root transitively builds zlib and hostkit.
+zlib = { path = "../../../zlib" }
+hostkit = { path = "../../../hostkit" }
+
+[build-profiles]
+"*" = "development"

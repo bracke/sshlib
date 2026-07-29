@@ -474,23 +474,23 @@ begin
             raise Program_Error;
          end if;
 
-	         Status_Value :=
-	           SSH_Lib.Git.Find_Pack_Index_Object
-	             (Index_Data,
-	              [1 => 1, 2 .. 20 => 0],
-	              Pack_Object_Index,
-	              Pack_Offset);
-	         Touch (Status_Value);
+         Status_Value :=
+           SSH_Lib.Git.Find_Pack_Index_Object
+             (Index_Data,
+              [1 => 1, 2 .. 20 => 0],
+              Pack_Object_Index,
+              Pack_Offset);
+         Touch (Status_Value);
 
-	         Status_Value :=
-	           SSH_Lib.Git.Find_Pack_Index_Object_Hex
-	             (Index_Data,
-	              [1 => Character'Pos ('0'),
-	               2 => Character'Pos ('1'),
-	               3 .. 40 => Character'Pos ('0')],
-	              Pack_Object_Index,
-	              Pack_Offset);
-	         Touch (Status_Value);
+         Status_Value :=
+           SSH_Lib.Git.Find_Pack_Index_Object_Hex
+             (Index_Data,
+              [1 => Character'Pos ('0'),
+               2 => Character'Pos ('1'),
+               3 .. 40 => Character'Pos ('0')],
+              Pack_Object_Index,
+              Pack_Offset);
+         Touch (Status_Value);
 
          Status_Value :=
            SSH_Lib.Git.List_Pack_Index_Object_IDs
@@ -499,8 +499,8 @@ begin
               Pack_Index_Object_ID_Count);
          Touch (Status_Value);
 
-	         Status_Value :=
-	           SSH_Lib.Git.Validate_Pack_Index_Offsets
+         Status_Value :=
+           SSH_Lib.Git.Validate_Pack_Index_Offsets
              (Index_Data,
               [Character'Pos ('P'), Character'Pos ('A'), Character'Pos ('C'),
                Character'Pos ('K'), 0, 0, 0, 2, 0, 0, 0, 1,
@@ -616,8 +616,8 @@ begin
               Pack_Offset);
          Touch (Status_Value);
 
-	         Status_Value :=
-	           SSH_Lib.Git.Validate_Pack_Integrity
+         Status_Value :=
+           SSH_Lib.Git.Validate_Pack_Integrity
              (Index_Data,
               [Character'Pos ('P'), Character'Pos ('A'), Character'Pos ('C'),
                Character'Pos ('K'), 0, 0, 0, 2, 0, 0, 0, 1,
@@ -631,46 +631,46 @@ begin
               Pack_Sequence_Count,
               Pack_Verified_Count,
               Pack_Resolved_Count,
-	              Pack_Offset);
-	         Touch (Status_Value);
+              Pack_Offset);
+         Touch (Status_Value);
 
-	         Status_Value :=
-	           SSH_Lib.Git.Inventory_Pack_Objects
-	             ([Character'Pos ('P'), Character'Pos ('A'), Character'Pos ('C'),
-	               Character'Pos ('K'), 0, 0, 0, 2, 0, 0, 0, 1,
-	               16#30#, 16#78#, 16#9C#, 16#03#, 16#00#, 16#00#,
-	               16#00#, 16#00#, 16#01#, 0, 0, 0, 0, 0, 0, 0,
-	               0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-	              Pkt_Buffer,
-	              Pack_Object_Counts,
-	              Pack_Sequence_Count,
-	              Pack_Offset);
-	         Touch (Status_Value);
+         Status_Value :=
+           SSH_Lib.Git.Inventory_Pack_Objects
+             ([Character'Pos ('P'), Character'Pos ('A'), Character'Pos ('C'),
+               Character'Pos ('K'), 0, 0, 0, 2, 0, 0, 0, 1,
+               16#30#, 16#78#, 16#9C#, 16#03#, 16#00#, 16#00#,
+               16#00#, 16#00#, 16#01#, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              Pkt_Buffer,
+              Pack_Object_Counts,
+              Pack_Sequence_Count,
+              Pack_Offset);
+         Touch (Status_Value);
 
-	         Status_Value :=
-	           SSH_Lib.Git.Compute_Object_ID
-	             (SSH_Lib.Git.Pack_Blob,
-	              [Character'Pos ('h'), Character'Pos ('e'),
-	               Character'Pos ('l'), Character'Pos ('l'),
-	               Character'Pos ('o')],
-	              Pack_Base_ID,
-	              Pack_Base_Last);
-	         Touch (Status_Value);
+         Status_Value :=
+           SSH_Lib.Git.Compute_Object_ID
+             (SSH_Lib.Git.Pack_Blob,
+              [Character'Pos ('h'), Character'Pos ('e'),
+               Character'Pos ('l'), Character'Pos ('l'),
+               Character'Pos ('o')],
+              Pack_Base_ID,
+              Pack_Base_Last);
+         Touch (Status_Value);
 
-	         Status_Value :=
-	           SSH_Lib.Git.Encode_Object_ID_Hex
-	             (Pack_Base_ID,
-	              Pkt_Buffer,
-	              Pkt_Last);
-	         Touch (Status_Value);
+         Status_Value :=
+           SSH_Lib.Git.Encode_Object_ID_Hex
+             (Pack_Base_ID,
+              Pkt_Buffer,
+              Pkt_Last);
+         Touch (Status_Value);
 
-	         Status_Value :=
-	           SSH_Lib.Git.Parse_Object_ID_Hex
-	             (Pkt_Buffer (1 .. 40),
-	              Pack_Base_ID,
-	              Pack_Base_Last);
-	         Touch (Status_Value);
-	      end;
+         Status_Value :=
+           SSH_Lib.Git.Parse_Object_ID_Hex
+             (Pkt_Buffer (1 .. 40),
+              Pack_Base_ID,
+              Pack_Base_Last);
+         Touch (Status_Value);
+      end;
       Status_Value :=
         SSH_Lib.Git.Inflate_Pack_Object_Data
           ([16#78#, 16#9C#, 16#03#, 16#00#, 16#00#, 16#00#,
@@ -1106,43 +1106,43 @@ begin
                return Result;
             end Bytes_From_String;
 
-	            Commit_Data : constant Ada.Streams.Stream_Element_Array :=
-	              Bytes_From_String
-	                ("tree 0000000000000000000000000000000000000000"
-	                 & Character'Val (10)
-	                 & "parent 1111111111111111111111111111111111111111"
-	                 & Character'Val (10)
-	                 & "author A <a@example.test> 0 +0000"
-	                 & Character'Val (10)
-	                 & "committer A <a@example.test> 0 +0000"
-	                 & Character'Val (10)
-	                 & Character'Val (10));
-	            Commit_Tree_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	            Commit_Tree_Last : Ada.Streams.Stream_Element_Offset;
-	            Commit_Parent_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	            Commit_Parent_Last : Ada.Streams.Stream_Element_Offset;
-	            Commit_Author_Line : Ada.Streams.Stream_Element_Array (1 .. 64);
-	            Commit_Author_Last : Ada.Streams.Stream_Element_Offset;
-	            Commit_Committer_Line : Ada.Streams.Stream_Element_Array (1 .. 64);
-	            Commit_Committer_Last : Ada.Streams.Stream_Element_Offset;
-	            Commit_Message_Offset : Natural := 0;
-	            Commit_Parent_Count : Natural := 0;
-	            Tag_Data : constant Ada.Streams.Stream_Element_Array :=
-	              Bytes_From_String
-	                ("object 0000000000000000000000000000000000000000"
-	                 & Character'Val (10)
-	                 & "type blob"
-	                 & Character'Val (10)
-	                 & "tag v1.0.0"
-	                 & Character'Val (10)
-	                 & Character'Val (10));
-	            Tag_Target_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
-	            Tag_Target_Last : Ada.Streams.Stream_Element_Offset;
-	            Tag_Target_Kind : SSH_Lib.Git.Pack_Object_Kind :=
-	              SSH_Lib.Git.Pack_Blob;
-	            Tag_Name : Ada.Streams.Stream_Element_Array (1 .. 32);
-	            Tag_Name_Last : Ada.Streams.Stream_Element_Offset;
-	            Tag_Message_Offset : Natural := 0;
+            Commit_Data : constant Ada.Streams.Stream_Element_Array :=
+              Bytes_From_String
+                ("tree 0000000000000000000000000000000000000000"
+                 & Character'Val (10)
+                 & "parent 1111111111111111111111111111111111111111"
+                 & Character'Val (10)
+                 & "author A <a@example.test> 0 +0000"
+                 & Character'Val (10)
+                 & "committer A <a@example.test> 0 +0000"
+                 & Character'Val (10)
+                 & Character'Val (10));
+            Commit_Tree_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+            Commit_Tree_Last : Ada.Streams.Stream_Element_Offset;
+            Commit_Parent_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+            Commit_Parent_Last : Ada.Streams.Stream_Element_Offset;
+            Commit_Author_Line : Ada.Streams.Stream_Element_Array (1 .. 64);
+            Commit_Author_Last : Ada.Streams.Stream_Element_Offset;
+            Commit_Committer_Line : Ada.Streams.Stream_Element_Array (1 .. 64);
+            Commit_Committer_Last : Ada.Streams.Stream_Element_Offset;
+            Commit_Message_Offset : Natural := 0;
+            Commit_Parent_Count : Natural := 0;
+            Tag_Data : constant Ada.Streams.Stream_Element_Array :=
+              Bytes_From_String
+                ("object 0000000000000000000000000000000000000000"
+                 & Character'Val (10)
+                 & "type blob"
+                 & Character'Val (10)
+                 & "tag v1.0.0"
+                 & Character'Val (10)
+                 & Character'Val (10));
+            Tag_Target_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
+            Tag_Target_Last : Ada.Streams.Stream_Element_Offset;
+            Tag_Target_Kind : SSH_Lib.Git.Pack_Object_Kind :=
+              SSH_Lib.Git.Pack_Blob;
+            Tag_Name : Ada.Streams.Stream_Element_Array (1 .. 32);
+            Tag_Name_Last : Ada.Streams.Stream_Element_Offset;
+            Tag_Message_Offset : Natural := 0;
             Pack_Data : Ada.Streams.Stream_Element_Array (1 .. 32) :=
               [Character'Pos ('P'), Character'Pos ('A'),
                Character'Pos ('C'), Character'Pos ('K'),
@@ -2393,50 +2393,50 @@ begin
               SSH_Lib.Git.Delete_Branch_Upstream
                 (Repo_Root, "main", Config_Removed);
             Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Loose_Object
-	                (Repo_Root,
-	                 SSH_Lib.Git.Pack_Blob,
-	                 [Character'Pos ('o'), Character'Pos ('k')],
-	                 Stored_Hex,
-	                 Stored_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Loose_Object_Validated
-	                (Repo_Root,
-	                 SSH_Lib.Git.Pack_Blob,
-	                 [Character'Pos ('o'), Character'Pos ('k')],
-	                 Validated_Stored_Hex,
-	                 Validated_Stored_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.List_Loose_Object_IDs
-	                (Repo_Root,
-	                 Listed_Loose_Object_IDs,
-	                 Listed_Loose_Object_Count);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Loose_Object
-	                (Repo_Root, Stored_Hex, Read_Kind, Read_Data, Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Store_Loose_Object
-	                (Repo_Root,
-	                 SSH_Lib.Git.Pack_Blob,
-	                 [Character'Pos ('d'), Character'Pos ('e')],
-	                 Deleted_Loose_Hex,
-	                 Deleted_Loose_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Delete_Loose_Object
-	                (Repo_Root, Deleted_Loose_Hex);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Loose_Object_Validated
-	                (Repo_Root, Stored_Hex, Read_Kind, Read_Data, Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Tree_Entry
+            Status_Value :=
+              SSH_Lib.Git.Store_Loose_Object
+                (Repo_Root,
+                 SSH_Lib.Git.Pack_Blob,
+                 [Character'Pos ('o'), Character'Pos ('k')],
+                 Stored_Hex,
+                 Stored_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Store_Loose_Object_Validated
+                (Repo_Root,
+                 SSH_Lib.Git.Pack_Blob,
+                 [Character'Pos ('o'), Character'Pos ('k')],
+                 Validated_Stored_Hex,
+                 Validated_Stored_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.List_Loose_Object_IDs
+                (Repo_Root,
+                 Listed_Loose_Object_IDs,
+                 Listed_Loose_Object_Count);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Loose_Object
+                (Repo_Root, Stored_Hex, Read_Kind, Read_Data, Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Store_Loose_Object
+                (Repo_Root,
+                 SSH_Lib.Git.Pack_Blob,
+                 [Character'Pos ('d'), Character'Pos ('e')],
+                 Deleted_Loose_Hex,
+                 Deleted_Loose_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Delete_Loose_Object
+                (Repo_Root, Deleted_Loose_Hex);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Loose_Object_Validated
+                (Repo_Root, Stored_Hex, Read_Kind, Read_Data, Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Parse_Tree_Entry
                 (Tree_Data,
                  0,
                  Tree_Mode,
@@ -3131,55 +3131,55 @@ begin
               SSH_Lib.Git.Parse_Commit_Tree_ID
                 (Commit_Data, Commit_Tree_Hex, Commit_Tree_Last);
             Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Commit_Parent_ID
-	                (Commit_Data, 1, Commit_Parent_Hex, Commit_Parent_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Commit_Author_Line
-	                (Commit_Data, Commit_Author_Line, Commit_Author_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Commit_Committer_Line
-	                (Commit_Data,
-	                 Commit_Committer_Line,
-	                 Commit_Committer_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Commit_Message_Offset
-	                (Commit_Data, Commit_Message_Offset);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Validate_Commit_Object
-	                (Commit_Data, Commit_Parent_Count);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Validate_Object_Data
-	                (SSH_Lib.Git.Pack_Commit, Commit_Data);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Tag_Target
-	                (Tag_Data,
-	                 Tag_Target_Hex,
-	                 Tag_Target_Last,
-	                 Tag_Target_Kind);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Tag_Name
-	                (Tag_Data, Tag_Name, Tag_Name_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Parse_Tag_Message_Offset
-	                (Tag_Data, Tag_Message_Offset);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Validate_Tag_Object
-	                (Tag_Data, Tag_Target_Kind);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Validate_Object_Data
-	                (SSH_Lib.Git.Pack_Tag, Tag_Data);
-	            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Parse_Commit_Parent_ID
+                (Commit_Data, 1, Commit_Parent_Hex, Commit_Parent_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Parse_Commit_Author_Line
+                (Commit_Data, Commit_Author_Line, Commit_Author_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Parse_Commit_Committer_Line
+                (Commit_Data,
+                 Commit_Committer_Line,
+                 Commit_Committer_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Parse_Commit_Message_Offset
+                (Commit_Data, Commit_Message_Offset);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Validate_Commit_Object
+                (Commit_Data, Commit_Parent_Count);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Validate_Object_Data
+                (SSH_Lib.Git.Pack_Commit, Commit_Data);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Parse_Tag_Target
+                (Tag_Data,
+                 Tag_Target_Hex,
+                 Tag_Target_Last,
+                 Tag_Target_Kind);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Parse_Tag_Name
+                (Tag_Data, Tag_Name, Tag_Name_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Parse_Tag_Message_Offset
+                (Tag_Data, Tag_Message_Offset);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Validate_Tag_Object
+                (Tag_Data, Tag_Target_Kind);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Validate_Object_Data
+                (SSH_Lib.Git.Pack_Tag, Tag_Data);
+            Touch (Status_Value);
             Status_Value :=
               SSH_Lib.Git.Store_Pack_File
                 (Repo_Root, Pack_Data, Pack_Checksum, Pack_Checksum_Last);
@@ -3277,164 +3277,164 @@ begin
                  Stored_Object_IDs,
                  Stored_Object_Count);
             Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Packed_Object
-	                (Repo_Root,
-	                 Pack_Checksum,
-	                 Stored_Hex,
+            Status_Value :=
+              SSH_Lib.Git.Read_Packed_Object
+                (Repo_Root,
+                 Pack_Checksum,
+                 Stored_Hex,
                  Pack_Data,
                  Built_Index,
                  Read_Kind,
-	                 Packed_Read_Data,
-	                 Packed_Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Packed_Object_Validated
-	                (Repo_Root,
-	                 Pack_Checksum,
-	                 Stored_Hex,
-	                 Pack_Data,
-	                 Built_Index,
-	                 Read_Kind,
-	                 Packed_Read_Data,
-	                 Packed_Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Packed_Object_Resolved
-	                (Repo_Root,
-	                 Pack_Checksum,
-	                 Stored_Hex,
-	                 Pack_Data,
-	                 Built_Index,
-	                 Pack_Delta_Workspace,
-	                 Pack_Index_Scratch,
-	                 Pkt_Buffer,
-	                 Read_Kind,
-	                 Packed_Read_Data,
-	                 Packed_Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Packed_Object_Resolved_Validated
-	                (Repo_Root,
-	                 Pack_Checksum,
-	                 Stored_Hex,
-	                 Pack_Data,
-	                 Built_Index,
-	                 Pack_Delta_Workspace,
-	                 Pack_Index_Scratch,
-	                 Pkt_Buffer,
-	                 Read_Kind,
-	                 Packed_Read_Data,
-	                 Packed_Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Stored_Object
-	                (Repo_Root,
-	                 Stored_Hex,
-	                 Pack_Checksum,
+                 Packed_Read_Data,
+                 Packed_Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Packed_Object_Validated
+                (Repo_Root,
+                 Pack_Checksum,
+                 Stored_Hex,
                  Pack_Data,
                  Built_Index,
                  Read_Kind,
-	                 Packed_Read_Data,
-	                 Packed_Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Stored_Object_Resolved
-	                (Repo_Root,
-	                 Stored_Hex,
-	                 Pack_Checksum,
-	                 Pack_Data,
-	                 Built_Index,
-	                 Pack_Delta_Workspace,
-	                 Pack_Index_Scratch,
-	                 Pkt_Buffer,
-	                 Read_Kind,
-	                 Packed_Read_Data,
-	                 Packed_Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Stored_Object_Resolved_Validated
-	                (Repo_Root,
-	                 Stored_Hex,
-	                 Pack_Checksum,
-	                 Pack_Data,
-	                 Built_Index,
-	                 Pack_Delta_Workspace,
-	                 Pack_Index_Scratch,
-	                 Pkt_Buffer,
-	                 Read_Kind,
-	                 Packed_Read_Data,
-	                 Packed_Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Stored_Object_Validated
-	                (Repo_Root,
-	                 Stored_Hex,
-	                 Pack_Checksum,
-	                 Pack_Data,
-	                 Built_Index,
-	                 Read_Kind,
-	                 Packed_Read_Data,
-	                 Packed_Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Any_Stored_Object
-	                (Repo_Root,
-	                 Stored_Hex,
-	                 Pack_Index_List,
+                 Packed_Read_Data,
+                 Packed_Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Packed_Object_Resolved
+                (Repo_Root,
+                 Pack_Checksum,
+                 Stored_Hex,
+                 Pack_Data,
+                 Built_Index,
+                 Pack_Delta_Workspace,
+                 Pack_Index_Scratch,
+                 Pkt_Buffer,
+                 Read_Kind,
+                 Packed_Read_Data,
+                 Packed_Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Packed_Object_Resolved_Validated
+                (Repo_Root,
+                 Pack_Checksum,
+                 Stored_Hex,
+                 Pack_Data,
+                 Built_Index,
+                 Pack_Delta_Workspace,
+                 Pack_Index_Scratch,
+                 Pkt_Buffer,
+                 Read_Kind,
+                 Packed_Read_Data,
+                 Packed_Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Stored_Object
+                (Repo_Root,
+                 Stored_Hex,
+                 Pack_Checksum,
+                 Pack_Data,
+                 Built_Index,
+                 Read_Kind,
+                 Packed_Read_Data,
+                 Packed_Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Stored_Object_Resolved
+                (Repo_Root,
+                 Stored_Hex,
+                 Pack_Checksum,
+                 Pack_Data,
+                 Built_Index,
+                 Pack_Delta_Workspace,
+                 Pack_Index_Scratch,
+                 Pkt_Buffer,
+                 Read_Kind,
+                 Packed_Read_Data,
+                 Packed_Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Stored_Object_Resolved_Validated
+                (Repo_Root,
+                 Stored_Hex,
+                 Pack_Checksum,
+                 Pack_Data,
+                 Built_Index,
+                 Pack_Delta_Workspace,
+                 Pack_Index_Scratch,
+                 Pkt_Buffer,
+                 Read_Kind,
+                 Packed_Read_Data,
+                 Packed_Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Stored_Object_Validated
+                (Repo_Root,
+                 Stored_Hex,
+                 Pack_Checksum,
+                 Pack_Data,
+                 Built_Index,
+                 Read_Kind,
+                 Packed_Read_Data,
+                 Packed_Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Any_Stored_Object
+                (Repo_Root,
+                 Stored_Hex,
+                 Pack_Index_List,
                  Pack_Data,
                  Built_Index,
                  Found_Pack_Checksum,
                  Found_Pack_Checksum_Last,
                  Read_Kind,
-	                 Packed_Read_Data,
-	                 Packed_Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Any_Stored_Object_Resolved
-	                (Repo_Root,
-	                 Stored_Hex,
-	                 Pack_Index_List,
-	                 Pack_Data,
-	                 Built_Index,
-	                 Pack_Delta_Workspace,
-	                 Pack_Index_Scratch,
-	                 Pkt_Buffer,
-	                 Found_Pack_Checksum,
-	                 Found_Pack_Checksum_Last,
-	                 Read_Kind,
-	                 Packed_Read_Data,
-	                 Packed_Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Any_Stored_Object_Resolved_Validated
-	                (Repo_Root,
-	                 Stored_Hex,
-	                 Pack_Index_List,
-	                 Pack_Data,
-	                 Built_Index,
-	                 Pack_Delta_Workspace,
-	                 Pack_Index_Scratch,
-	                 Pkt_Buffer,
-	                 Found_Pack_Checksum,
-	                 Found_Pack_Checksum_Last,
-	                 Read_Kind,
-	                 Packed_Read_Data,
-	                 Packed_Read_Last);
-	            Touch (Status_Value);
-	            Status_Value :=
-	              SSH_Lib.Git.Read_Any_Stored_Object_Validated
-	                (Repo_Root,
-	                 Stored_Hex,
-	                 Pack_Index_List,
-	                 Pack_Data,
-	                 Built_Index,
-	                 Found_Pack_Checksum,
-	                 Found_Pack_Checksum_Last,
-	                 Read_Kind,
-	                 Packed_Read_Data,
-	                 Packed_Read_Last);
-	            Touch (Status_Value);
+                 Packed_Read_Data,
+                 Packed_Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Any_Stored_Object_Resolved
+                (Repo_Root,
+                 Stored_Hex,
+                 Pack_Index_List,
+                 Pack_Data,
+                 Built_Index,
+                 Pack_Delta_Workspace,
+                 Pack_Index_Scratch,
+                 Pkt_Buffer,
+                 Found_Pack_Checksum,
+                 Found_Pack_Checksum_Last,
+                 Read_Kind,
+                 Packed_Read_Data,
+                 Packed_Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Any_Stored_Object_Resolved_Validated
+                (Repo_Root,
+                 Stored_Hex,
+                 Pack_Index_List,
+                 Pack_Data,
+                 Built_Index,
+                 Pack_Delta_Workspace,
+                 Pack_Index_Scratch,
+                 Pkt_Buffer,
+                 Found_Pack_Checksum,
+                 Found_Pack_Checksum_Last,
+                 Read_Kind,
+                 Packed_Read_Data,
+                 Packed_Read_Last);
+            Touch (Status_Value);
+            Status_Value :=
+              SSH_Lib.Git.Read_Any_Stored_Object_Validated
+                (Repo_Root,
+                 Stored_Hex,
+                 Pack_Index_List,
+                 Pack_Data,
+                 Built_Index,
+                 Found_Pack_Checksum,
+                 Found_Pack_Checksum_Last,
+                 Read_Kind,
+                 Packed_Read_Data,
+                 Packed_Read_Last);
+            Touch (Status_Value);
             Status_Value :=
               SSH_Lib.Git.Write_Direct_Ref
                 (Repo_Root, "refs/heads/main", Stored_Hex);

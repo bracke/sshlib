@@ -267,7 +267,6 @@ procedure Check_Compile_Preflight is
       return Project_Tools.Files.Line_Contains (Path, Needle);
    end File_Contains;
 
-
    function Count_Text (Path : String; Needle : String) return Natural is
       File_Item : Ada.Text_IO.File_Type;
       Count_Value : Natural := 0;
@@ -316,7 +315,6 @@ procedure Check_Compile_Preflight is
          Fail ("forbidden compile-preflight text in " & Path & ": " & Needle);
       end if;
    end Require_Absent_Text;
-
 
    procedure Require_Text_Count (Path : String; Needle : String; Expected_Count : Natural) is
       Actual_Count : constant Natural := Count_Text (Path, Needle);
@@ -471,7 +469,6 @@ begin
       "Session_Identifier, Digest_To_Array (Exchange_Digest)",
       2);
 
-
    --  Pass 104 regression guard: pass 103 briefly introduced a duplicate
    --  local declaration while adding negotiated HMAC-SHA-512 support to
    --  protected-packet setup.  Keep this source-only guard because minimal
@@ -480,7 +477,6 @@ begin
      ("src/ssh_lib-protocol-protected_packets.adb",
       "Outbound_Kind : Mac_Algorithm",
       1);
-
 
    --  Pass 105 regression guard: group14 KEX now follows the same
    --  best-effort secret cleanup discipline as the Curve25519 KEX path.
@@ -493,7 +489,6 @@ begin
      ("src/ssh_lib-sessions-live_transport.adb",
       "Clear_Group14_Material;",
       21);
-
 
    --  Pass 106 regression guard: both live KEX paths must clear derived
    --  key buffers after installing them into the protected transcript.
@@ -516,7 +511,6 @@ begin
      ("src/ssh_lib-sessions-live_transport.adb",
       "SSH_Lib.Protocol.Buffers.Clear (Kex_Reply_Payload);");
 
-
    --  Pass 102 regression guard: ProxyJump-backed sessions do not have an
    --  inner TCP socket.  Read_Identification must therefore read the inner
    --  SSH identification through the generic driver path in Jump_Channel_Mode,
@@ -530,8 +524,6 @@ begin
    Require_Text
      ("src/ssh_lib-sessions-live_transcript.adb",
       "Status_Value := Read_Exact (Item, Byte_Buffer)");
-
-
 
    --  Pass 108 regression guard: comma-separated ProxyJump chains are
    --  implemented recursively by opening the final jump host through the
@@ -554,7 +546,6 @@ begin
      ("src/ssh_lib-sessions-live_transport.adb",
       "Unbracketed IPv6 literals are ambiguous with :port");
 
-
    --  Pass 109 regression guard: successful ProxyJump tunnel setup transfers
    --  ownership of the outer jump transcript to the inner jump-backed
    --  transcript, then detaches the temporary jump session without closing it.
@@ -575,8 +566,6 @@ begin
    Require_Text
      ("src/ssh_lib-sessions-live_transport.adb",
       "Detach_Without_Close (Jump_Session)");
-
-
 
    --  Pass 110 regression guard: ProxyJump ownership transfer must free
    --  owned outer transcripts through the same canonical live-transcript
@@ -600,7 +589,6 @@ begin
      ("src/ssh_lib-sessions-live_transcript.adb",
       "procedure Free_Driver is new Ada.Unchecked_Deallocation");
 
-
    --  Pass 111 regression guard: a jump-backed transcript only owns the
    --  outer transcript when Connect_Through_Jump was called with Own_Outer.
    --  Closing a non-owning jump-backed driver must close the direct-tcpip
@@ -618,7 +606,6 @@ begin
    Require_Text
      ("src/ssh_lib-sessions-live_transcript.adb",
       "Own_Outer        : Boolean := False");
-
 
    --  Pass 112 regression guard: owned ProxyJump outer transcripts must be
    --  released even when the inner jump-backed transcript is only partially
@@ -640,7 +627,6 @@ begin
    Require_Text
      ("src/ssh_lib-sessions-live_transcript.adb",
       "Close_Owned_Outer_Quietly (Item);");
-
 
    --  Pass 113 regression guard: ProxyJump transcript ownership must store
    --  the canonical allocated Driver_Access directly.  It must not derive an
@@ -772,7 +758,6 @@ begin
      ("src/ssh_lib-protocol-userauth.ads",
       "Encode_Password_Change_Request");
 
-
    --  Pass 144 regression guard: callback results are normalized and cleared
    --  in both live and deterministic identity-passphrase paths.
    Require_Text
@@ -828,8 +813,6 @@ begin
      ("tests/src/main.adb",
       "phase146 valid bcrypt KDF envelope derives and rejects invalid decrypted payload");
 
-
-
    --  Pass 119 regression guard: the KDF option parser must bound salt and
    --  round counts before the expensive bcrypt_pbkdf derivation path is
    --  entered.
@@ -845,7 +828,6 @@ begin
    Require_Text
      ("docs/RUNTIME_BOUNDARIES.md",
       "bounds OpenSSH bcrypt KDF salt length and round counts before bcrypt_pbkdf derivation");
-
 
    --  Pass 120 regression guard: encrypted OpenSSH parsing must route bcrypt
    --  derivation attempts through a dedicated bcrypt_pbkdf crypto boundary.
@@ -906,8 +888,6 @@ begin
      ("../cryptolib/src/cryptolib-bcrypt_pbkdf.adb",
       "or else Passphrase'Length = 0");
 
-
-
    --  Pass 123/146 regression guard: encrypted OpenSSH private-section
    --  handling must perform the AES-CTR unwrap with the derived key and IV.
    --  The parser must not fail closed merely because the KDF boundary
@@ -933,7 +913,6 @@ begin
    Require_Text
      ("src/ssh_lib-identity_files.adb",
       "CryptoLib.Ciphers.Reset (Cipher_State);");
-
 
    --  Pass 124 regression guard: the bcrypt_pbkdf boundary must bound the
    --  requested output length before derivation.  OpenSSH encrypted private
@@ -979,8 +958,6 @@ begin
      ("src/ssh_lib-identity_files.adb",
       "return Finish_Text_Parse (Internal_Error);");
 
-
-
    --  Pass 126 regression guard: runtime-boundary documentation must not
    --  regress to the obsolete Phase 50 claim that the public network path
    --  still stops before live KEX/NEWKEYS/protected userauth.  The current
@@ -988,14 +965,14 @@ begin
    --  live interoperability verification, not an intentional pre-KEX stub.
    Require_Absent_Text
      ("docs/RUNTIME_BOUNDARIES.md",
-      "live key exchange, exchange-hash verification, NEWKEYS, encrypted packet IO, known-host verification, and userauth still have to be wired");
+      "live key exchange, exchange-hash verification, NEWKEYS, encrypted packet IO, known-host verification, and us"
+      & "erauth still have to be wired");
    Require_Text
      ("docs/RUNTIME_BOUNDARIES.md",
       "Phase 19 pass 126 refreshes this runtime-boundary inventory");
    Require_Text
      ("docs/RUNTIME_BOUNDARIES.md",
       "lack of GNAT build verification and lack of live interoperability runs");
-
 
    --  Pass 127 regression guard: the live Git proof must include a real
    --  interoperability matrix, not only a single manually configured live
@@ -1060,8 +1037,6 @@ begin
      ("tests/security/test_live_git_interop_matrix.adb",
       "Clear_Sensitive_Options (Options);");
 
-
-
    --  Pass 130 regression guard: live ProxyJump verification must not rely
    --  only on the Git interoperability matrix.  A dedicated opt-in transport
    --  proof must exercise strict known-host ProxyJump session open, exec over
@@ -1116,7 +1091,6 @@ begin
    Require_Text
      ("tests/security/test_live_proxyjump_transport.adb",
       "if Scenario_Name'Length = 0 then");
-
 
    --  Pass 132 regression guard: live rekeying must preserve the original
    --  SSH session identifier while deriving new keys from the new exchange
@@ -1188,7 +1162,6 @@ begin
      ("src/ssh_lib-channels.adb",
       "Rekey_With_Peer_Kexinit");
 
-
    --  Pass 134 regression guard: Curve25519 must remain a fixed-limb
    --  implementation and must not fall back to Ada big-integer arithmetic.
    Require_Absent_Text
@@ -1217,14 +1190,17 @@ begin
    --  contain an orphan nested begin after the function body begin.
    Require_Absent_Text
      ("../cryptolib/src/cryptolib-curve25519.adb",
-      "begin" & Ada.Characters.Latin_1.LF & "   begin" & Ada.Characters.Latin_1.LF & "      Result_Item := (others => 0);");
+      "begin" & Ada.Characters.Latin_1.LF & "   begin" & Ada.Characters.Latin_1.LF & "      Result_Item := (others "
+                                                                                     & "=> 0);");
 
    --  Pass 136 regression guard: OpenSSH encrypt-then-MAC algorithms must
    --  remain advertised, negotiated, and implemented with clear packet-length
    --  headers plus MAC verification over ciphertext before decryption.
    Require_Text
      ("src/ssh_lib-algorithms.adb",
-      "umac-128-etm@openssh.com,umac-64-etm@openssh.com,umac-128@openssh.com,umac-64@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,hmac-sha1-etm@openssh.com,hmac-sha1,hmac-sha1-96-etm@openssh.com,hmac-sha1-96");
+      "umac-128-etm@openssh.com,umac-64-etm@openssh.com,umac-128@openssh.com,umac-64@openssh.com,hmac-sha2-512-etm@"
+      & "openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,hmac-sha1-etm@openssh.com,hmac-sha1,hm"
+      & "ac-sha1-96-etm@openssh.com,hmac-sha1-96");
    Require_Text
      ("src/ssh_lib-protocol-protected_packets.ads",
       "HMAC_SHA2_512_ETM");
@@ -1255,7 +1231,8 @@ begin
       "Extension_Only");
    Require_Text
      ("src/ssh_lib-algorithms.adb",
-      "diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group14-sha256,diffie-hellman-group14-sha1,ext-info-c");
+      "diffie-hellman-group18-sha512,diffie-hellman-group16-sha512,diffie-hellman-group14-sha256,diffie-hellman-gro"
+      & "up14-sha1,ext-info-c");
    Require_Text
      ("src/ssh_lib-algorithms.adb",
       "return Extension_Only;");
@@ -1268,7 +1245,6 @@ begin
    Require_Text
      ("src/ssh_lib-protocol-transport_messages.adb",
       "Transport_Ext_Info");
-
 
    --  Pass 159 regression guard: bounded group14 SHA-1 compatibility KEX is
    --  only valid when the live path computes SHA-1 exchange hashes and derives
@@ -1291,7 +1267,6 @@ begin
    Require_Text
      ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb",
       "RFC8308 ext-info-c marker is not selected as a key exchange");
-
 
    --  Pass 138 regression guard: live transports must support automatic
    --  client-initiated rekey after configurable packet or byte thresholds.
@@ -1368,8 +1343,6 @@ begin
      ("src/ssh_lib-sessions.ads",
       "before sending or reading more channel data");
 
-
-
    --  Pass 140 regression guard: SSH MAC fallback coverage must include
    --  hmac-sha1, hmac-sha1-etm@openssh.com, hmac-sha1-96, and
    --  hmac-sha1-96-etm@openssh.com only as lowest-priority interoperability
@@ -1410,14 +1383,15 @@ begin
       "hmac-sha1-96-etm@openssh.com");
    Require_Text
      ("src/ssh_lib-algorithms.adb",
-      "umac-128-etm@openssh.com,umac-64-etm@openssh.com,umac-128@openssh.com,umac-64@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,hmac-sha1-etm@openssh.com,hmac-sha1,hmac-sha1-96-etm@openssh.com,hmac-sha1-96");
+      "umac-128-etm@openssh.com,umac-64-etm@openssh.com,umac-128@openssh.com,umac-64@openssh.com,hmac-sha2-512-etm@"
+      & "openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,hmac-sha1-etm@openssh.com,hmac-sha1,hm"
+      & "ac-sha1-96-etm@openssh.com,hmac-sha1-96");
    Require_Text
      ("tests/src/main.adb",
       "phase4 hmac sha1 vector");
    Require_Text
      ("tests/src/main.adb",
       "implemented hmac-sha1-96 fallback support status available");
-
 
    --  Pass 141 regression guard: known_hosts hashed selector matching must
    --  use the shared SHA-1/HMAC-SHA1 primitives introduced for packet MACs,
@@ -1454,7 +1428,6 @@ begin
      ("src/ssh_lib-sessions-live_transcript.adb",
       "(Item.Protected_State, Handshake_Failed);");
 
-
    --  Pass 150 regression guard: encrypted PKCS#8 PBES2/PBKDF2
    --  support must not regress to only SHA-1/SHA-256 PRFs.  OpenSSL and
    --  other key generators may emit hmacWithSHA512 AlgorithmIdentifier
@@ -1479,7 +1452,6 @@ begin
      ("docs/RUNTIME_BOUNDARIES.md",
       "Encrypted PKCS#8 remains explicitly unsupported");
 
-
    --  Pass 151 regression guard: OpenSSH bcrypt-encrypted identity files
    --  must support both CTR and CBC AES private-section ciphers.
    Require_Text
@@ -1500,8 +1472,6 @@ begin
    Require_Text
      ("docs/RUNTIME_BOUNDARIES.md",
       "AES-CTR or AES-CBC private-section unwrap");
-
-
 
    --  Pass 152 regression guard: documentation and malformed-input tests must
    --  distinguish supported encrypted identity-file envelopes from malformed
@@ -1541,7 +1511,6 @@ begin
      ("tests/security/README.md",
       "encrypted/legacy/unsupported identity formats");
 
-
    --  Pass 153 regression guard: the top-level README must not regress to
    --  stale pre-callback/pre-ProxyJump status text.  Password callbacks,
    --  identity passphrase callbacks, password-change callbacks, and
@@ -1573,7 +1542,6 @@ begin
      ("docs/SECURITY_REVIEW.md",
       "unsupported encrypted-envelope");
 
-
    --  Pass 155 regression guard: callback-capable security documentation
    --  must not regress to the older wording that listed password or
    --  passphrase callbacks as absent.  The implemented callbacks are
@@ -1604,7 +1572,6 @@ begin
      ("docs/THREAT_MODEL.md",
       "callbacks are implemented without retaining returned secrets");
 
-
    --  Pass 157 regression guard: RSA publickey userauth must not be locked
    --  to rsa-sha2-512 only.  Some modern servers and agents accept RSA keys
    --  only with rsa-sha2-256; the identity-file and agent live paths now try
@@ -1625,7 +1592,6 @@ begin
    Require_Text
      ("docs/SECURITY_REVIEW.md",
       "rsa-sha2-512 first and then rsa-sha2-256");
-
 
    --  Pass 158 regression guard: public algorithm status documentation must
    --  match the implemented HMAC-SHA1 interoperability fallback list.  The
@@ -1655,7 +1621,6 @@ begin
    Require_Absent_Text
      ("tests/security/README.md",
       "hmac-sha2-512,hmac-sha2-256`, and `none` compression");
-
 
    --  Pass 160 regression guard: SSH compression is intentionally wired only
    --  after the Ada zlib dependency is present.  Advertising zlib must remain
@@ -1698,7 +1663,6 @@ begin
      ("docs/TESTING.md",
       "and `none` compression");
 
-
    --  Pass 162 regression guard: broadened transport cipher coverage must be
    --  real AES-CBC packet encryption/decryption support, not only a KEXINIT
    --  advertisement change.  CBC remains lower priority than CTR.
@@ -1724,14 +1688,14 @@ begin
      ("docs/SECURITY_REVIEW.md",
       "AES-CTR and AES-CBC transport cipher support");
 
-
    --  Pass 166 regression guard: ssh-rsa/RSA-SHA1 is a deliberately
    --  lowest-priority interoperability fallback, not a documentation-only
    --  advertisement.  It must be advertised, parsed, verified, and usable for
    --  identity-file/agent request construction only after RSA SHA-2 variants.
    Require_Text
      ("src/ssh_lib-algorithms.adb",
-      "ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,ssh-rsa-cert-v01@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa");
+      "ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,ssh-rsa"
+      & "-cert-v01@openssh.com,ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa");
    Require_Text
      ("src/ssh_lib-rsa.ads",
       "function Verify_SHA1");
@@ -1752,11 +1716,11 @@ begin
       "ssh-rsa`/RSA-SHA1 as a deliberately lowest-priority interoperability fallback");
    Require_Text
      ("README.md",
-      "optional algorithm coverage is now broad; remaining gaps are live interoperability/build validation, not intentionally unadvertised core algorithm families");
+      "optional algorithm coverage is now broad; remaining gaps are live interoperability/build validation, not int"
+      & "entionally unadvertised core algorithm families");
    Require_Absent_Text
      ("README.md",
       "SSH algorithms outside the Version transport set");
-
 
    --  Pass 164 regression guard: public runtime status must not regress to
    --  stale pre-channel-publication or broad algorithm-gap wording.  The
@@ -1765,13 +1729,19 @@ begin
    --  blanket fail-closed gaps.
    Require_Text
      ("README.md",
-      "Implemented algorithm families now include Curve25519, group-exchange SHA-256/SHA-1, group18/group16 SHA-512, group14 SHA-256/SHA-1, RSA SHA-2/SHA-1 and Ed25519 host keys, chacha20-poly1305 AEAD and AES-GCM/AES-CTR/AES-CBC transport ciphers, SHA-2/SHA-1 MACs including SHA1-96 fallbacks, and zlib/zlib@openssh.com compression.");
+      "Implemented algorithm families now include Curve25519, group-exchange SHA-256/SHA-1, group18/group16 SHA-512"
+      & ", group14 SHA-256/SHA-1, RSA SHA-2/SHA-1 and Ed25519 host keys, chacha20-poly1305 AEAD and AES-GCM/AES-CTR/A"
+      & "ES-CBC transport ciphers, SHA-2/SHA-1 MACs including SHA1-96 fallbacks, and zlib/zlib@openssh.com compressio"
+      & "n.");
    Require_Text
      ("docs/SECURITY_REVIEW.md",
-      "Non-fixture hosts now proceed through live SSH identification, cleartext KEXINIT packet exchange, negotiated key exchange, NEWKEYS, protected-packet installation, host-key signature verification, known-host trust, protected userauth, and retained channel setup.");
+      "Non-fixture hosts now proceed through live SSH identification, cleartext KEXINIT packet exchange, negotiated"
+      & " key exchange, NEWKEYS, protected-packet installation, host-key signature verification, known-host trust, pr"
+      & "otected userauth, and retained channel setup.");
    Require_Text
      ("docs/THREAT_MODEL.md",
-      "the remaining runtime risk is real-server validation coverage for both the caller-driven and optional background-reader channel paths.");
+      "the remaining runtime risk is real-server validation coverage for both the caller-driven and optional backgr"
+      & "ound-reader channel paths.");
    Require_Absent_Text
      ("README.md",
       "broader optional algorithm coverage remains intentionally fail-closed");
@@ -1782,7 +1752,6 @@ begin
      ("docs/THREAT_MODEL.md",
       "channel publication and broader key/signature interoperability");
 
-
    --  Pass 169 regression guard: runtime-boundary and public docs must track
    --  the implemented group16 SHA-512 live finite-field KEX path instead of
    --  stale group14-only wording.
@@ -1791,10 +1760,13 @@ begin
       "live Curve25519, group-exchange SHA-256/SHA-1, group18/group16 SHA-512, or group14 key exchange");
    Require_Text
      ("README.md",
-      "supported finite-field DH paths: `diffie-hellman-group-exchange-sha256`, `diffie-hellman-group-exchange-sha1`, `diffie-hellman-group18-sha512`, `diffie-hellman-group16-sha512`, `diffie-hellman-group14-sha256`, and `diffie-hellman-group14-sha1`");
+      "supported finite-field DH paths: `diffie-hellman-group-exchange-sha256`, `diffie-hellman-group-exchange-sha1"
+      & "`, `diffie-hellman-group18-sha512`, `diffie-hellman-group16-sha512`, `diffie-hellman-group14-sha256`, and `d"
+      & "iffie-hellman-group14-sha1`");
    Require_Text
      ("docs/RUNTIME_BOUNDARIES.md",
-      "group-exchange-selected group18/group16/group14 and fixed group18/group16/group14 shared-secret computation, SHA-512/SHA-256/SHA-1 exchange-hash computation selected by the negotiated KEX name");
+      "group-exchange-selected group18/group16/group14 and fixed group18/group16/group14 shared-secret computation,"
+      & " SHA-512/SHA-256/SHA-1 exchange-hash computation selected by the negotiated KEX name");
    Require_Text
      ("docs/SECURITY_REVIEW.md",
       "group18/group16 SHA-512 finite-field KEX coverage");
@@ -1808,7 +1780,6 @@ begin
      ("docs/RUNTIME_BOUNDARIES.md",
       "group14 shared-secret computation, SHA-256 exchange-hash computation");
 
-
    --  Pass 165 regression guard: runtime-boundary documentation must track
    --  the implemented AES-CBC transport and encrypted identity-file support,
    --  rather than older CTR-only / encrypted-key-fail-closed wording.
@@ -1817,7 +1788,8 @@ begin
       "CBC chaining state is updated per protected packet");
    Require_Text
      ("docs/RUNTIME_BOUNDARIES.md",
-      "bcrypt-encrypted OpenSSH private keys, traditional AES/DES/3DES-CBC encrypted RSA PEM, and PBES2/PBKDF2 AES/3DES-CBC encrypted PKCS#8 RSA");
+      "bcrypt-encrypted OpenSSH private keys, traditional AES/DES/3DES-CBC encrypted RSA PEM, and PBES2/PBKDF2 AES/"
+      & "3DES-CBC encrypted PKCS#8 RSA");
    Require_Text
      ("src/ssh_lib-identity_files.adb",
       "DES-EDE3-CBC");
@@ -1838,13 +1810,11 @@ begin
       "3DES-CBC raw decrypt restores OpenSSL known-vector plaintext");
    Require_Absent_Text
      ("docs/RUNTIME_BOUNDARIES.md",
-      "The cipher package implements `aes256-ctr`, `aes192-ctr`, and `aes128-ctr` for live transport and rejects unsupported or legacy transport cipher names");
+      "The cipher package implements `aes256-ctr`, `aes192-ctr`, and `aes128-ctr` for live transport and rejects un"
+      & "supported or legacy transport cipher names");
    Require_Absent_Text
      ("docs/RUNTIME_BOUNDARIES.md",
       "Unsupported and encrypted key shapes continue to fail closed");
-
-
-
 
    --  Pass 170 regression guard: group18 SHA-512 KEX must be fully wired,
    --  not merely documented or advertised.
@@ -1876,18 +1846,25 @@ begin
      ("README.md",
       "group18/group-exchange KEX");
 
-
-
    Require_Text ("../cryptolib/src/cryptolib-chacha20_poly1305.adb", "procedure Quarter_Round");
    Require_Text ("../cryptolib/src/cryptolib-chacha20_poly1305.adb", "function Poly1305_Tag");
    Require_Text ("src/ssh_lib-protocol-protected_packets.adb", "Item.Outbound_Chacha20_Poly1305");
-   Require_Text ("src/ssh_lib-protocol-protected_packets.adb", "if Outbound_Cipher_Name = ""chacha20-poly1305@openssh.com"" then");
-   Require_Text ("src/ssh_lib-protocol-protected_packets.adb", "if Inbound_Cipher_Name = ""chacha20-poly1305@openssh.com"" then");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb", "mixed outbound chacha20-poly1305 and inbound AES-CTR protected state initializes");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb", "mixed outbound AES-CTR and inbound chacha20-poly1305 protected state initializes");
-   Require_Absent_Text ("src/ssh_lib-protocol-protected_packets.adb", "Outbound_Cipher_Name /= ""chacha20-poly1305@openssh.com""");
+   Require_Text
+        ("src/ssh_lib-protocol-protected_packets.adb",
+         "if Outbound_Cipher_Name = ""chacha20-poly1305@openssh.com"" then");
+   Require_Text
+        ("src/ssh_lib-protocol-protected_packets.adb",
+         "if Inbound_Cipher_Name = ""chacha20-poly1305@openssh.com"" then");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb",
+         "mixed outbound chacha20-poly1305 and inbound AES-CTR protected state initializes");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb",
+         "mixed outbound AES-CTR and inbound chacha20-poly1305 protected state initializes");
+   Require_Absent_Text
+        ("src/ssh_lib-protocol-protected_packets.adb",
+         "Outbound_Cipher_Name /= ""chacha20-poly1305@openssh.com""");
    Require_Text ("src/ssh_lib-sessions-live_transport.adb", "chacha20-poly1305@openssh.com");
-
 
    --  Pass 173 regression guard: AES-GCM must be a real AEAD transport
    --  cipher path, not a name-list-only advertisement.
@@ -1899,10 +1876,10 @@ begin
    Require_Text ("src/ssh_lib-protocol-protected_packets.adb", "CryptoLib.Ciphers.Seal_GCM");
    Require_Text ("src/ssh_lib-protocol-protected_packets.adb", "CryptoLib.Ciphers.Open_GCM");
    Require_Text ("src/ssh_lib-sessions-live_transport.adb", "aes256-gcm@openssh.com");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb", "AES-GCM protected state initializes in both directions");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb",
+         "AES-GCM protected state initializes in both directions");
    Require_Absent_Text ("README.md", "AES-GCM, group-exchange KEX, and OpenSSH certificate validation");
-
-
 
    --  Pass 174 regression guard: OpenSSH host certificates must be real
    --  certificate validation, not advertisement-only names.  CA trust flows
@@ -1951,9 +1928,9 @@ begin
    Require_Text ("src/ssh_lib-protocol-exchange_hash.ads", "Compute_Group_Exchange_SHA1");
    Require_Text ("src/ssh_lib-sessions-live_transport.adb", "Compute_Group_Exchange_SHA1");
    Require_Text ("src/ssh_lib-sessions-live_transport.adb", "Derive_SHA1_Keys");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb", "legacy GEX SHA-1 KEX intersects successfully");
-
-
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb",
+         "legacy GEX SHA-1 KEX intersects successfully");
 
    --  Pass 180 regression guard: live runtime documentation must not
    --  regress to stale pass-20-era wording that public-network sessions stop
@@ -1961,16 +1938,33 @@ begin
    --  carries KEX, protected packets, host-key/certificate validation,
    --  protected userauth, and retained channel setup; Ok remains gated on all
    --  checks rather than impossible after KEX.
-   Require_Text ("docs/SECURITY.md", "strict host-key verification, known-host or certificate-authority trust, protected userauth, and retained channel setup");
-   Require_Text ("docs/SECURITY_REVIEW.md", "complete socket-backed open boundary: identification, KEXINIT, negotiated KEX including group-exchange, NEWKEYS, protected packet installation");
-   Require_Text ("docs/TESTING.md", "public `Ok` remains impossible unless the complete connected/encrypted/trusted/authenticated gate set is satisfied");
-   Require_Text ("docs/THREAT_MODEL.md", "public-network path uses the same live encrypted transcript boundary instead of a fixture-only userauth shortcut");
-   Require_Text ("README.md", "public-network path now uses the live socket-backed transcript for protected userauth as well");
-   Require_Absent_Text ("docs/SECURITY.md", "Public success is still fail-closed until known-host trust and production userauth are connected");
-   Require_Absent_Text ("docs/SECURITY_REVIEW.md", "Public success is still fail-closed until known-host trust and production userauth are connected");
-   Require_Absent_Text ("docs/TESTING.md", "Public success is still fail-closed until known-host trust and production userauth are connected");
-   Require_Absent_Text ("docs/THREAT_MODEL.md", "ordinary public-network transcript I/O remains fail-closed until connected to live encrypted sockets");
-   Require_Absent_Text ("README.md", "arbitrary public-network SSH remains fail-closed until the live transcript driver is connected");
+   Require_Text ("docs/SECURITY.md", "strict host-key verification, known-host or certificate-authority trust, prot"
+                                     & "ected userauth, and retained channel setup");
+   Require_Text ("docs/SECURITY_REVIEW.md", "complete socket-backed open boundary: identification, KEXINIT, negotia"
+                                            & "ted KEX including group-exchange, NEWKEYS, protected packet installati"
+                                            & "on");
+   Require_Text ("docs/TESTING.md", "public `Ok` remains impossible unless the complete connected/encrypted/trusted"
+                                    & "/authenticated gate set is satisfied");
+   Require_Text ("docs/THREAT_MODEL.md", "public-network path uses the same live encrypted transcript boundary inst"
+                                         & "ead of a fixture-only userauth shortcut");
+   Require_Text
+        ("README.md",
+         "public-network path now uses the live socket-backed transcript for protected userauth as well");
+   Require_Absent_Text
+        ("docs/SECURITY.md",
+         "Public success is still fail-closed until known-host trust and production userauth are connected");
+   Require_Absent_Text
+        ("docs/SECURITY_REVIEW.md",
+         "Public success is still fail-closed until known-host trust and production userauth are connected");
+   Require_Absent_Text
+        ("docs/TESTING.md",
+         "Public success is still fail-closed until known-host trust and production userauth are connected");
+   Require_Absent_Text
+        ("docs/THREAT_MODEL.md",
+         "ordinary public-network transcript I/O remains fail-closed until connected to live encrypted sockets");
+   Require_Absent_Text
+        ("README.md",
+         "arbitrary public-network SSH remains fail-closed until the live transcript driver is connected");
 
    --  Pass 177 regression guard: explicit known_hosts append support must
    --  exist without reintroducing silent TOFU in Sessions.Open.
@@ -1984,7 +1978,6 @@ begin
    Scan_Ada_Tree ("tests");
    Scan_Ada_Tree ("examples");
    Scan_Ada_Tree ("tools");
-
 
    --  Pass 181 regression guard: optional background channel reader must stay
    --  wired as a real channel task path, not just documentation.

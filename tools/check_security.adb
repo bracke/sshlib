@@ -144,7 +144,9 @@ begin
    Require_Text ("tests/security/test_packet_protection_negative.adb", "Decode_Protected_Packet");
    Require_Text ("tests/security/test_packet_protection_negative.adb", "bad MAC dirties protected packet state");
    Require_Text ("tests/security/test_packet_protection_negative.adb", "wrong sequence MAC dirties protected state");
-   Require_Text ("tests/security/test_packet_protection_negative.adb", "invalid padding rejected after MAC verification");
+   Require_Text
+        ("tests/security/test_packet_protection_negative.adb",
+         "invalid padding rejected after MAC verification");
    Require_File ("tests/security/test_host_key_negative.adb");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-host_key_security.ads");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-host_key_security.adb");
@@ -152,11 +154,21 @@ begin
    Require_File ("src/ssh_lib-protocol-host_key_guards.adb");
    Require_Text ("src/ssh_lib-protocol-host_key_guards.ads", "Trust_After_Signature");
    Require_Text ("src/ssh_lib-protocol-host_key_guards.ads", "May_Authenticate");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-host_key_security.adb", "Assert_Host_Key_Verification_Order_And_Trust");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-host_key_security.adb", "valid signature plus absent known_hosts returns Host_Key_Unknown");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-host_key_security.adb", "valid signature plus changed known_hosts returns Host_Key_Mismatch");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-host_key_security.adb", "invalid signature is rejected before known_hosts trust");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-host_key_security.adb", "known_hosts trust is checked before authentication");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-host_key_security.adb",
+         "Assert_Host_Key_Verification_Order_And_Trust");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-host_key_security.adb",
+         "valid signature plus absent known_hosts returns Host_Key_Unknown");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-host_key_security.adb",
+         "valid signature plus changed known_hosts returns Host_Key_Mismatch");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-host_key_security.adb",
+         "invalid signature is rejected before known_hosts trust");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-host_key_security.adb",
+         "known_hosts trust is checked before authentication");
    Require_Text ("tests/security/test_host_key_negative.adb", "Assert_Host_Key_Verification_Order_And_Trust");
    Require_File ("tests/security/test_algorithm_negative.adb");
    Require_File ("tests/security/test_algorithm_security.adb");
@@ -167,24 +179,46 @@ begin
    Require_Text ("src/ssh_lib-protocol-algorithm_guards.ads", "Selected_Algorithm_Accepted");
    Require_Text ("src/ssh_lib-protocol-algorithm_guards.ads", "Kex_Reply_Consistent");
    Require_Text ("src/ssh_lib-protocol-algorithm_guards.ads", "Compression_Is_None");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb", "Assert_Algorithm_Negotiation_Security");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb", "advertised only implemented algorithm");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb", "client preference order is preserved");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb",
+         "Assert_Algorithm_Negotiation_Security");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb",
+         "advertised only implemented algorithm");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb",
+         "client preference order is preserved");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb", "server offers no supported KEX");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb", "server-selected algorithm not advertised by client is rejected");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb", "legacy ssh-rsa SHA-1 host-key signatures retained as last-resort interoperability fallback");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb",
+         "server-selected algorithm not advertised by client is rejected");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb",
+         "legacy ssh-rsa SHA-1 host-key signatures retained as last-resort interoperability fallback");
    Require_Text ("tests/security/test_algorithm_security.adb", "Assert_Algorithm_Negotiation_Security");
    Require_File ("tests/security/test_auth_negative.adb");
    Require_File ("tests/security/test_packet_protection_negative.adb");
    Require_File ("tests/security/test_command_quoting_negative.adb");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.ads");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb", "Assert_Git_Command_Quoting_And_Validation");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb", "repository path quoted exactly for upload-pack");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb", "shell-looking repository path is quoted as data and not executed");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb", "generated command accepted by production Open_Exec");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb", "exec request command bytes are exact");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb", "quoted command would exceed Open_Exec limit");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb",
+         "Assert_Git_Command_Quoting_And_Validation");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb",
+         "repository path quoted exactly for upload-pack");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb",
+         "shell-looking repository path is quoted as data and not executed");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb",
+         "generated command accepted by production Open_Exec");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb",
+         "exec request command bytes are exact");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-command_quoting.adb",
+         "quoted command would exceed Open_Exec limit");
    Require_Text ("tests/security/test_command_quoting_negative.adb", "Assert_Git_Command_Quoting_And_Validation");
    Require_Text ("tests/src/main.adb", "Run_Phase_19_Command_Quoting_Fixture_Tests");
    Require_File ("tests/security/test_binary_stream_negative.adb");
@@ -197,36 +231,64 @@ begin
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-binary_matrix.adb", "pending stdout first chunk");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-binary_matrix.adb", "stderr is not returned as stdout");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-binary_matrix.adb", "agent identity parser byte path");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-binary_matrix.adb", "identity-file decoded public binary field");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-binary_matrix.adb",
+         "identity-file decoded public binary field");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-binary_matrix.adb", "known-host raw key blob byte path");
    Require_Text ("tests/security/test_binary_stream_negative.adb", "Assert_All_Production_Paths_Preserve");
    Require_File ("tests/security/test_timeout_dirty_negative.adb");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-timeout_dirty.ads");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-timeout_dirty.adb");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-timeout_dirty.adb", "Assert_All_Timeout_And_Dirty_State_Behavior");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-timeout_dirty.adb", "silent server during channel open maps to Timeout");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-timeout_dirty.adb", "partial write timeout dirties channel");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-timeout_dirty.adb",
+         "Assert_All_Timeout_And_Dirty_State_Behavior");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-timeout_dirty.adb",
+         "silent server during channel open maps to Timeout");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-timeout_dirty.adb",
+         "partial write timeout dirties channel");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-timeout_dirty.adb", "dirty session cannot open channel");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-timeout_dirty.adb", "failed Open_Exec leaves returned channel closed/unusable");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-timeout_dirty.adb",
+         "failed Open_Exec leaves returned channel closed/unusable");
    Require_Text ("tests/security/test_timeout_dirty_negative.adb", "Assert_All_Timeout_And_Dirty_State_Behavior");
    Require_Text ("tests/src/main.adb", "Run_Phase_19_Timeout_Dirty_Fixture_Tests");
    Require_File ("tests/security/test_resource_bounds.adb");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.ads");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.adb");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.adb", "Assert_All_Production_Bounds_Reject_Oversized_Input");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.adb", "oversized SSH packet header rejected before allocation");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.adb", "oversized agent message length rejected");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.adb", "oversized identity file rejected before parsing");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.adb", "oversized known_hosts line is ignored, not trusted");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.adb",
+         "Assert_All_Production_Bounds_Reject_Oversized_Input");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.adb",
+         "oversized SSH packet header rejected before allocation");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.adb",
+         "oversized agent message length rejected");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.adb",
+         "oversized identity file rejected before parsing");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.adb",
+         "oversized known_hosts line is ignored, not trusted");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-resource_bounds.adb", "too many open channels rejected");
    Require_Text ("tests/security/test_resource_bounds.adb", "Assert_All_Production_Bounds_Reject_Oversized_Input");
    Require_File ("tests/security/test_exception_mapping.adb");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-exception_containment.ads");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-exception_containment.adb");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-exception_containment.adb", "Assert_Public_Api_Exception_Boundaries");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-exception_containment.adb", "Sessions public API leaked exception");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-exception_containment.adb", "Channels public API leaked exception");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-exception_containment.adb", "file/config/remote exception containment leaked exception");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-exception_containment.adb",
+         "Assert_Public_Api_Exception_Boundaries");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-exception_containment.adb",
+         "Sessions public API leaked exception");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-exception_containment.adb",
+         "Channels public API leaked exception");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-exception_containment.adb",
+         "file/config/remote exception containment leaked exception");
    Require_Text ("tests/security/test_exception_mapping.adb", "Assert_Public_Api_Exception_Boundaries");
    Require_File ("tests/security/test_auth_security.adb");
    Require_File ("tests/security/test_auth_malformed_inputs.adb");
@@ -237,25 +299,49 @@ begin
    Require_Text ("src/ssh_lib-protocol-authentication_guards.ads", "Can_Start_Userauth");
    Require_Text ("src/ssh_lib-protocol-authentication_guards.ads", "Complete_Userauth");
    Require_Text ("src/ssh_lib-protocol-authentication_guards.ads", "Signature_Payloads_Match");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb", "Assert_Userauth_Order_And_Signature_Payloads");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb", "Assert_Malformed_Agent_And_Identity_Fixtures");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb", "wrong agent signature algorithm rejected");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb",
+         "Assert_Userauth_Order_And_Signature_Payloads");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb",
+         "Assert_Malformed_Agent_And_Identity_Fixtures");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb",
+         "wrong agent signature algorithm rejected");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb", "public/private key mismatch rejected");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-identity_files.adb", "Public_Private_Mismatch_OpenSSH_Private_Key");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb", "userauth before encryption is rejected");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb", "partial userauth success is not complete success");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb", "USERAUTH_BANNER is not authentication success");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb", "rekey exchange hash is rejected as wrong signature payload");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-identity_files.adb",
+         "Public_Private_Mismatch_OpenSSH_Private_Key");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb",
+         "userauth before encryption is rejected");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb",
+         "partial userauth success is not complete success");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb",
+         "USERAUTH_BANNER is not authentication success");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-auth_security.adb",
+         "rekey exchange hash is rejected as wrong signature payload");
    Require_Text ("tests/security/test_auth_security.adb", "Assert_Userauth_Order_And_Signature_Payloads");
    Require_Text ("tests/security/test_auth_malformed_inputs.adb", "Assert_Malformed_Agent_And_Identity_Fixtures");
    Require_File ("tests/security/test_config_security.adb");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-config_security.ads");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-config_security.adb");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-config_security.adb", "Assert_Config_Is_Data_Only");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-config_security.adb", "ProxyCommand is not executed during Resolve");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-config_security.adb", "IdentityFile $HOME is not shell-expanded");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-config_security.adb", "config cannot disable Verify_Known_Host");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-config_security.adb", "HostName cannot alter repository path");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-config_security.adb",
+         "ProxyCommand is not executed during Resolve");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-config_security.adb",
+         "IdentityFile $HOME is not shell-expanded");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-config_security.adb",
+         "config cannot disable Verify_Known_Host");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-config_security.adb",
+         "HostName cannot alter repository path");
    Require_Text ("tests/security/test_config_security.adb", "Assert_Config_Is_Data_Only");
    Require_Text ("tests/src/main.adb", "Run_Phase_19_Exception_Containment_Fixture_Tests");
    Require_Text ("tests/src/main.adb", "Run_Phase_19_Config_Security_Fixture_Tests");
@@ -346,13 +432,19 @@ begin
    Require_File ("tests/security/test_fuzz_lite.adb");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-fuzz_lite.ads");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-fuzz_lite.adb");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-fuzz_lite.adb", "Assert_Deterministic_Malformed_Input_Sweep");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-fuzz_lite.adb",
+         "Assert_Deterministic_Malformed_Input_Sweep");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-fuzz_lite.adb", "fuzz-lite packet framing");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-fuzz_lite.adb", "fuzz-lite SSH string");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-fuzz_lite.adb", "fuzz-lite known_hosts malformed records are not trusted");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-fuzz_lite.adb",
+         "fuzz-lite known_hosts malformed records are not trusted");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-fuzz_lite.adb", "fuzz-lite config");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-fuzz_lite.adb", "fuzz-lite agent framing");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-fuzz_lite.adb", "fuzz-lite identity-file section framing rejects malformed key");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-fuzz_lite.adb",
+         "fuzz-lite identity-file section framing rejects malformed key");
    Require_Text ("tests/security/test_fuzz_lite.adb", "Assert_Deterministic_Malformed_Input_Sweep");
    Require_Text ("tests/security/security_tests.gpr", "test_fuzz_lite.adb");
    Require_Text ("tests/src/main.adb", "Run_Phase_19_Fuzz_Lite_Fixture_Tests");
@@ -368,10 +460,16 @@ begin
    Require_Text ("src/ssh_lib-sessions-test_support.ads", "type Hostile_Open_Transcript");
    Require_Text ("src/ssh_lib-sessions-test_support.ads", "Run_Hostile_Open_Transcript_For_Test");
    Require_Text ("src/ssh_lib-sessions-test_support.ads", "Is_Host_Trusted_For_Test");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-hostile_transcripts.adb", "Assert_Hostile_Session_Open_Transcripts");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-hostile_transcripts.adb",
+         "Assert_Hostile_Session_Open_Transcripts");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-hostile_transcripts.adb", "malformed identification");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-hostile_transcripts.adb", "service-accept-before-encryption");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-hostile_transcripts.adb", "failed open cannot open channels");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-hostile_transcripts.adb",
+         "service-accept-before-encryption");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-hostile_transcripts.adb",
+         "failed open cannot open channels");
    Require_Text ("tests/security/test_hostile_transcripts.adb", "Assert_Hostile_Session_Open_Transcripts");
    Require_Text ("tests/security/security_tests.gpr", "test_hostile_transcripts.adb");
    Require_Text ("tests/src/main.adb", "Run_Phase_19_Hostile_Transcript_Fixture_Tests");
@@ -393,11 +491,18 @@ begin
 
    Require_Text ("src/ssh_lib-sessions-open_runtime.ads", "package SSH_Lib.Sessions.Open_Runtime");
    Require_Text ("src/ssh_lib-sessions-open_runtime.adb", "Required_Algorithm_Primitives_Available");
-   Require_Text ("src/ssh_lib-sessions.adb", "SSH_Lib.Sessions.Open_Runtime.Run");   Require_Text ("src/ssh_lib-sessions-open_guards.ads", "Success_Gates_Complete");
+   Require_Text
+        ("src/ssh_lib-sessions.adb",
+         "SSH_Lib.Sessions.Open_Runtime.Run");   Require_Text ("src/ssh_lib-sessions-open_guards.ads",
+         "Success_Gates_Complete");
    Require_Text ("src/ssh_lib-sessions-open_guards.ads", "Public_Open_State_Consistent");
    Require_Text ("src/ssh_lib-sessions.adb", "SSH_Lib.Sessions.Open_Guards.Success_Gates_Complete");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-session_open_success.adb", "Assert_Session_Open_Success_Gates");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-session_open_success.adb", "missing gate blocks Sessions.Open Ok");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-session_open_success.adb",
+         "Assert_Session_Open_Success_Gates");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-session_open_success.adb",
+         "missing gate blocks Sessions.Open Ok");
    Require_Text ("tests/security/test_session_open_success_security.adb", "Assert_Session_Open_Success_Gates");
    Require_Text ("tests/security/security_tests.gpr", "test_session_open_success_security.adb");
    Require_Text ("tests/security/security_tests.gpr", "test_open_runtime_security.adb");
@@ -413,19 +518,30 @@ begin
    Require_File ("PHASE_19_COMPLETENESS_PASS_22.md");
    Scan_Directory ("src");
 
-
    Require_File ("PHASE_19_COMPLETENESS_PASS_24.md");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.ads");
    Require_File ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.adb");
    Require_File ("tests/version_integration/src/test_version_adapter_consumption.adb");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.adb", "Assert_Deterministic_Version_Adapter_Consumption");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.adb", "git-upload-pack 'repo.git'");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.adb", "git-receive-pack 'repo.git'");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.adb",
+         "Assert_Deterministic_Version_Adapter_Consumption");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.adb",
+         "git-upload-pack 'repo.git'");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.adb",
+         "git-receive-pack 'repo.git'");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.adb", "SSH_Lib.Channels.Write");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.adb", "SSH_Lib.Channels.Read_Some");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.adb", "keeps host-key verification enabled");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.adb",
+         "SSH_Lib.Channels.Read_Some");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-version_adapter_consumption.adb",
+         "keeps host-key verification enabled");
    Require_Text ("tests/version_integration/version_integration.gpr", "test_version_adapter_consumption.adb");
-   Require_Text ("tests/version_integration/src/test_version_adapter_consumption.adb", "Assert_Deterministic_Version_Adapter_Consumption");
+   Require_Text
+        ("tests/version_integration/src/test_version_adapter_consumption.adb",
+         "Assert_Deterministic_Version_Adapter_Consumption");
    Require_Text ("tests/src/main.adb", "Run_Phase_19_Version_Adapter_Consumption_Tests");
    Require_Text ("README.md", "Phase 19 completeness pass 24");
    Require_Text ("docs/TESTING.md", "test_version_adapter_consumption");
@@ -464,15 +580,25 @@ begin
    Require_Text ("src/ssh_lib-rsa.adb", "Matches_PKCS1_V15_SHA256");
    Require_Text ("src/ssh_lib-rsa.adb", "DigestInfo_SHA256");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-crypto_primitives.adb", "Assert_Crypto_Primitives");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-crypto_primitives.adb", "group14 shared secrets match both directions");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-crypto_primitives.adb", "RSA SHA-256 PKCS1v15 signature verifies");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-crypto_primitives.adb",
+         "group14 shared secrets match both directions");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-crypto_primitives.adb",
+         "RSA SHA-256 PKCS1v15 signature verifies");
    Require_Text ("tests/security/test_crypto_primitives.adb", "Assert_Crypto_Primitives");
-   Require_Text ("src/ssh_lib-algorithms.adb", "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com");
-   Require_Text ("src/ssh_lib-algorithms.adb", "aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc");
+   Require_Text
+        ("src/ssh_lib-algorithms.adb",
+         "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com");
+   Require_Text
+        ("src/ssh_lib-algorithms.adb",
+         "aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc");
    Require_Text ("src/ssh_lib-algorithms.adb", "diffie-hellman-group14-sha256");
    Require_Text ("src/ssh_lib-algorithms.adb", "rsa-sha2-256");
    Require_Text ("src/ssh_lib-algorithms.adb", "rsa-sha2-512");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb", "full implemented negotiation succeeds");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-algorithm_security.adb",
+         "full implemented negotiation succeeds");
    Require_Text ("../cryptolib/src/cryptolib-ciphers.adb", "aes128-ctr");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-crypto_primitives.adb", "AES-128-CTR known-vector");
    Require_Text ("tests/security/security_tests.gpr", "test_crypto_primitives.adb");
@@ -503,7 +629,9 @@ begin
    Require_File ("tests/security/test_live_channel_transport.adb");
    Require_Text ("tests/security/security_tests.gpr", "test_live_channel_transport.adb");
    Require_Text ("tests/src/main.adb", "Run_Phase_19_Live_Channel_Transport_Fixture_Tests");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-live_channel_transport.ads", "Assert_Live_Channel_Exit_Status_And_Close");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-live_channel_transport.ads",
+         "Assert_Live_Channel_Exit_Status_And_Close");
    Require_Text ("tests/security/test_live_channel_transport.adb", "Assert_Live_Channel_Exit_Status_And_Close");
    Require_Text ("src/ssh_lib-channels.adb", "Live_Last_Protected_Outbound");
    Require_Text ("src/ssh_lib-sessions-channel_io.ads", "Send_Channel_Payload");
@@ -534,7 +662,6 @@ begin
    Require_Text ("tests/security/README.md", "Phase 19 Completeness Pass 31");
    Require_File ("PHASE_19_COMPLETENESS_PASS_31.md");
 
-
    Require_File ("tools/check_release_sequence.adb");
    Require_File ("tools/check_release_runner.adb");
    Require_File ("tools/run_release_validation.adb");
@@ -557,8 +684,6 @@ begin
    Require_Text ("docs/THREAT_MODEL.md", "release sequence boundary");
    Require_Text ("tests/security/README.md", "Phase 19 Completeness Pass 32");
    Require_File ("PHASE_19_COMPLETENESS_PASS_32.md");
-
-
 
    Require_File ("tools/check_side_channel_assurance.adb");
    Require_File ("tools/check_phase19_context.adb");
@@ -601,14 +726,17 @@ begin
    Require_File ("src/ssh_lib-identity_files-signing_access.adb");
    Require_Text ("src/ssh_lib-private_key_signing.adb", "Build_Ed25519_Signature");
    Require_Text ("tests/src/main.adb", "phase39 identity-file signing produces a payload-bound signature blob");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-open_runtime.adb", "identity-file runtime authenticates through the signing backend");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-open_runtime.adb",
+         "identity-file runtime authenticates through the signing backend");
    Require_Text ("src/ssh_lib-private_key_signing.ads", "Can_Sign_Userauth");
-   Require_Text ("src/ssh_lib-sessions-open_runtime.adb", "identity-file runtime authenticates through the signing backend");
+   Require_Text
+        ("src/ssh_lib-sessions-open_runtime.adb",
+         "identity-file runtime authenticates through the signing backend");
    Require_Text ("src/ssh_lib-keys.adb", "Max_Public_Identity_Line_Length");
    Require_Text ("tests/src/main.adb", "public identity file loads successfully");
    Require_Text ("README.md", "Phase 19 completeness pass 36");
    Require_Text ("docs/SECURITY_REVIEW.md", "completeness pass 36 public identity loading");
-
 
    Require_File ("tools/check_runtime_boundaries.adb");
    Require_File ("docs/RUNTIME_BOUNDARIES.md");

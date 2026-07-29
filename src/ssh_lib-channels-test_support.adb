@@ -113,7 +113,6 @@ package body SSH_Lib.Channels.Test_Support is
       Item.Owning_Session_Address := System.Null_Address;
    end Mark_Exec_Active_For_Test;
 
-
    procedure Mark_Channel_Open_Not_Exec_For_Test
      (Item                         : in out Channel;
       Local_Channel_Id             : Interfaces.Unsigned_32 := 0;
@@ -266,7 +265,7 @@ package body SSH_Lib.Channels.Test_Support is
               (Payload, Item.Local_Channel_Id, Data_Event);
             if Status_Value /= Ok then
                Item.Dirty := True;
-            Item.Current_State := Channel_Failed;
+               Item.Current_State := Channel_Failed;
                return Read_Failed;
             end if;
             declare
@@ -287,7 +286,7 @@ package body SSH_Lib.Channels.Test_Support is
                end if;
                if Interfaces.Unsigned_32 (Data_Length) > Item.Local_Remaining_Window then
                   Item.Dirty := True;
-            Item.Current_State := Channel_Failed;
+                  Item.Current_State := Channel_Failed;
                   return Read_Failed;
                end if;
                Item.Local_Remaining_Window :=
@@ -296,7 +295,7 @@ package body SSH_Lib.Channels.Test_Support is
                Status_Value := Append (Item.Pending_Stdout, Data_Value);
                if Status_Value /= Ok then
                   Item.Dirty := True;
-            Item.Current_State := Channel_Failed;
+                  Item.Current_State := Channel_Failed;
                   return Read_Failed;
                end if;
             end;
@@ -321,7 +320,7 @@ package body SSH_Lib.Channels.Test_Support is
               (Payload, Item.Local_Channel_Id, Extended_Event);
             if Status_Value /= Ok then
                Item.Dirty := True;
-            Item.Current_State := Channel_Failed;
+               Item.Current_State := Channel_Failed;
                return Read_Failed;
             end if;
             declare
@@ -353,7 +352,7 @@ package body SSH_Lib.Channels.Test_Support is
                end if;
                if Interfaces.Unsigned_32 (Data_Length) > Item.Local_Remaining_Window then
                   Item.Dirty := True;
-            Item.Current_State := Channel_Failed;
+                  Item.Current_State := Channel_Failed;
                   return Read_Failed;
                end if;
                Item.Local_Remaining_Window :=
@@ -438,7 +437,7 @@ package body SSH_Lib.Channels.Test_Support is
               (Payload, SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_EOF, Item.Local_Channel_Id);
             if Status_Value /= Ok then
                Item.Dirty := True;
-            Item.Current_State := Channel_Failed;
+               Item.Current_State := Channel_Failed;
                return Read_Failed;
             end if;
             Item.Eof_Received := True;
@@ -456,7 +455,7 @@ package body SSH_Lib.Channels.Test_Support is
               (Payload, SSH_Lib.Protocol.Channels.SSH_MSG_CHANNEL_CLOSE, Item.Local_Channel_Id);
             if Status_Value /= Ok then
                Item.Dirty := True;
-            Item.Current_State := Channel_Failed;
+               Item.Current_State := Channel_Failed;
                return Read_Failed;
             end if;
             Item.Close_Received := True;
@@ -531,7 +530,7 @@ package body SSH_Lib.Channels.Test_Support is
                end if;
                if Request_Event.Exit_Status > 2_147_483_647 then
                   Item.Dirty := True;
-            Item.Current_State := Channel_Failed;
+                  Item.Current_State := Channel_Failed;
                   return Read_Failed;
                end if;
                Item.Remote_Exit_Status_Known := True;
@@ -715,7 +714,6 @@ package body SSH_Lib.Channels.Test_Support is
       Item.Local_Remaining_Window := Remaining_Window_Size;
    end Set_Local_Window_For_Test;
 
-
    procedure Set_Write_Timeout_After_Partial_For_Test
      (Item  : in out Channel;
       Value : Boolean)
@@ -785,7 +783,6 @@ package body SSH_Lib.Channels.Test_Support is
    begin
       return Item.Last_Failure_Status;
    end Last_Failure_For_Test;
-
 
    procedure Enable_Live_Channel_IO_For_Test (Item : in out Channel) is
    begin

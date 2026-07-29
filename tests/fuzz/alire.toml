@@ -1,0 +1,40 @@
+name = "ssh_lib_fuzz_tests"
+description = "SFTP packet fuzzer for ssh_lib"
+version = "0.1.0-dev"
+licenses = "MIT"
+
+authors = ["Bent Bracke"]
+maintainers = ["Bent Bracke <bent@bracke.dk>"]
+maintainers-logins = ["bracke"]
+website = "https://github.com/bracke/sshlib"
+tags = ["ssh", "tests"]
+
+project-files = ["fuzz_tests.gpr"]
+
+executables = ["sftp_packet_fuzzer"]
+
+[[depends-on]]
+gnat_native = "=15.2.1"
+
+# White-box suite: it withs ../ssh_lib_internal.gpr, which recompiles the library
+# sources directly, so this root must NOT depend on ssh_lib (that would put the same
+# sources in two projects). It declares the library's own dependencies instead.
+[[depends-on]]
+aunit = "^26.0.0"
+
+[[depends-on]]
+cryptolib = "*"
+
+[[depends-on]]
+zlib = "*"
+
+[[depends-on]]
+hostkit = "*"
+
+[[pins]]
+cryptolib = { path = "../../../cryptolib" }
+zlib = { path = "../../../zlib" }
+hostkit = { path = "../../../hostkit" }
+
+[build-profiles]
+"*" = "development"

@@ -3,7 +3,6 @@ with Ada.Streams;
 with Ada.Streams.Stream_IO;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
-with GNAT.OS_Lib;
 with Interfaces;
 
 with Hostkit.Fs;

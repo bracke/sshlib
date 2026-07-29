@@ -55,9 +55,15 @@ begin
    Require_Text ("../cryptolib/src/cryptolib-constant_time_proof.ads", "No_Secret_Dependent_Branches");
    Require_Text ("../cryptolib/src/cryptolib-constant_time_proof.ads", "All_Source_Obligations_Discharged");
    Require_Text ("../cryptolib/src/cryptolib-constant_time_proof.adb", "External_Evidence_Required");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-side_channel_assurance.adb", "All_Source_Obligations_Discharged");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-side_channel_assurance.adb", "External_Proof_Remains_Required");
-   Require_Text ("tests/vectors/security/SIDE_CHANNEL_FORMAL_PROOF_MANIFEST.txt", "source-obligations-discharged-external-proof-required");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-side_channel_assurance.adb",
+         "All_Source_Obligations_Discharged");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-side_channel_assurance.adb",
+         "External_Proof_Remains_Required");
+   Require_Text
+        ("tests/vectors/security/SIDE_CHANNEL_FORMAL_PROOF_MANIFEST.txt",
+         "source-obligations-discharged-external-proof-required");
    Require_Text ("docs/security/FORMAL_SIDE_CHANNEL_PROOF.md", "source-level proof obligations");
    Require_Text ("tools/tools.gpr", "check_formal_side_channel_proof.adb");
 

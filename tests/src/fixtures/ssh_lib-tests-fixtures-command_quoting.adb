@@ -390,7 +390,6 @@ package body SSH_Lib.Tests.Fixtures.Command_Quoting is
         (Status_Value, CryptoLib.Errors.Ok, "SCP upload", Label_Text & " queue ACK bytes");
    end Queue_SCP_Acks;
 
-
    function SFTP_Status_Packet
      (Request_Id : Interfaces.Unsigned_32;
       Code       : Interfaces.Unsigned_32 := SSH_Lib.SFTP.SSH_FX_OK)
@@ -1679,7 +1678,6 @@ package body SSH_Lib.Tests.Fixtures.Command_Quoting is
          end;
       end;
 
-
       declare
          Session_Item  : SSH_Lib.Sessions.Session;
          Open_Status   : CryptoLib.Errors.Status;
@@ -1732,7 +1730,6 @@ package body SSH_Lib.Tests.Fixtures.Command_Quoting is
             Expected_Open,
             "file transfer facade explicit SFTP open request");
       end;
-
 
       declare
          Session_Item  : SSH_Lib.Sessions.Session;
@@ -1796,7 +1793,6 @@ package body SSH_Lib.Tests.Fixtures.Command_Quoting is
             raise;
       end;
 
-
       declare
          Session_Item  : SSH_Lib.Sessions.Session;
          Open_Status   : CryptoLib.Errors.Status;
@@ -1849,7 +1845,6 @@ package body SSH_Lib.Tests.Fixtures.Command_Quoting is
             Expected_Open,
             "file transfer facade trailing slash SFTP open request");
       end;
-
 
       declare
          Session_Item : SSH_Lib.Sessions.Session;

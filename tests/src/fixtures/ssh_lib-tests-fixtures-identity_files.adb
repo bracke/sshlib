@@ -23,7 +23,6 @@ package body SSH_Lib.Tests.Fixtures.Identity_Files is
         Public_Test_Disclaimer;
    end Encrypted_OpenSSH_Private_Key;
 
-
    function Encrypted_OpenSSH_Cipher_Private_Key return String is
    begin
       return
@@ -35,7 +34,6 @@ package body SSH_Lib.Tests.Fixtures.Identity_Files is
         "BwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAAAAAPaWdub3JlZCBjb21tAQIDBA==" & Character'Val (10) &
         "-----END OPENSSH PRIVATE KEY-----" & Character'Val (10);
    end Encrypted_OpenSSH_Cipher_Private_Key;
-
 
    function Encrypted_OpenSSH_BCrypt_Envelope_Private_Key return String is
    begin
@@ -77,7 +75,6 @@ package body SSH_Lib.Tests.Fixtures.Identity_Files is
         "-----END DSA PRIVATE KEY-----" & Character'Val (10) &
         Public_Test_Disclaimer;
    end Legacy_PEM_Private_Key;
-
 
    function RSA_1024_PKCS8_Private_Key return String is
    begin
@@ -596,8 +593,6 @@ package body SSH_Lib.Tests.Fixtures.Identity_Files is
         "JFWZAjn4J48HpWfXHVY0362FSuDuNTrsiLZelmLj/bPU8mI05nWBCZjf" & Character'Val (10) &
         "-----END PRIVATE KEY-----";
    end PKCS8_EC_P256_Private_Key;
-
-
 
    function PKCS8_V1_EC_P256_Private_Key return String is
    begin

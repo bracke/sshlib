@@ -221,12 +221,13 @@ package body SSH_Lib.Tests.Fixtures.Open_Runtime is
              ("phase19_control_master_open_ask.sock");
          Ask_Options : SSH_Lib.Sessions.Session_Options := Local_Options;
          Ask_Session : SSH_Lib.Sessions.Session;
+         Ignored_Ask_Session : SSH_Lib.Sessions.Session;
          Ask_Status  : CryptoLib.Errors.Status;
       begin
          Ask_Options.Control_Master := To_Unbounded_String ("autoask");
          Ask_Options.Control_Path := To_Unbounded_String (Ask_Path);
          Ask_Options.Control_Persist := To_Unbounded_String ("10m");
-         Ask_Status := SSH_Lib.Sessions.Open (Ask_Options, Ask_Session);
+         Ask_Status := SSH_Lib.Sessions.Open (Ask_Options, Ignored_Ask_Session);
          SSH_Lib.Tests.Assertions.Check_Status
            (Ask_Status, CryptoLib.Errors.Cancelled,
             "public open runtime",
@@ -391,7 +392,6 @@ package body SSH_Lib.Tests.Fixtures.Open_Runtime is
               = SSH_Lib.Agent.Protocol.SSH_AGENT_SIGN_RESPONSE,
             "agent runtime parses a concrete agent sign response before SSH userauth");
       end;
-
 
       Options := Local_Options;
       Options.User := To_Unbounded_String ("reject-auth");

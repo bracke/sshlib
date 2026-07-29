@@ -548,7 +548,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
       Check (To_String (Selected_Name) = "chacha20-poly1305@openssh.com",
              "chacha20-poly1305 AEAD selection records preferred cipher");
 
-
       Status_Value := SSH_Lib.Algorithms.Select_Algorithm
         (SSH_Lib.Algorithms.Encryption_Client_To_Server,
          Cipher_List, "aes256-gcm@openssh.com,aes128-gcm@openssh.com", Selected_Name);
@@ -770,7 +769,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
              "delayed zlib compression supported with authenticated-boundary switching");
    end Assert_Weak_Algorithms_Rejected;
 
-
    procedure Assert_SHA256_Session_Key_Derivation is
       use Ada.Streams;
       Shared_Secret : constant Stream_Element_Array (1 .. 6) :=
@@ -865,7 +863,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
                   (Keys_Item.Integrity_Key_Server_To_Client),
              "SSH session key labels separate integrity directions");
    end Assert_SHA256_Session_Key_Derivation;
-
 
    procedure Assert_Encrypted_State_Newkeys_Transition is
       use Ada.Streams;
@@ -982,7 +979,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
              "encrypted packet sequence counters wrap modulo 2**32");
    end Assert_Encrypted_State_Newkeys_Transition;
 
-
    procedure Assert_Encrypted_State_Verified_Host_Key_Storage is
       use Ada.Streams;
       State_Item    : SSH_Lib.Protocol.Encrypted_State.Kex_State;
@@ -1034,7 +1030,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
                    (SSH_Lib.Protocol.Encrypted_State.Verified_Host_Key (State_Item)),
              "encrypted state reset clears verified host key value");
    end Assert_Encrypted_State_Verified_Host_Key_Storage;
-
 
    procedure Assert_Host_Key_Parse_Ed25519_Invariants is
       use Ada.Streams;
@@ -1241,7 +1236,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
              "truncated Ed25519 parse leaves no key");
    end Assert_Host_Key_Parse_Ed25519_Invariants;
 
-
    procedure Assert_Host_Key_Parse_RSA_Invariants is
       use Ada.Streams;
       Key_Item        : SSH_Lib.Keys.Public_Key;
@@ -1346,7 +1340,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
              "nonminimal RSA exponent parse leaves no key");
    end Assert_Host_Key_Parse_RSA_Invariants;
 
-
    procedure Assert_RSA_Known_Host_Material is
       use Ada.Streams;
       Key_Item        : SSH_Lib.Keys.Public_Key;
@@ -1407,7 +1400,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
              and then SSH_Lib.Known_Hosts.Encoded (Known_Host_Copy) = "",
              "invalid RSA known-host constructor output is cleared");
    end Assert_RSA_Known_Host_Material;
-
 
    procedure Assert_Host_Key_Known_Host_Material is
       use Ada.Streams;
@@ -1481,7 +1473,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
              "known-host and parsed-key fingerprints compare equal");
    end Assert_Host_Key_Known_Host_Material;
 
-
    procedure Assert_Verify_And_Store_Failure_Preserves_Key is
       use Ada.Streams;
       State_Item     : SSH_Lib.Protocol.Encrypted_State.Kex_State;
@@ -1543,7 +1534,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
              = SSH_Lib.Protocol.Buffers.To_Array (Existing_Blob),
              "failed verify-and-store keeps preexisting key blob");
    end Assert_Verify_And_Store_Failure_Preserves_Key;
-
 
    procedure Assert_Curve25519_Exchange_Hash_Wire_Bytes is
       use Ada.Streams;
@@ -1659,7 +1649,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
              "failed Curve25519 exchange hash clears digest output");
    end Assert_Curve25519_Exchange_Hash_Wire_Bytes;
 
-
    procedure Assert_Mixed_Chacha_And_AES_Protected_State is
       use Ada.Streams;
       State_Item : SSH_Lib.Protocol.Protected_Packets.Protected_State;
@@ -1719,7 +1708,6 @@ package body SSH_Lib.Tests.Fixtures.Algorithm_Security is
              "outbound AES-CTR keeps negotiated HMAC length");
       Check (SSH_Lib.Protocol.Protected_Packets.Inbound_Mac_Size (State_Item) = 16,
              "inbound chacha20-poly1305 uses AEAD tag length");
-
 
       SSH_Lib.Protocol.Protected_Packets.Reset_With_Ciphers
         (State_Item,

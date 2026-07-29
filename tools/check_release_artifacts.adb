@@ -123,7 +123,6 @@ begin
    Require_Tool ("check_no_subprocess");
    Require_Tool ("check_sensitive_logging");
 
-
    if Failure_Count = 0 then
       Ada.Text_IO.Put_Line ("release artifact guard passed");
    else

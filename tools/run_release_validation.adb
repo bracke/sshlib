@@ -10,13 +10,13 @@ with GNAT.Strings;
 with Project_Tools.Processes;
 
 procedure Run_Release_Validation is
-   --  Ada-native release validation runner.
+   --   Ada-native release validation runner.
    --
-   --  This executable intentionally runs the deterministic build, test, and
-   --  audit sequence without invoking a shell. It fails closed when the
-   --  GNAT/Alire toolchain or any expected built executable is missing.
-   --  Opt-in public-network live tests remain controlled by their own
-   --  environment gates and are not enabled by this runner.
+   --   This executable intentionally runs the deterministic build, test, and
+   --   audit sequence without invoking a shell. It fails closed when the
+   --   GNAT/Alire toolchain or any expected built executable is missing.
+   --   Opt-in public-network live tests remain controlled by their own
+   --   environment gates and are not enabled by this runner.
 
    use Ada.Strings.Unbounded;
    use type GNAT.Strings.String_Access;
@@ -161,9 +161,9 @@ procedure Run_Release_Validation is
          return;
       end if;
 
-      --  Resolve on PATH via the shared project_tools helper (Locate_Command
-      --  returns "" exactly when the program is not found, matching the prior
-      --  Locate_Exec_On_Path null check); direct spawn is unchanged.
+      --   Resolve on PATH via the shared project_tools helper (Locate_Command
+      --   returns "" exactly when the program is not found, matching the prior
+      --   Locate_Exec_On_Path null check); direct spawn is unchanged.
       declare
          Located_Path : constant String :=
            (if Ada.Strings.Fixed.Index (Program_Name, "/") = 0
@@ -333,12 +333,12 @@ begin
 
    if Failure_Count = 0 then
       Run_Alr_Build;
-      -- Release guards require the repo-relative project path: tests/tests.gpr.
+      --  Release guards require the repo-relative project path: tests/tests.gpr.
       Build_Tests_Project ("tests.gpr");
       Run_Binary (Test_Bin & "/main");
 
-      -- Release guards require the repo-relative project path:
-      -- tests/security/security_tests.gpr.
+      --  Release guards require the repo-relative project path:
+      --  tests/security/security_tests.gpr.
       Build_Tests_Project ("security/security_tests.gpr");
       Run_Security_Tests;
 

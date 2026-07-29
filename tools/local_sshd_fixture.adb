@@ -298,7 +298,9 @@ procedure Local_SSHD_Fixture is
          Fail ("failed to start sshd");
          return;
       end if;
-      Write_File (Root & "/launcher.pid", Ada.Strings.Fixed.Trim (GNAT.OS_Lib.Process_Id'Image (Pid), Ada.Strings.Both));
+      Write_File
+           (Root & "/launcher.pid",
+            Ada.Strings.Fixed.Trim (GNAT.OS_Lib.Process_Id'Image (Pid), Ada.Strings.Both));
 
       for Attempt in 1 .. 50 loop
          exit when Ada.Directories.Exists (Root & "/sshd.pid")

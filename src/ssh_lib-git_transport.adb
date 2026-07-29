@@ -14,7 +14,6 @@ package body SSH_Lib.Git_Transport is
 
    Read_Buffer_Size : constant Natural := 4096;
 
-
    function Starts_With_Ssh_Scheme (Value : String) return Boolean is
       Prefix : constant String := "ssh://";
       Lower_Value : constant String := Ada.Characters.Handling.To_Lower (Value);

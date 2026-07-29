@@ -72,16 +72,24 @@ begin
    Require_Text ("README.md", "recorded OpenSSH hybrid/PQ transcript gate");
    Require_Text ("README.md", "SNTRUP761 now has a deterministic KEM boundary");
    Require_Text ("tests/security/README.md", "SNTRUP761 now has a deterministic KEM boundary");
-   Require_Text ("tests/vectors/pq/MLKEM768_ACVP_EXTERNAL_KATS.manifest", "required_vector_file=MLKEM768_ACVP_KAT_001.txt");
+   Require_Text
+        ("tests/vectors/pq/MLKEM768_ACVP_EXTERNAL_KATS.manifest",
+         "required_vector_file=MLKEM768_ACVP_KAT_001.txt");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-pq_external_kats.adb", "Assert_MLKEM768_ACVP_Vector");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-pq_external_kats.adb", "Assert_MLKEM768_ACVP_JSON_Vectors");
-   Require_Text ("tests/vectors/pq/MLKEM768_ACVP_EXTERNAL_KATS.manifest", "required_json_keygen_prompt=ML-KEM-keyGen-FIPS203/prompt.json");
+   Require_Text
+        ("tests/vectors/pq/MLKEM768_ACVP_EXTERNAL_KATS.manifest",
+         "required_json_keygen_prompt=ML-KEM-keyGen-FIPS203/prompt.json");
    Require_Text ("tests/vectors/pq/MLKEM768_ACVP_EXTERNAL_KATS.manifest", "acvp-json-expected-results-execution");
    Require_Text ("tests/vectors/pq/SNTRUP761_OPENSSH_EXTERNAL_KATS.manifest", "external-kat-corpus-bundled");
    Require_Text ("tests/vectors/pq/SNTRUP761_OPENSSH_EXTERNAL_KATS.manifest", "SNTRUP761_OPENSSH_KAT_004.txt");
    Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-pq_external_kats.adb", "SNTRUP761_OPENSSH_KAT_004.txt");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-hybrid_pq_openssh_transcripts.adb", "host_key_signature_verified=yes");
-   Require_Text ("tests/src/fixtures/ssh_lib-tests-fixtures-hybrid_pq_openssh_transcripts.adb", "git_receive_pack_exec=yes");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-hybrid_pq_openssh_transcripts.adb",
+         "host_key_signature_verified=yes");
+   Require_Text
+        ("tests/src/fixtures/ssh_lib-tests-fixtures-hybrid_pq_openssh_transcripts.adb",
+         "git_receive_pack_exec=yes");
    Require_Text ("../cryptolib/src/cryptolib-hybrid_pq_kex.adb", "Advertised_And_Selectable");
 
    Forbid_Text ("README.md", "SNTRUP761 is still not implemented");
@@ -112,21 +120,26 @@ begin
    Forbid_Text ("tests/security/README.md", "Hybrid/PQ KEX advertisement remains disabled");
    Forbid_Text ("tests/security/README.md", "advertisement remains gated");
 
-
    --  Pass 304 guard: release-facing algorithm documentation must match the
    --  current advertised KEX and host-key lists, including hybrid/PQ and
    --  ECDSA P-256/P-384/P-521 raw/certificate names.  Earlier guides in SECURITY_REVIEW,
    --  TESTING, and THREAT_MODEL had stale classical-only KEX lists after
    --  hybrid/PQ advertisement was enabled.
-   Require_Text ("docs/SECURITY_REVIEW.md", "mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512");
+   Require_Text
+        ("docs/SECURITY_REVIEW.md",
+         "mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512");
    Require_Text ("docs/SECURITY_REVIEW.md", "ecdsa-sha2-nistp256-cert-v01@openssh.com");
    Require_Text ("docs/SECURITY_REVIEW.md", "ecdsa-sha2-nistp384-cert-v01@openssh.com");
    Require_Text ("docs/SECURITY_REVIEW.md", "ecdsa-sha2-nistp521-cert-v01@openssh.com");
-   Require_Text ("docs/TESTING.md", "mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512");
+   Require_Text
+        ("docs/TESTING.md",
+         "mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512");
    Require_Text ("docs/TESTING.md", "ecdsa-sha2-nistp256-cert-v01@openssh.com");
    Require_Text ("docs/TESTING.md", "ecdsa-sha2-nistp384-cert-v01@openssh.com");
    Require_Text ("docs/TESTING.md", "ecdsa-sha2-nistp521-cert-v01@openssh.com");
-   Require_Text ("docs/THREAT_MODEL.md", "mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512");
+   Require_Text
+        ("docs/THREAT_MODEL.md",
+         "mlkem768x25519-sha256,mlkem768x25519-sha512,sntrup761x25519-sha512@openssh.com,sntrup761x25519-sha512");
    Require_Text ("docs/THREAT_MODEL.md", "ecdsa-sha2-nistp256-cert-v01@openssh.com");
    Require_Text ("docs/THREAT_MODEL.md", "ecdsa-sha2-nistp384-cert-v01@openssh.com");
    Require_Text ("docs/THREAT_MODEL.md", "ecdsa-sha2-nistp521-cert-v01@openssh.com");

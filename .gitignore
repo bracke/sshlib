@@ -12,8 +12,15 @@ bin/
 *.bexch
 
 # Alire local state
+alire/
 alire/cache/
 alire/builds/
+
+# Alire-generated crate configuration. These are build artifacts: `alr update`
+# regenerates them from each alire.toml. (They were tracked historically; the files
+# are left in place, they are simply no longer followed.)
+config/
+
 
 # Editor/OS noise
 *~
@@ -23,3 +30,6 @@ alire/builds/
 # Local live-test scratch should stay outside the repo; archived release
 # evidence belongs under release_artifacts/.
 /tmp/
+
+# Transient test output (SSH-config fixtures written by the version-integration tests).
+*.tmp
