@@ -28373,9 +28373,9 @@ package body SSH_Lib.Tests.Legacy is
             "umac-64@openssh.com",
             Mac_512_Key,
             Mac_512_Key,
-            Key_Data,
+            Key_Data (1 .. 16),
             IV_Data,
-            Key_Data,
+            Key_Data (1 .. 16),
             IV_Data);
          SSH_Lib.Protocol.Protected_Packets.Reset_With_Ciphers
            (Decode_State,
@@ -28385,9 +28385,9 @@ package body SSH_Lib.Tests.Legacy is
             "umac-64@openssh.com",
             Mac_512_Key,
             Mac_512_Key,
-            Key_Data,
+            Key_Data (1 .. 16),
             IV_Data,
-            Key_Data,
+            Key_Data (1 .. 16),
             IV_Data);
          Check
            (not SSH_Lib.Protocol.Protected_Packets.Is_Dirty (Encode_State),
@@ -28534,8 +28534,8 @@ package body SSH_Lib.Tests.Legacy is
             "3des-cbc",
             "hmac-md5",
             "hmac-md5",
-            Key_Data,
-            Key_Data,
+            Key_Data (1 .. 24),
+            Key_Data (1 .. 24),
             DES3_Key,
             DES3_IV,
             DES3_Key,
@@ -28546,8 +28546,8 @@ package body SSH_Lib.Tests.Legacy is
             "3des-cbc",
             "hmac-md5",
             "hmac-md5",
-            Key_Data,
-            Key_Data,
+            Key_Data (1 .. 24),
+            Key_Data (1 .. 24),
             DES3_Key,
             DES3_IV,
             DES3_Key,
@@ -28596,9 +28596,9 @@ package body SSH_Lib.Tests.Legacy is
             "umac-128-etm@openssh.com",
             Mac_512_Key,
             Mac_512_Key,
-            Key_Data,
+            Key_Data (1 .. 16),
             IV_Data,
-            Key_Data,
+            Key_Data (1 .. 16),
             IV_Data);
          SSH_Lib.Protocol.Protected_Packets.Reset_With_Ciphers
            (Decode_State,
@@ -28608,9 +28608,9 @@ package body SSH_Lib.Tests.Legacy is
             "umac-128-etm@openssh.com",
             Mac_512_Key,
             Mac_512_Key,
-            Key_Data,
+            Key_Data (1 .. 16),
             IV_Data,
-            Key_Data,
+            Key_Data (1 .. 16),
             IV_Data);
          Check
            (SSH_Lib.Protocol.Protected_Packets.Outbound_Header_Is_Clear
@@ -28698,9 +28698,9 @@ package body SSH_Lib.Tests.Legacy is
             "hmac-sha2-512",
             Mac_512_Key,
             Mac_512_Key,
-            Key_Data,
+            Key_Data (1 .. 24),
             IV_Data,
-            Key_Data,
+            Key_Data (1 .. 24),
             IV_Data);
          SSH_Lib.Protocol.Protected_Packets.Reset_With_Ciphers
            (Decode_State,
@@ -28710,9 +28710,9 @@ package body SSH_Lib.Tests.Legacy is
             "hmac-sha2-512",
             Mac_512_Key,
             Mac_512_Key,
-            Key_Data,
+            Key_Data (1 .. 24),
             IV_Data,
-            Key_Data,
+            Key_Data (1 .. 24),
             IV_Data);
          Result_Status :=
            SSH_Lib.Protocol.Protected_Packets.Encode_Protected_Packet
