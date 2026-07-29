@@ -28417,6 +28417,70 @@ package body SSH_Lib.Tests.Legacy is
             "phase19 aes128/umac64 protected packet preserves binary payload");
       end;
 
+      --  The two directions negotiating ciphers of different widths, which
+      --  is what the key derivation is shaped for and what nothing here
+      --  covered. RFC 4253 derives one key stream per direction, and this
+      --  crate sizes both at the wider of the two ciphers, so the narrower
+      --  direction is handed a key with bytes to spare and takes the front
+      --  of it. A cipher layer that insisted on an exact width would refuse
+      --  this connection while every other test still passed.
+      declare
+         Encode_State   : SSH_Lib.Protocol.Protected_Packets.Protected_State;
+         Decode_State   : SSH_Lib.Protocol.Protected_Packets.Protected_State;
+         Packet_Buffer  : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+         Payload_Buffer : SSH_Lib.Protocol.Buffers.Packet_Buffer;
+         Result_Status  : CryptoLib.Errors.Status;
+      begin
+         --  Outbound aes128-ctr, inbound aes256-ctr, both keyed from the
+         --  32-byte derivation the wider of the pair calls for.
+         SSH_Lib.Protocol.Protected_Packets.Reset_With_Ciphers
+           (Encode_State,
+            "aes128-ctr",
+            "aes256-ctr",
+            "hmac-sha2-256",
+            "hmac-sha2-256",
+            Mac_512_Key,
+            Mac_512_Key,
+            Key_Data,
+            IV_Data,
+            Key_Data,
+            IV_Data);
+         SSH_Lib.Protocol.Protected_Packets.Reset_With_Ciphers
+           (Decode_State,
+            "aes256-ctr",
+            "aes128-ctr",
+            "hmac-sha2-256",
+            "hmac-sha2-256",
+            Mac_512_Key,
+            Mac_512_Key,
+            Key_Data,
+            IV_Data,
+            Key_Data,
+            IV_Data);
+         Check
+           (not SSH_Lib.Protocol.Protected_Packets.Is_Dirty (Encode_State),
+            "phase19 mixed-width ciphers initialize");
+         Result_Status :=
+           SSH_Lib.Protocol.Protected_Packets.Encode_Protected_Packet
+             (Encode_State, Payload_Data, Packet_Buffer, True, 16#33#);
+         Check_Status
+           (Result_Status,
+            CryptoLib.Errors.Ok,
+            "phase19 mixed-width protected packet encode");
+         Result_Status :=
+           SSH_Lib.Protocol.Protected_Packets.Decode_Protected_Packet
+             (Decode_State,
+              SSH_Lib.Protocol.Buffers.To_Array (Packet_Buffer),
+              Payload_Buffer);
+         Check_Status
+           (Result_Status,
+            CryptoLib.Errors.Ok,
+            "phase19 mixed-width protected packet decode");
+         Check
+           (SSH_Lib.Protocol.Buffers.To_Array (Payload_Buffer) = Payload_Data,
+            "phase19 mixed-width protected packet round-trips");
+      end;
+
       declare
          Encode_State   : SSH_Lib.Protocol.Protected_Packets.Protected_State;
          Decode_State   : SSH_Lib.Protocol.Protected_Packets.Protected_State;
