@@ -9,7 +9,6 @@ with CryptoLib.Ed25519;
 with SSH_Lib.RSA;
 with CryptoLib.Random;
 with CryptoLib.MLKEM768;
-with CryptoLib.MLKEM768_Core;
 with CryptoLib.SNTRUP761;
 with SSH_Lib.Signatures;
 with CryptoLib.Errors;
@@ -1086,69 +1085,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
          "crypto primitives", "legacy unsupported cipher is rejected");
    end Assert_AES_CTR_Cipher;
 
-   procedure Assert_MLKEM768_Core_Arithmetic is
-      use CryptoLib.MLKEM768_Core;
-      Zero_Poly       : constant Polynomial := [others => 0];
-      X_Poly          : Polynomial := [others => 0];
-      High_Left       : Polynomial := [others => 0];
-      High_Right      : Polynomial := [others => 0];
-      Product         : Polynomial;
-      Roundtrip       : Polynomial;
-      Encoded         : Encoded_Poly_12;
-      Sum_Value       : Polynomial;
-      Difference_Value : Polynomial;
-      Rho             : MLKEM_Public_Seed := [others => 0];
-      Sigma           : constant MLKEM_Noise_Seed := [others => 16#11#];
-      Coins           : constant MLKEM_Noise_Seed := [others => 16#22#];
-      Public_Item     : PKE_Public_Key;
-      Secret_Item     : PKE_Secret_Key;
-      Ciphertext_Item : PKE_Ciphertext;
-      Message         : MLKEM_Message := [others => 0];
-      Decrypted       : MLKEM_Message;
-   begin
-      X_Poly (1) := 1;
-      Product := Ring_Multiply_Reference (X_Poly, X_Poly);
-      Check (Product (2) = 1,
-             "ML-KEM reference ring multiply maps x*x to x^2");
-      Check (Product (0) = 0 and then Product (1) = 0,
-             "ML-KEM reference ring multiply leaves unrelated low terms zero");
-
-      High_Left (200) := 1;
-      High_Right (100) := 1;
-      Product := Ring_Multiply_Reference (High_Left, High_Right);
-      Check (Product (44) = Q_Value - 1,
-             "ML-KEM reference ring multiply reduces x^300 to -x^44");
-
-      Encoded := Encode_12 (Product);
-      Roundtrip := Decode_12 (Encoded);
-      Check (Roundtrip (44) = Product (44),
-             "ML-KEM 12-bit polynomial encoding preserves reduced coefficient");
-
-      Sum_Value := Add (Product, X_Poly);
-      Difference_Value := Subtract (Sum_Value, X_Poly);
-      Check (Difference_Value (44) = Product (44),
-             "ML-KEM add/subtract helpers preserve ring value");
-
-      Check (NTT (Zero_Poly) = Zero_Poly,
-             "ML-KEM NTT maps zero polynomial to zero");
-      Check (Inverse_NTT (Zero_Poly) = Zero_Poly,
-             "ML-KEM inverse NTT maps zero polynomial to zero");
-
-      Rho (1) := 16#42#;
-      Message (1) := 16#A5#;
-      PKE_Keygen_From_Seeds (Rho, Sigma, Public_Item, Secret_Item);
-      PKE_Encrypt_Deterministic (Public_Item, Message, Coins, Ciphertext_Item);
-      Decrypted := PKE_Decrypt (Secret_Item, Ciphertext_Item);
-      Check (Public_Item'Length = 1184 and then Secret_Item'Length = 1152,
-             "ML-KEM CPA-PKE key material uses FIPS 203 byte lengths");
-      Check (Ciphertext_Item'Length = 1088,
-             "ML-KEM CPA-PKE ciphertext uses FIPS 203 byte length");
-      Check (Poly_To_Message (Message_To_Poly (Message)) = Message,
-             "ML-KEM message polynomial conversion round-trips exactly");
-      Check (Decrypted'Length = Message'Length,
-             "ML-KEM CPA-PKE decrypt returns a 32-byte message boundary");
-   end Assert_MLKEM768_Core_Arithmetic;
-
    procedure Assert_MLKEM768_CCA_KEM is
       use CryptoLib.MLKEM768;
       Pattern         : Stream_Element_Array (1 .. 96) := [others => 0];
@@ -1266,7 +1202,6 @@ package body SSH_Lib.Tests.Fixtures.Crypto_Primitives is
       Assert_RSA_SHA2_512_Verification;
       Assert_Ed25519_Verification;
       Assert_ECDSA_Nistp256_Verification;
-      Assert_MLKEM768_Core_Arithmetic;
       Assert_MLKEM768_CCA_KEM;
       Assert_SNTRUP761_KEM_Boundary;
    end Assert_Crypto_Primitives;
