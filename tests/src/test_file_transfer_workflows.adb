@@ -527,12 +527,22 @@ begin
          Tree,
          Options => Options);
 
+      --  The tree's contents are what Delete_Extra clears. The root itself
+      --  comes back empty: Download_Directory calls Create_Path on the local
+      --  path before it fetches anything, so asking whether the root exists
+      --  says nothing either way.
       Check
-        (not Ada.Directories.Exists (Tree),
-         "Delete_Extra removes the local tree, dangling link and all");
+        (not Ada.Directories.Exists (Tree & "/sub"),
+         "Delete_Extra clears the local tree's contents");
+      Check
+        (not Hostkit.Fs.Is_Link (Tree & "/dangling"),
+         "including a dangling link, which Delete_Tree could not remove");
+      Check
+        (not Hostkit.Fs.Is_Link (Tree & "/linkdir"),
+         "and the link to a directory outside the tree");
       Check
         (Ada.Directories.Exists (Precious),
-         "and does not follow a symlink out of the tree it is clearing");
+         "but it does not follow that link out and delete what it points at");
       Remove_Local_Tree_If_Exists (Root);
    end;
 
