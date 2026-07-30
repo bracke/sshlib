@@ -1548,7 +1548,20 @@ package body SSH_Lib.File_Transfer is
                         return Result;
                      end if;
 
-                     if Ada.Directories.Exists (Local_Path) then
+                     --  Exists follows the link, so a dangling one answers
+                     --  False and is invisible here -- and a restore produces
+                     --  dangling links routinely, because a link is written
+                     --  when its entry comes up in the inventory and its
+                     --  target may be later in the same tree or outside it
+                     --  altogether. The entry is there whatever Exists says,
+                     --  and symlink() then fails EEXIST no matter which
+                     --  policy the caller asked for: Skip_Existing did not
+                     --  skip, Overwrite_Existing did not overwrite, and both
+                     --  reported Remote_Failure. Is_Link asks about the
+                     --  directory entry rather than what it points at.
+                     if Ada.Directories.Exists (Local_Path)
+                       or else Hostkit.Fs.Is_Link (Local_Path)
+                     then
                         case Policy is
                            when Fail_If_Exists =>
                               Result.Status := CryptoLib.Errors.Remote_Failure;
@@ -1558,11 +1571,22 @@ package body SSH_Lib.File_Transfer is
                               goto Continue;
                            when Overwrite_Existing =>
                               begin
-                                 if Ada.Directories.Kind (Local_Path) = Ada.Directories.Directory then
-                                    Result.Status := CryptoLib.Errors.Remote_Failure;
-                                    return Result;
+                                 if Hostkit.Fs.Is_Link (Local_Path) then
+                                    --  Unlink the link itself. Kind would
+                                    --  raise on a dangling one, and on a live
+                                    --  link to a directory it would answer
+                                    --  Directory and refuse to replace a link.
+                                    if not Hostkit.Fs.Delete_Link (Local_Path) then
+                                       Result.Status := CryptoLib.Errors.Remote_Failure;
+                                       return Result;
+                                    end if;
+                                 else
+                                    if Ada.Directories.Kind (Local_Path) = Ada.Directories.Directory then
+                                       Result.Status := CryptoLib.Errors.Remote_Failure;
+                                       return Result;
+                                    end if;
+                                    Ada.Directories.Delete_File (Local_Path);
                                  end if;
-                                 Ada.Directories.Delete_File (Local_Path);
                               exception
                                  when others =>
                                     Result.Status := CryptoLib.Errors.Remote_Failure;

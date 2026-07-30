@@ -1,4 +1,6 @@
 with Ada.Directories;
+with GNAT.Directory_Operations;
+with Hostkit.Fs;
 with Ada.Streams.Stream_IO;
 with Interfaces.C;
 with Interfaces.C.Strings;
@@ -7624,6 +7626,64 @@ package body SSH_Lib.SFTP is
          return CryptoLib.Errors.Internal_Error;
    end Download_Directory;
 
+   --  Remove a local tree, unlinking symbolic links rather than following
+   --  them.
+   --
+   --  Ada.Directories.Delete_Tree cannot be used here, and the reason is not
+   --  cosmetic. It asks GNAT.OS_Lib.Is_Directory about each entry, which
+   --  stats through a link, so a symbolic link to a directory inside the tree
+   --  is recursed into and the link *target's* contents are deleted -- files
+   --  outside the tree the caller asked to remove. That was verified rather
+   --  than assumed: a tree holding a link to another directory, deleted this
+   --  way, took the other directory's files with it.
+   --
+   --  It also cannot see a dangling link at all. Ada.Directories lists an
+   --  entry only when its attributes read or the file exists, and a dangling
+   --  link is neither, so the entry is dropped, the directory is left
+   --  non-empty and the final rmdir fails with Use_Error.
+   --
+   --  So: readdir, which does not stat, and Hostkit.Fs.Delete_Link, which
+   --  removes the link and never what it points at.
+   procedure Delete_Local_Tree (Path : String) is
+      Handle : GNAT.Directory_Operations.Dir_Type;
+      Name   : String (1 .. 1024);
+      Last   : Natural;
+   begin
+      --  Asked before Exists, which follows the link and answers False for a
+      --  dangling one.
+      if Hostkit.Fs.Is_Link (Path) then
+         if not Hostkit.Fs.Delete_Link (Path) then
+            raise Ada.Directories.Use_Error with "cannot unlink " & Path;
+         end if;
+         return;
+      end if;
+
+      if not Ada.Directories.Exists (Path) then
+         return;
+      end if;
+
+      if Ada.Directories."=" (Ada.Directories.Kind (Path),
+                              Ada.Directories.Directory)
+      then
+         GNAT.Directory_Operations.Open (Handle, Path);
+         loop
+            GNAT.Directory_Operations.Read (Handle, Name, Last);
+            exit when Last = 0;
+            declare
+               Simple : constant String := Name (1 .. Last);
+            begin
+               if Simple /= "." and then Simple /= ".." then
+                  Delete_Local_Tree (Ada.Directories.Compose (Path, Simple));
+               end if;
+            end;
+         end loop;
+         GNAT.Directory_Operations.Close (Handle);
+         Ada.Directories.Delete_Directory (Path);
+      else
+         Ada.Directories.Delete_File (Path);
+      end if;
+   end Delete_Local_Tree;
+
    function Remove_Tree
      (Channel     : in out SSH_Lib.Channels.Channel;
       Remote_Path : String;
@@ -7854,7 +7914,7 @@ package body SSH_Lib.SFTP is
       else
          if Options.Delete_Extra and then Ada.Directories.Exists (Local_Path)
          then
-            Ada.Directories.Delete_Tree (Local_Path);
+            Delete_Local_Tree (Local_Path);
          end if;
          Status_Value :=
            Download_Directory
@@ -13490,7 +13550,7 @@ package body SSH_Lib.SFTP is
       else
          if Options.Delete_Extra and then Ada.Directories.Exists (Local_Path)
          then
-            Ada.Directories.Delete_Tree (Local_Path);
+            Delete_Local_Tree (Local_Path);
          end if;
          Status_Value :=
            Download_Directory

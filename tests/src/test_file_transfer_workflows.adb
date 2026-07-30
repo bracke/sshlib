@@ -4,6 +4,7 @@ with Ada.Streams.Stream_IO;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
 with Interfaces;
+with GNAT.Directory_Operations;
 
 with Hostkit.Fs;
 
@@ -73,14 +74,66 @@ procedure Test_File_Transfer_Workflows is
       return Result;
    end SHA256_Array;
 
+   --  Ada.Directories.Delete_Tree cannot remove a tree holding a dangling
+   --  symlink: it asks each entry its Kind, which follows the link and raises
+   --  when the target is not there. This used to be Delete_Tree under a
+   --  "when others => null", so the failure was silent, the tree survived, and
+   --  the next run of the suite failed creating the link again with EEXIST.
+   --  That is what it did -- the symlink check below passed once, on a machine
+   --  that had never run it, and failed on every run afterwards. Unlink links
+   --  rather than descending through them, and let a real failure raise.
    procedure Remove_Local_Tree_If_Exists (Path : String) is
+
+      procedure Remove (Item : String);
+
+      procedure Remove (Item : String) is
+         Handle : GNAT.Directory_Operations.Dir_Type;
+         Name   : String (1 .. 1024);
+         Last   : Natural;
+      begin
+         --  Asked before Exists, which answers False for a dangling link.
+         if Hostkit.Fs.Is_Link (Item) then
+            if not Hostkit.Fs.Delete_Link (Item) then
+               raise Program_Error with "cannot unlink " & Item;
+            end if;
+            return;
+         end if;
+
+         if not Ada.Directories.Exists (Item) then
+            return;
+         end if;
+
+         if Ada.Directories."=" (Ada.Directories.Kind (Item),
+                                  Ada.Directories.Directory)
+         then
+            --  Read the directory with GNAT.Directory_Operations rather than
+            --  Ada.Directories: the latter stats every entry and silently
+            --  drops the ones it cannot stat (a-direct.adb appends an entry
+            --  only when the attribute call errored or the file exists), so a
+            --  dangling symlink is not merely mis-Kinded, it is not listed at
+            --  all. Deleting what you can see then leaves the directory
+            --  non-empty and Delete_Directory fails. readdir does not stat.
+            GNAT.Directory_Operations.Open (Handle, Item);
+            loop
+               GNAT.Directory_Operations.Read (Handle, Name, Last);
+               exit when Last = 0;
+               declare
+                  Simple : constant String := Name (1 .. Last);
+               begin
+                  if Simple /= "." and then Simple /= ".." then
+                     Remove (Ada.Directories.Compose (Item, Simple));
+                  end if;
+               end;
+            end loop;
+            GNAT.Directory_Operations.Close (Handle);
+            Ada.Directories.Delete_Directory (Item);
+         else
+            Ada.Directories.Delete_File (Item);
+         end if;
+      end Remove;
+
    begin
-      if Ada.Directories.Exists (Path) then
-         Ada.Directories.Delete_Tree (Path);
-      end if;
-   exception
-      when others =>
-         null;
+      Remove (Path);
    end Remove_Local_Tree_If_Exists;
 
    procedure Check_Bad_Manifest (Manifest_Text : String) is
@@ -370,6 +423,64 @@ begin
    Check
      (Hostkit.Fs.Is_Link ("/tmp/ssh_lib_restore_symlink/link.txt"),
       "restored inventory symlink is a local symbolic link");
+
+   --  A dangling symlink already at the target path. This is the ordinary
+   --  case, not an exotic one: restoring a tree writes each link when its
+   --  inventory entry comes up, so a link whose target is later in the tree
+   --  -- or outside it -- dangles until the target arrives, and re-running a
+   --  restore meets it. Ada.Directories.Exists follows the link and answers
+   --  False, so the conflict policy used to see nothing to resolve and
+   --  symlink() then failed EEXIST under every policy: Overwrite_Existing
+   --  reported Remote_Failure rather than overwriting.
+   Remove_Local_Tree_If_Exists ("/tmp/ssh_lib_restore_symlink");
+   Ada.Directories.Create_Path ("/tmp/ssh_lib_restore_symlink");
+   Check
+     (Hostkit.Fs.Create_Link
+        ("nowhere.txt", "/tmp/ssh_lib_restore_symlink/link.txt"),
+      "a dangling symlink can be planted for the conflict test");
+   Check
+     (not Ada.Directories.Exists ("/tmp/ssh_lib_restore_symlink/link.txt")
+        and then Hostkit.Fs.Is_Link ("/tmp/ssh_lib_restore_symlink/link.txt"),
+      "and Exists does not see it while Is_Link does");
+   Result := SSH_Lib.File_Transfer.Restore_From_Inventory
+     (Session,
+      Parsed,
+      "/remote/source",
+      "/tmp/ssh_lib_restore_symlink",
+      SSH_Lib.File_Transfer.Overwrite_Existing);
+   Check
+     (Result.Status = CryptoLib.Errors.Ok and then Result.Items_Processed = 1,
+      "restore overwrites a dangling symlink rather than failing EEXIST");
+   declare
+      Link_Target : Ada.Strings.Unbounded.Unbounded_String;
+   begin
+      Check
+        (Hostkit.Fs.Read_Link_Target
+           ("/tmp/ssh_lib_restore_symlink/link.txt", Link_Target)
+           and then Ada.Strings.Unbounded.To_String (Link_Target)
+                      = "target.txt",
+         "and the overwritten link points at the inventory target");
+   end;
+
+   --  The other two policies must now see it too.
+   Result := SSH_Lib.File_Transfer.Restore_From_Inventory
+     (Session,
+      Parsed,
+      "/remote/source",
+      "/tmp/ssh_lib_restore_symlink",
+      SSH_Lib.File_Transfer.Skip_Existing);
+   Check
+     (Result.Status = CryptoLib.Errors.Ok and then Result.Items_Processed = 1,
+      "restore skips an existing symlink instead of failing on it");
+   Result := SSH_Lib.File_Transfer.Restore_From_Inventory
+     (Session,
+      Parsed,
+      "/remote/source",
+      "/tmp/ssh_lib_restore_symlink",
+      SSH_Lib.File_Transfer.Fail_If_Exists);
+   Check
+     (Result.Status = CryptoLib.Errors.Remote_Failure,
+      "and Fail_If_Exists refuses an existing symlink");
    Remove_Local_Tree_If_Exists ("/tmp/ssh_lib_restore_symlink");
 
    SSH_Lib.Protocol.Buffers.Clear (Result.Digest);
