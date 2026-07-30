@@ -38,13 +38,23 @@ in the test fixtures).
 - Style: Ada 2022, 3-space indent, 120 cols. **Keep warning-clean.** Warnings
   only surface when a file recompiles — after changing a widely-`with`ed spec,
   run a forced full build (`alr build -- -f`) to see them all.
-- Know which switches you are actually building under, because they differ.
-  `SSH_Lib.gpr` and `tests/tests.gpr` use `-gnata` (assertions and contracts
-  enabled) and `-gnatVa` (validity) — but **not** `-gnatwa`. The auxiliary
-  crates (`tools/`, `tests/security`, `tests/fuzz`, `tests/api_stability`,
-  `tests/package_smoke`, `tests/version_integration`, `examples/`) do enable
-  `-gnatwa`, most of them with `-gnatwe` (warnings as errors). So a warning that
-  fails the build in one of those may be silent in the library.
+- **Which switches you get depends on the Alire build profile, not on the
+  `.gpr` files.** Reading `SSH_Lib.gpr` alone is misleading: it names `-gnata`
+  (assertions and contracts) and `-gnatVa`, and no `-gnatwa` — but `-gnatwa`
+  arrives anyway, from the generated `config/ssh_lib_config.gpr`, which Alire
+  rewrites on every build. `alire.toml` pins `"*" = "development"`, so an
+  ordinary `alr build` compiles with `-gnatwa`, `-gnatVa` and the full `-gnaty`
+  set. A `--release` build has none of them at all.
+- `alr build --validation -- -f` adds `-gnatwe`, which turns every warning and
+  style breach into an error. **The library is clean under it; the test suite
+  is not** — about 34 warnings, mostly `-gnatwm` (assigned but never read) plus
+  a few redundant with-clauses and layout breaches. Worth clearing, and worth
+  gating afterwards, but do not mistake a green `tests/bin/main` for a suite
+  that would survive `--validation`.
+- The auxiliary crates (`tools/`, `tests/security`, `tests/fuzz`,
+  `tests/api_stability`, `tests/package_smoke`, `tests/version_integration`,
+  `examples/`) additionally name `-gnatwa` in their own project files, most
+  with `-gnatwe`.
 
 ## Correctness bar: match a real OpenSSH server
 
