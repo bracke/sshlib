@@ -46,11 +46,20 @@ in the test fixtures).
   ordinary `alr build` compiles with `-gnatwa`, `-gnatVa` and the full `-gnaty`
   set. A `--release` build has none of them at all.
 - `alr build --validation -- -f` adds `-gnatwe`, which turns every warning and
-  style breach into an error. **The library is clean under it; the test suite
-  is not** — about 34 warnings, mostly `-gnatwm` (assigned but never read) plus
-  a few redundant with-clauses and layout breaches. Worth clearing, and worth
-  gating afterwards, but do not mistake a green `tests/bin/main` for a suite
-  that would survive `--validation`.
+  style breach into an error. **Both the library and the suite are clean under
+  it**, and should stay that way — run it before proposing a change:
+
+  ```sh
+  alr build --validation -- -f
+  (cd tests && alr build --validation -- -f)
+  ```
+
+  One qualification: `ssh_lib-tests-legacy.adb` turns off the useless-assignment
+  warning for itself, with the reason written at the top of the body. Those
+  tests call an operation for its status alone and the out value is genuinely
+  unobservable — `Session` is limited private to `SSH_Lib.Sessions` and the test
+  is a sibling child, and `Close` is idempotent — so there is nothing to assert.
+  That is a narrower suppression than a project switch, and it is the only one.
 - The auxiliary crates (`tools/`, `tests/security`, `tests/fuzz`,
   `tests/api_stability`, `tests/package_smoke`, `tests/version_integration`,
   `examples/`) additionally name `-gnatwa` in their own project files, most

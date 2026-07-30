@@ -116,6 +116,21 @@ with SSH_Lib.Tests.Fixtures.Transport;
 with SSH_Lib.Tests.Fixtures.Transport_Messages;
 
 package body SSH_Lib.Tests.Legacy is
+
+   --  These tests call an operation for its status alone and never look at
+   --  the out parameter, because the operation is meant to fail: Sessions.Open
+   --  returning Unsupported_Feature leaves no session, the summary builders
+   --  leave no summary. GNAT reports each as a useless assignment.
+   --
+   --  Unlike cryptolib, where the same warning was answered by asserting that
+   --  the buffer really was zeroed, there is nothing here to assert against.
+   --  Session is limited private to SSH_Lib.Sessions and this is a sibling
+   --  child, so its state is not visible; Close is idempotent and returns Ok
+   --  whether or not anything was open. The value is genuinely unobservable,
+   --  so the warning is turned off here -- in this one file, for this one
+   --  warning -- rather than for the crate.
+   pragma Warnings (Off, "*useless assignment*");
+   pragma Warnings (Off, "*assigned but never read*");
    use Ada.Strings.Unbounded;
    use type Ada.Streams.Stream_Element_Array;
    use type Ada.Streams.Stream_Element_Offset;
@@ -2301,7 +2316,7 @@ package body SSH_Lib.Tests.Legacy is
          Built_Tree_Entry : Ada.Streams.Stream_Element_Array (1 .. 64);
          Built_Tree_Entry_Last : Ada.Streams.Stream_Element_Offset;
          Built_Tree_Object_ID :
-           Ada.Streams.Stream_Element_Array (1 .. 20) :=
+           constant Ada.Streams.Stream_Element_Array (1 .. 20) :=
              [1 => 1, others => 0];
          Tree_Next_Offset : Natural := 0;
          Tree_Entry_Count : Natural := 0;
@@ -3750,8 +3765,7 @@ package body SSH_Lib.Tests.Legacy is
             "git credential helpers read");
          Check
            (Config_Value_Count = 2
-            and then Ada.Streams.Stream_Element_Offset
-              (Config_Value_Lasts (Config_Value_Lasts'First))
+            and then Config_Value_Lasts (Config_Value_Lasts'First)
               = Config_Values'First
                 + Ada.Streams.Stream_Element_Offset
                   (String'("cache --timeout=60")'Length)
@@ -3759,18 +3773,12 @@ package body SSH_Lib.Tests.Legacy is
             and then Bytes_Equal
               (Config_Values
                  (Config_Values'First ..
-                  Ada.Streams.Stream_Element_Offset
-                    (Config_Value_Lasts
-                       (Config_Value_Lasts'First))),
+                  Config_Value_Lasts (Config_Value_Lasts'First)),
                Bytes_From_String ("cache --timeout=60"))
             and then Bytes_Equal
               (Config_Values
-                 (Ada.Streams.Stream_Element_Offset
-                    (Config_Value_Lasts
-                       (Config_Value_Lasts'First)) + 1 ..
-                  Ada.Streams.Stream_Element_Offset
-                    (Config_Value_Lasts
-                       (Config_Value_Lasts'First + 1))),
+                 (Config_Value_Lasts (Config_Value_Lasts'First) + 1 ..
+                  Config_Value_Lasts (Config_Value_Lasts'First + 1)),
                Bytes_From_String ("store --file=/tmp/sshlib-creds")),
             "git credential helpers values recovered");
          Status_Value :=
@@ -5597,18 +5605,18 @@ package body SSH_Lib.Tests.Legacy is
                  (Head_Path_Count >= 1
                   and then Path_List_Path_Lasts (1) >= Path_List_Names'First,
                   "git HEAD tree traversal values");
-            Status_Value :=
-              SSH_Lib.Git.List_HEAD_Tree_Paths_Matching_Hex
-                (Repo_Root,
-                 ".",
-                 Path_List_Names,
-                 Path_List_Path_Lasts,
-                 Path_List_Modes,
-                 Path_List_IDs,
-                 Path_List_Count);
-            Check_Status
-              (Status_Value, CryptoLib.Errors.Ok,
-               "git HEAD tree pathspec paths traversed");
+               Status_Value :=
+                 SSH_Lib.Git.List_HEAD_Tree_Paths_Matching_Hex
+                   (Repo_Root,
+                    ".",
+                    Path_List_Names,
+                    Path_List_Path_Lasts,
+                    Path_List_Modes,
+                    Path_List_IDs,
+                    Path_List_Count);
+               Check_Status
+                 (Status_Value, CryptoLib.Errors.Ok,
+                  "git HEAD tree pathspec paths traversed");
                Check
                  (Path_List_Count = Head_Path_Count,
                   "git HEAD tree pathspec traversal values");
@@ -10743,8 +10751,6 @@ package body SSH_Lib.Tests.Legacy is
                16#0D#, 16#7E#, 16#9F#, 16#11#,
                16#8F#, 16#B2#, 16#0C#, 16#E7#,
                16#49#, 16#D7#, 16#A1#, 16#15#];
-            Delta_Tree_Index_Scratch :
-              Ada.Streams.Stream_Element_Array (1 .. 256);
             Delta_Tree_Index : Ada.Streams.Stream_Element_Array (1 .. 1200);
             Delta_Tree_Index_Last : Ada.Streams.Stream_Element_Offset;
             Delta_Tree_Pack_Hex : Ada.Streams.Stream_Element_Array (1 .. 40);
