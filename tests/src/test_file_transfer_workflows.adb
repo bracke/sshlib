@@ -14,6 +14,7 @@ with CryptoLib.Hashes;
 with SSH_Lib.File_Transfer;
 with SSH_Lib.Protocol.Buffers;
 with SSH_Lib.SFTP;
+with SSH_Lib.Channels;
 with SSH_Lib.Sessions;
 
 procedure Test_File_Transfer_Workflows is
@@ -482,6 +483,58 @@ begin
      (Result.Status = CryptoLib.Errors.Remote_Failure,
       "and Fail_If_Exists refuses an existing symlink");
    Remove_Local_Tree_If_Exists ("/tmp/ssh_lib_restore_symlink");
+
+   --  Sync_Directory with Delete_Extra clears the local tree before it
+   --  downloads. It used to do that with Ada.Directories.Delete_Tree, which
+   --  asks GNAT.OS_Lib.Is_Directory about each entry -- a stat, so it follows
+   --  a link. A symbolic link to a directory inside the tree was therefore
+   --  recursed into and the link *target's* contents deleted: files outside
+   --  the tree the caller asked to remove. That is the check below, and it
+   --  fails loudly if the old call comes back.
+   --
+   --  The channel is never connected. It does not need to be: the deletion
+   --  happens before the first byte of SFTP traffic, so the download failing
+   --  afterwards is expected and says nothing about what is being tested.
+   declare
+      Channel   : SSH_Lib.Channels.Channel;
+      Root      : constant String := "/tmp/ssh_lib_sync_delete";
+      Tree      : constant String := Root & "/tree";
+      Outside   : constant String := Root & "/outside";
+      Precious  : constant String := Outside & "/precious.txt";
+      Options   : SSH_Lib.SFTP.Sync_Options :=
+        SSH_Lib.SFTP.Default_Sync_Options;
+      Sync_Status : CryptoLib.Errors.Status;
+      pragma Unreferenced (Sync_Status);
+   begin
+      Remove_Local_Tree_If_Exists (Root);
+      Ada.Directories.Create_Path (Tree & "/sub");
+      Ada.Directories.Create_Path (Outside);
+      Write_Test_File (Precious, Bytes_From_String ("precious"));
+      Write_Test_File
+        (Tree & "/sub/inner.txt", Bytes_From_String ("inner"));
+      Check
+        (Hostkit.Fs.Create_Link (Outside, Tree & "/linkdir"),
+         "a link to a directory outside the tree can be planted");
+      Check
+        (Hostkit.Fs.Create_Link ("/nowhere/at/all", Tree & "/dangling"),
+         "and a dangling link beside it");
+
+      Options.Delete_Extra := True;
+      Sync_Status := SSH_Lib.SFTP.Sync_Directory
+        (Channel,
+         SSH_Lib.SFTP.Sync_Download,
+         "/remote/tree",
+         Tree,
+         Options => Options);
+
+      Check
+        (not Ada.Directories.Exists (Tree),
+         "Delete_Extra removes the local tree, dangling link and all");
+      Check
+        (Ada.Directories.Exists (Precious),
+         "and does not follow a symlink out of the tree it is clearing");
+      Remove_Local_Tree_If_Exists (Root);
+   end;
 
    SSH_Lib.Protocol.Buffers.Clear (Result.Digest);
    Ada.Text_IO.Put_Line ("test_file_transfer_workflows passed");
