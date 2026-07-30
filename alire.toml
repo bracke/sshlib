@@ -7,6 +7,7 @@ authors = ["Bent Bracke"]
 maintainers = ["Bent Bracke <bent@bracke.dk>"]
 maintainers-logins = ["bracke"]
 website = "https://github.com/bracke/sshlib"
+long-description = "Pass 508 adds explicit credential storage helpers through WriteCredentialStore, ReadCredentialStore, and DeleteCredentialStore, using bounded .git/credentials records and preserving unrelated entries."
 tags = ["ssh", "network", "transport"]
 project-files = ["SSH_Lib.gpr"]
 
