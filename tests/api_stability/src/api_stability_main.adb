@@ -3,6 +3,7 @@ with Ada.Directories;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with Hostkit.Fs;
 with CryptoLib.Errors;
 with CryptoLib.Hashes;
 with SSH_Lib.Clients;
@@ -94,7 +95,14 @@ procedure API_Stability_Main is
         (Name  => To_Unbounded_String ("LANG"),
          Value => To_Unbounded_String ("C"))];
 
-   Config_Path : constant String := "api_stability_empty_config.tmp";
+   --  Under the host's temporary directory, not the working one. These
+   --  names used to be relative, so they were written wherever the test
+   --  happened to be started from -- a run launched from a sibling crate
+   --  left six of them in that crate's repository root, where sshlib's
+   --  .gitignore does not reach.
+   Config_Path : constant String :=
+     Ada.Directories.Compose
+       (Hostkit.Fs.Temp_Directory, "api_stability_empty_config.tmp");
    Config_File : Ada.Text_IO.File_Type;
    Config_Item : SSH_Lib.Config.Host_Config;
    Remote_Item : SSH_Lib.Remote_Names.Parsed_Remote;

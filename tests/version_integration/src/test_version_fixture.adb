@@ -1,5 +1,7 @@
+with Ada.Directories;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with Hostkit.Fs;
 with SSH_Lib.Config;
 with CryptoLib.Errors;
 with SSH_Lib.Git_Transport;
@@ -10,14 +12,27 @@ procedure Test_Version_Fixture is
    use Ada.Strings.Unbounded;
    use type CryptoLib.Errors.Status;
 
-   Config_Path       : constant String := "version_integration_config.tmp";
-   Empty_Config_Path : constant String := "version_integration_empty_config.tmp";
-   Unsupported_Config_Path : constant String := "version_integration_unsupported_config.tmp";
-   Port_Config_Path  : constant String := "version_integration_port_config.tmp";
+   --  Under the host's temporary directory, not the working one. These
+   --  names used to be relative, so they were written wherever the test
+   --  happened to be started from -- a run launched from a sibling crate
+   --  left six of them in that crate's repository root, where sshlib's
+   --  .gitignore does not reach.
+   Config_Path       : constant String :=
+     Ada.Directories.Compose
+       (Hostkit.Fs.Temp_Directory, "version_integration_config.tmp");
+   Empty_Config_Path : constant String :=
+     Ada.Directories.Compose
+       (Hostkit.Fs.Temp_Directory, "version_integration_empty_config.tmp");
+   Proxy_Command_Config_Path : constant String :=
+     Ada.Directories.Compose
+       (Hostkit.Fs.Temp_Directory, "version_integration_proxy_command_config.tmp");
+   Port_Config_Path  : constant String :=
+     Ada.Directories.Compose
+       (Hostkit.Fs.Temp_Directory, "version_integration_port_config.tmp");
    File_Item         : Ada.Text_IO.File_Type;
    Config_Item       : SSH_Lib.Config.Host_Config;
    Empty_Config      : SSH_Lib.Config.Host_Config;
-   Unsupported_Config : SSH_Lib.Config.Host_Config;
+   Proxy_Command_Config : SSH_Lib.Config.Host_Config;
    Port_Config        : SSH_Lib.Config.Host_Config;
    Options_Item : SSH_Lib.Sessions.Session_Options;
    Command_Item : Unbounded_String;
@@ -44,7 +59,7 @@ procedure Test_Version_Fixture is
       Ada.Text_IO.Create (File_Item, Ada.Text_IO.Out_File, Empty_Config_Path);
       Ada.Text_IO.Close (File_Item);
 
-      Ada.Text_IO.Create (File_Item, Ada.Text_IO.Out_File, Unsupported_Config_Path);
+      Ada.Text_IO.Create (File_Item, Ada.Text_IO.Out_File, Proxy_Command_Config_Path);
       Ada.Text_IO.Put_Line (File_Item, "Host gh");
       Ada.Text_IO.Put_Line (File_Item, "  ProxyCommand ssh bastion nc %h %p");
       Ada.Text_IO.Close (File_Item);
@@ -62,7 +77,7 @@ begin
    Check (Status_Value = CryptoLib.Errors.Ok, "config load failed");
    Status_Value := SSH_Lib.Config.Load (Empty_Config_Path, Empty_Config);
    Check (Status_Value = CryptoLib.Errors.Ok, "empty config load failed");
-   Status_Value := SSH_Lib.Config.Load (Unsupported_Config_Path, Unsupported_Config);
+   Status_Value := SSH_Lib.Config.Load (Proxy_Command_Config_Path, Proxy_Command_Config);
    Check (Status_Value = CryptoLib.Errors.Ok, "unsupported config load failed");
    Status_Value := SSH_Lib.Config.Load (Port_Config_Path, Port_Config);
    Check (Status_Value = CryptoLib.Errors.Ok, "port config load failed");
@@ -102,13 +117,19 @@ begin
 
    Status_Value := SSH_Lib.Remote_Names.Parse ("git@gh:repo.git", Remote_Item);
    Check (Status_Value = CryptoLib.Errors.Ok,
-          "parsed remote for unsupported config check failed");
+          "parsed remote for ProxyCommand config check failed");
+
+   --  This asked for Unsupported_Feature until the library grew a
+   --  ProxyCommand: Resolve carries the command into the options and
+   --  open_runtime connects through it, and Has_Unsupported_Feature is
+   --  documented as always False because nothing the parser accepts is
+   --  unhonoured now. So the config resolves.
    Status_Value := SSH_Lib.Config.Resolve_Remote
-     (Config => Unsupported_Config,
+     (Config => Proxy_Command_Config,
       Remote => Remote_Item,
       Item   => Options_Item);
-   Check (Status_Value = CryptoLib.Errors.Unsupported_Feature,
-          "parsed remote resolve should reject unsupported config");
+   Check (Status_Value = CryptoLib.Errors.Ok,
+          "parsed remote resolve rejected a ProxyCommand the library honours");
 
    Status_Value := SSH_Lib.Git_Transport.Prepare
      (Remote_Text  => "git@gh:repo.git",
@@ -198,13 +219,13 @@ begin
 
    Status_Value := SSH_Lib.Git_Transport.Prepare
      (Remote_Text  => "git@gh:repo.git",
-      Config       => Unsupported_Config,
+      Config       => Proxy_Command_Config,
       Default_User => "git",
       Requested    => SSH_Lib.Git_Transport.Upload_Pack,
       Options      => Options_Item,
       Command      => Command_Item);
-   Check (Status_Value = CryptoLib.Errors.Unsupported_Feature,
-          "unsupported config dependency was not rejected");
+   Check (Status_Value = CryptoLib.Errors.Ok,
+          "git transport rejected a ProxyCommand the library honours");
 
    Status_Value := SSH_Lib.Git_Transport.Prepare
      (Remote_Text  => "git@bad/host:repo.git",

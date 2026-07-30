@@ -1,7 +1,9 @@
 with Ada.Command_Line;
+with Ada.Directories;
 with Ada.Streams;
 with Ada.Strings.Unbounded;
 with Ada.Text_IO;
+with Hostkit.Fs;
 with SSH_Lib.Channels;
 with SSH_Lib.Config;
 with CryptoLib.Errors;
@@ -17,7 +19,14 @@ procedure Version_Ssh_Shape is
    use type CryptoLib.Errors.Status;
 
    Remote_Item  : SSH_Lib.Remote_Names.Parsed_Remote;
-   Config_Path  : constant String := "version_ssh_shape_empty_config.tmp";
+   --  Under the host's temporary directory, not the working one. These
+   --  names used to be relative, so they were written wherever the test
+   --  happened to be started from -- a run launched from a sibling crate
+   --  left six of them in that crate's repository root, where sshlib's
+   --  .gitignore does not reach.
+   Config_Path  : constant String :=
+     Ada.Directories.Compose
+       (Hostkit.Fs.Temp_Directory, "version_ssh_shape_empty_config.tmp");
    Config_File  : Ada.Text_IO.File_Type;
    Config_Item  : SSH_Lib.Config.Host_Config;
    Options_Item : SSH_Lib.Sessions.Session_Options;
