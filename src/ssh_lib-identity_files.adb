@@ -3093,40 +3093,45 @@ package body SSH_Lib.Identity_Files is
          return [1 .. Stream_Element_Offset (Output_Size) => 0];
    end PKCS12_KDF_SHA1;
 
+   --  Returns a status rather than a key, because scrypt can decline: the
+   --  cost parameters come out of the key file, and one this build will not
+   --  run is not a wrong passphrase. It used to return a zeroed key for that
+   --  case, which decrypted to garbage and was reported as a bad passphrase --
+   --  the same answer as a genuinely wrong one, for a file that was fine.
    function Scrypt_SHA256
      (Passphrase  : String;
       Salt_Data   : Stream_Element_Array;
       N_Value     : Natural;
       R_Value     : Natural;
       P_Value     : Natural;
-      Output_Size : Natural) return Stream_Element_Array
+      Key         : out Stream_Element_Array) return Status
    is
-      Pass_Data : Stream_Element_Array := String_To_Bytes (Passphrase);
-      Result    :
-        Stream_Element_Array (1 .. Stream_Element_Offset (Output_Size)) :=
-        [others => 0];
+      Pass_Data    : Stream_Element_Array := String_To_Bytes (Passphrase);
+      Status_Value : Status;
    begin
+      Key := [others => 0];
       if N_Value = 0
         or else R_Value = 0
         or else P_Value = 0
-        or else Output_Size = 0
+        or else Key'Length = 0
       then
          Pass_Data := [others => 0];
-         return Result;
+         return Authentication_Failed;
       end if;
-      Result :=
+      Status_Value :=
         CryptoLib.Macs.Scrypt_SHA256
           (Pass_Data,
            Salt_Data,
            Positive (N_Value),
            Positive (R_Value),
            Positive (P_Value),
-           Output_Size);
+           Key);
       Pass_Data := [others => 0];
-      return Result;
+      return Status_Value;
    exception
       when others =>
-         return [1 .. Stream_Element_Offset (Output_Size) => 0];
+         Key := [others => 0];
+         return Internal_Error;
    end Scrypt_SHA256;
 
    function Decrypt_PKCS8_Encrypted_Binary
@@ -3942,14 +3947,21 @@ package body SSH_Lib.Identity_Files is
            [others => 0];
       begin
          if Use_Scrypt then
-            Key_Data :=
+            Status_Value :=
               Scrypt_SHA256
                 (Passphrase,
                  Salt_Data,
                  Scrypt_N,
                  Scrypt_R,
                  Scrypt_P,
-                 Key_Length);
+                 Key_Data);
+            if Status_Value /= Ok then
+               Key_Data := [others => 0];
+               Clear (Salt_Buffer);
+               Clear (IV_Buffer);
+               Clear (Cipher_Buffer);
+               return Status_Value;
+            end if;
          else
             Key_Data :=
               PBKDF2_HMAC
