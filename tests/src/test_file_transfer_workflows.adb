@@ -429,10 +429,8 @@ begin
    --  case, not an exotic one: restoring a tree writes each link when its
    --  inventory entry comes up, so a link whose target is later in the tree
    --  -- or outside it -- dangles until the target arrives, and re-running a
-   --  restore meets it. Ada.Directories.Exists follows the link and answers
-   --  False, so the conflict policy used to see nothing to resolve and
-   --  symlink() then failed EEXIST under every policy: Overwrite_Existing
-   --  reported Remote_Failure rather than overwriting.
+   --  restore meets it. Whether Ada.Directories.Exists follows a dangling link
+   --  differs by host, so the conflict policy must use Hostkit.Fs.Is_Link.
    Remove_Local_Tree_If_Exists ("/tmp/ssh_lib_restore_symlink");
    Ada.Directories.Create_Path ("/tmp/ssh_lib_restore_symlink");
    Check
@@ -440,9 +438,8 @@ begin
         ("nowhere.txt", "/tmp/ssh_lib_restore_symlink/link.txt"),
       "a dangling symlink can be planted for the conflict test");
    Check
-     (not Ada.Directories.Exists ("/tmp/ssh_lib_restore_symlink/link.txt")
-        and then Hostkit.Fs.Is_Link ("/tmp/ssh_lib_restore_symlink/link.txt"),
-      "and Exists does not see it while Is_Link does");
+     (Hostkit.Fs.Is_Link ("/tmp/ssh_lib_restore_symlink/link.txt"),
+      "and Is_Link sees it even while it is dangling");
    Result := SSH_Lib.File_Transfer.Restore_From_Inventory
      (Session,
       Parsed,
