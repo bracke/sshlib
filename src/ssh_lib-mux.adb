@@ -1,6 +1,7 @@
 with Ada.Directories;
 with GNAT.OS_Lib;
 with SSH_Lib.Protocol.Numbers;
+with SSH_Lib.Mux.Message_Rooms;
 
 package body SSH_Lib.Mux is
    use Ada.Streams;
@@ -847,7 +848,8 @@ package body SSH_Lib.Mux is
       Response   : out Mux_Message)
       return Status
    is
-      Packet : Mux_Message;
+      Packet_Room : SSH_Lib.Mux.Message_Rooms.Holder;
+      Packet : Mux_Message renames Packet_Room.Data.all;
       State  : Status;
    begin
       State := Encode (Kind, Request_Id, Payload, Packet);
@@ -935,8 +937,10 @@ package body SSH_Lib.Mux is
       Peer_Version : out Interfaces.Unsigned_32)
       return Status
    is
-      Hello_Message : Mux_Message;
-      Peer_Hello    : Mux_Message;
+      Hello_Message_Room : SSH_Lib.Mux.Message_Rooms.Holder;
+      Hello_Message : Mux_Message renames Hello_Message_Room.Data.all;
+      Peer_Hello_Room : SSH_Lib.Mux.Message_Rooms.Holder;
+      Peer_Hello : Mux_Message renames Peer_Hello_Room.Data.all;
       State         : Status;
    begin
       Peer_Version := 0;
@@ -1946,8 +1950,10 @@ package body SSH_Lib.Mux is
       Max_Requests : Positive := 1)
       return Status
    is
-      Request      : Mux_Message;
-      Response     : Mux_Message;
+      Request_Room : SSH_Lib.Mux.Message_Rooms.Holder;
+      Request : Mux_Message renames Request_Room.Data.all;
+      Response_Room : SSH_Lib.Mux.Message_Rooms.Holder;
+      Response : Mux_Message renames Response_Room.Data.all;
       Peer_Version : Interfaces.Unsigned_32 := 0;
       State        : Status;
       Request_Count : Natural := 0;

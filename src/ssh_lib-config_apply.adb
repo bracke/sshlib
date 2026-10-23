@@ -5,6 +5,7 @@ with CryptoLib.Hashes;
 with SSH_Lib.Internal;
 with SSH_Lib.Keys;
 with SSH_Lib.Platform.Environment;
+with SSH_Lib.Mux.Message_Rooms;
 
 package body SSH_Lib.Config_Apply is
    use Ada.Strings.Unbounded;
@@ -448,7 +449,8 @@ package body SSH_Lib.Config_Apply is
 
       function Control_Path_Reachable (Path_Text : String) return Boolean is
          Client        : SSH_Lib.Mux.Mux_Client;
-         Response      : SSH_Lib.Mux.Mux_Message;
+         Response_Room : SSH_Lib.Mux.Message_Rooms.Holder;
+         Response : SSH_Lib.Mux.Mux_Message renames Response_Room.Data.all;
          Status_Value  : Status;
          Peer_Version   : Interfaces.Unsigned_32 := 0;
       begin

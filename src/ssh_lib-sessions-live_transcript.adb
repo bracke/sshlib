@@ -13,6 +13,7 @@ with SSH_Lib.Protocol.Channels;
 with SSH_Lib.Protocol.Global_Requests;
 with SSH_Lib.Protocol.Transport_Messages;
 with SSH_Lib.Mux;
+with SSH_Lib.Mux.Message_Rooms;
 
 package body SSH_Lib.Sessions.Live_Transcript is
    use type Ada.Calendar.Time;
@@ -735,7 +736,8 @@ package body SSH_Lib.Sessions.Live_Transcript is
       Write_Timeout_MS : Natural := 0) return Status
    is
       Client       : SSH_Lib.Mux.Mux_Client;
-      Response     : SSH_Lib.Mux.Mux_Message;
+      Response_Room : SSH_Lib.Mux.Message_Rooms.Holder;
+      Response : SSH_Lib.Mux.Mux_Message renames Response_Room.Data.all;
       Peer_Version : Interfaces.Unsigned_32 := 0;
       Detached     : GNAT.Sockets.Socket_Type;
       Status_Value : Status;

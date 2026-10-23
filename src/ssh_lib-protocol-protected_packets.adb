@@ -4,6 +4,7 @@ with CryptoLib.Hashes;
 with CryptoLib.Macs;
 with CryptoLib.UMAC;
 with SSH_Lib.Protocol.Numbers;
+with SSH_Lib.Heap_Rooms;
 
 package body SSH_Lib.Protocol.Protected_Packets is
    use Interfaces;
@@ -467,12 +468,11 @@ package body SSH_Lib.Protocol.Protected_Packets is
       Payload : Stream_Element_Array;
       Result  : out Packet_Buffer) return Status
    is
-      Out_Data     :
-        Stream_Element_Array
-          (1
-           ..
-             Stream_Element_Offset
-               (SSH_Lib.Protocol.Buffers.Max_Packet_Length));
+      --  On the heap: a packet's whole room was a quarter of a megabyte
+      --  of this frame.
+      Out_Room     : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (SSH_Lib.Protocol.Buffers.Max_Packet_Length));
+      Out_Data     : Stream_Element_Array renames Out_Room.Data.all;
       --  In_Last is an out-parameter of the zlib call below (set before it is
       --  read); seed it with Payload'First rather than Payload'First - 1 so an
       --  array whose 'First is the index type's minimum does not underflow.
@@ -536,12 +536,11 @@ package body SSH_Lib.Protocol.Protected_Packets is
       Payload : Stream_Element_Array;
       Result  : out Packet_Buffer) return Status
    is
-      Out_Data     :
-        Stream_Element_Array
-          (1
-           ..
-             Stream_Element_Offset
-               (SSH_Lib.Protocol.Buffers.Max_Packet_Length));
+      --  On the heap: a packet's whole room was a quarter of a megabyte
+      --  of this frame.
+      Out_Room     : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (SSH_Lib.Protocol.Buffers.Max_Packet_Length));
+      Out_Data     : Stream_Element_Array renames Out_Room.Data.all;
       --  In_Last is an out-parameter of the zlib call below (set before it is
       --  read); seed it with Payload'First rather than Payload'First - 1 so an
       --  array whose 'First is the index type's minimum does not underflow.

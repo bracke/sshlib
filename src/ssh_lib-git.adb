@@ -1,5 +1,6 @@
 with Hostkit.Fs;
 with Hostkit.Process;
+with SSH_Lib.Heap_Rooms;
 with Ada.Directories;
 with Ada.Streams.Stream_IO;
 with Ada.Text_IO;
@@ -1767,8 +1768,9 @@ package body SSH_Lib.Git is
       return Status
    is
       Kind : Pack_Object_Kind := Pack_Blob;
-      Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Data : Stream_Element_Array renames Data_Room.Data.all;
       Last : Stream_Element_Offset;
       Found : Boolean := False;
       Status_Value : Status;
@@ -1893,11 +1895,13 @@ package body SSH_Lib.Git is
       return Status
    is
       Kind : Pack_Object_Kind := Pack_Blob;
-      Index_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Index_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Index_Data : Stream_Element_Array renames Index_Data_Room.Data.all;
       Index_Last : Stream_Element_Offset;
-      Worktree_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Worktree_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Worktree_Data : Stream_Element_Array renames Worktree_Data_Room.Data.all;
       Worktree_Last : Stream_Element_Offset;
       Found : Boolean := False;
       Status_Value : Status;
@@ -2394,8 +2398,9 @@ package body SSH_Lib.Git is
       Ignored         : out Boolean)
       return Status
    is
-      File_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Config_File_Length));
+      File_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Config_File_Length));
+      File_Data : Stream_Element_Array renames File_Data_Room.Data.all;
       File_Last : Stream_Element_Offset;
       Config_Value : Stream_Element_Array
         (1 .. Stream_Element_Offset (Maximum_Ref_Name_Length));
@@ -2694,8 +2699,9 @@ package body SSH_Lib.Git is
       Modified_Count   : out Natural)
       return Status
    is
-      Paths : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths : Stream_Element_Array renames Paths_Room.Data.all;
       Path_Lasts : Index_Path_Last_Array (1 .. 1024);
       Path_Count : Natural := 0;
       Cursor : Stream_Element_Offset := Paths'First;
@@ -2805,8 +2811,9 @@ package body SSH_Lib.Git is
       Object_Last : Stream_Element_Offset;
       File_Size : Natural := 0;
       Path_State : Worktree_Path_Status := Worktree_Path_Missing;
-      Paths : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths : Stream_Element_Array renames Paths_Room.Data.all;
       Path_Lasts : Index_Path_Last_Array (1 .. 1024);
       Path_Count : Natural := 0;
       Cursor : Stream_Element_Offset := Paths'First;
@@ -2990,8 +2997,9 @@ package body SSH_Lib.Git is
       Modified_Count   : out Natural)
       return Status
    is
-      Paths : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths : Stream_Element_Array renames Paths_Room.Data.all;
       Path_Lasts : Index_Path_Last_Array (1 .. 1024);
       Path_Count : Natural := 0;
       Cursor : Stream_Element_Offset := Paths'First;
@@ -3122,8 +3130,9 @@ package body SSH_Lib.Git is
       return Status
    is
       Status_Value : Status;
-      Paths        : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths : Stream_Element_Array renames Paths_Room.Data.all;
       Path_Lasts   : Index_Path_Last_Array (1 .. 1024);
       Path_Count   : Natural := 0;
 
@@ -3253,8 +3262,9 @@ package body SSH_Lib.Git is
       Model            : out Porcelain_Index_Worktree_Model)
       return Status
    is
-      Paths      : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths : Stream_Element_Array renames Paths_Room.Data.all;
       Path_Lasts : Index_Path_Last_Array (1 .. 1024);
       Head_Target : Stream_Element_Array
         (1 .. Stream_Element_Offset (Maximum_Ref_Name_Length));
@@ -3358,15 +3368,17 @@ package body SSH_Lib.Git is
       Indexed_ID_Last : Stream_Element_Offset;
       Indexed_Size : Natural := 0;
       Path_State : Worktree_Path_Status := Worktree_Path_Missing;
-      Paths : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths : Stream_Element_Array renames Paths_Room.Data.all;
       Path_Lasts : Index_Path_Last_Array (1 .. 1024);
       Path_Count : Natural := 0;
       Cursor : Stream_Element_Offset := Paths'First;
       Found_In_Index : Boolean := False;
       Ignored : Boolean := False;
-      File_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      File_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      File_Data : Stream_Element_Array renames File_Data_Room.Data.all;
       File_Last : Stream_Element_Offset;
       Candidate_ID : Stream_Element_Array
         (1 .. Stream_Element_Offset (Object_ID_SHA1_Raw_Length));
@@ -3579,15 +3591,17 @@ package body SSH_Lib.Git is
       Indexed_ID_Last : Stream_Element_Offset;
       Indexed_Size : Natural := 0;
       Path_State : Worktree_Path_Status := Worktree_Path_Missing;
-      Paths : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths : Stream_Element_Array renames Paths_Room.Data.all;
       Path_Lasts : Index_Path_Last_Array (1 .. 1024);
       Path_Count : Natural := 0;
       Cursor : Stream_Element_Offset := Paths'First;
       Found_In_Index : Boolean := False;
       Ignored : Boolean := False;
-      File_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      File_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      File_Data : Stream_Element_Array renames File_Data_Room.Data.all;
       File_Last : Stream_Element_Offset;
       Candidate_ID : Stream_Element_Array
         (1 .. Stream_Element_Offset (Object_ID_SHA1_Raw_Length));
@@ -3789,8 +3803,11 @@ package body SSH_Lib.Git is
       subtype Path_Slot is Positive range 1 .. 1024;
       type Delete_Mark_Array is array (Path_Slot range <>) of Boolean;
 
-      Paths : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Paths_Room : SSH_Lib.Heap_Rooms.Room
+
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+
+      Paths : Stream_Element_Array renames Paths_Room.Data.all;
       Path_Lasts : Index_Path_Last_Array (1 .. 1024);
       Path_Count : Natural := 0;
       Delete_Marks : Delete_Mark_Array (1 .. 1024) := [others => False];
@@ -3906,8 +3923,9 @@ package body SSH_Lib.Git is
       Last            : out Stream_Element_Offset)
       return Status
    is
-      File_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      File_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      File_Data : Stream_Element_Array renames File_Data_Room.Data.all;
       File_Last : Stream_Element_Offset;
       Raw_ID : Stream_Element_Array
         (1 .. Stream_Element_Offset (Object_ID_SHA1_Raw_Length));
@@ -3915,8 +3933,9 @@ package body SSH_Lib.Git is
       Entry_Data : Stream_Element_Array
         (1 .. Stream_Element_Offset (Maximum_Ref_Name_Length + 72));
       Entry_Last : Stream_Element_Offset;
-      New_Index_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      New_Index_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      New_Index_Data : Stream_Element_Array renames New_Index_Data_Room.Data.all;
       New_Index_Last : Stream_Element_Offset := New_Index_Data'First - 1;
       New_Entry_Count : Natural := 0;
       Version : Natural := 0;
@@ -4132,8 +4151,9 @@ package body SSH_Lib.Git is
       Removed         : out Boolean)
       return Status
    is
-      New_Index_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      New_Index_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      New_Index_Data : Stream_Element_Array renames New_Index_Data_Room.Data.all;
       New_Index_Last : Stream_Element_Offset := New_Index_Data'First - 1;
       New_Entry_Count : Natural := 0;
       Version : Natural := 0;
@@ -4304,18 +4324,21 @@ package body SSH_Lib.Git is
       Pack_Checksum_Hex : Stream_Element_Array
         (1 .. Stream_Element_Offset (Object_ID_SHA1_Hex_Length));
       Pack_Checksum_Last : Stream_Element_Offset;
-      Commit_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Commit_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Commit_Data : Stream_Element_Array renames Commit_Data_Room.Data.all;
       Commit_Last : Stream_Element_Offset;
       Root_Tree_ID_Hex : Stream_Element_Array
         (1 .. Stream_Element_Offset (Object_ID_SHA1_Hex_Length));
       Root_Tree_ID_Last : Stream_Element_Offset;
-      Tree_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Tree_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Tree_Data : Stream_Element_Array renames Tree_Data_Room.Data.all;
       Tree_Last : Stream_Element_Offset;
       Tree_Entry_Count : Natural := 0;
-      New_Index_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      New_Index_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      New_Index_Data : Stream_Element_Array renames New_Index_Data_Room.Data.all;
       New_Index_Last : Stream_Element_Offset := New_Index_Data'First - 1;
       New_Entry_Count : Natural := 0;
       Status_Value : Status;
@@ -4341,8 +4364,9 @@ package body SSH_Lib.Git is
          Object_ID_Last : Stream_Element_Offset;
          Next_Offset : Natural := 0;
          Object_Kind : Pack_Object_Kind := Pack_Blob;
-         Object_Data : Stream_Element_Array
-           (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+         Object_Data_Room : SSH_Lib.Heap_Rooms.Room
+           (Stream_Element_Offset (Maximum_Worktree_File_Length));
+         Object_Data : Stream_Element_Array renames Object_Data_Room.Data.all;
          Object_Last : Stream_Element_Offset;
          Entry_Data : Stream_Element_Array
            (1 .. Stream_Element_Offset (Maximum_Ref_Name_Length + 72));
@@ -4600,8 +4624,9 @@ package body SSH_Lib.Git is
         (1 .. Stream_Element_Offset (Object_ID_SHA1_Hex_Length));
       Current_Last : Stream_Element_Offset := Current_ID'First - 1;
       Commit_Kind : Pack_Object_Kind := Pack_Blob;
-      Commit_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Commit_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Commit_Data : Stream_Element_Array renames Commit_Data_Room.Data.all;
       Commit_Last : Stream_Element_Offset;
       Parent_Count : Natural := 0;
       Parent_ID : Stream_Element_Array
@@ -4855,14 +4880,16 @@ package body SSH_Lib.Git is
       Entry_Data  : Stream_Element_Array
         (1 .. Stream_Element_Offset (Maximum_Ref_Name_Length + 32));
       Entry_Last  : Stream_Element_Offset;
-      Tree_Data   : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Tree_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Tree_Data : Stream_Element_Array renames Tree_Data_Room.Data.all;
       Tree_Last   : Stream_Element_Offset := Tree_Data'First - 1;
       Tree_ID_Hex : Stream_Element_Array
         (1 .. Stream_Element_Offset (Object_ID_SHA1_Hex_Length));
       Tree_ID_Last : Stream_Element_Offset;
-      Commit_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Commit_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Commit_Data : Stream_Element_Array renames Commit_Data_Room.Data.all;
       Commit_Last : Stream_Element_Offset;
       Parent_ID_Hex : Stream_Element_Array
         (1 .. Stream_Element_Offset (Object_ID_SHA1_Hex_Length)) :=
@@ -7451,12 +7478,14 @@ package body SSH_Lib.Git is
       Pack_Checksums : Stream_Element_Array
         (1 .. Stream_Element_Offset (Object_ID_SHA1_Hex_Length * 64));
       Pack_Checksums_Last : Stream_Element_Offset;
-      Index_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Index_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Index_Data : Stream_Element_Array renames Index_Data_Room.Data.all;
       Index_Last : Stream_Element_Offset;
       Object_IDs : Object_ID_Hex_Array (1 .. 4096);
-      Ref_Names : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Ref_Name_Length * 256));
+      Ref_Names_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Ref_Name_Length * 256));
+      Ref_Names : Stream_Element_Array renames Ref_Names_Room.Data.all;
       Ref_Name_Lasts : Ref_Name_Last_Array (1 .. 256);
       Ref_IDs : Object_ID_Hex_Array (1 .. 256);
       Head_Target : Stream_Element_Array
@@ -8283,8 +8312,9 @@ package body SSH_Lib.Git is
          Result      : out Status)
       is
          Pack_Checksum_Last : Stream_Element_Offset;
-         Tree_Data : Stream_Element_Array
-           (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+         Tree_Data_Room : SSH_Lib.Heap_Rooms.Room
+           (Stream_Element_Offset (Maximum_Worktree_File_Length));
+         Tree_Data : Stream_Element_Array renames Tree_Data_Room.Data.all;
          Tree_Last : Stream_Element_Offset;
          Tree_Kind : Pack_Object_Kind := Pack_Blob;
          Entry_Offset : Natural := 0;
@@ -9372,8 +9402,9 @@ package body SSH_Lib.Git is
       Count           : out Natural)
       return Status
    is
-      Commit_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Commit_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Commit_Data : Stream_Element_Array renames Commit_Data_Room.Data.all;
       Commit_Last : Stream_Element_Offset;
       Scratch : Tree_Traversal_Scratch_Access := null;
       Pack_Checksum_Last : Stream_Element_Offset;
@@ -11136,8 +11167,9 @@ package body SSH_Lib.Git is
       Current_ID_Hex : Stream_Element_Array
         (1 .. Stream_Element_Offset (Object_ID_SHA1_Hex_Length));
       Current_ID_Last : Stream_Element_Offset;
-      Object_Data : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Object_Data_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Worktree_File_Length));
+      Object_Data : Stream_Element_Array renames Object_Data_Room.Data.all;
       Object_Last : Stream_Element_Offset;
       Scratch : Tree_Traversal_Scratch_Access := null;
       Pack_Checksum_Last : Stream_Element_Offset;
@@ -16733,12 +16765,14 @@ package body SSH_Lib.Git is
       Append_New      : Boolean;
       Removed         : out Boolean) return Status
    is
-      Existing : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Config_File_Length));
+      Existing_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Config_File_Length));
+      Existing : Stream_Element_Array renames Existing_Room.Data.all;
       Existing_Last : Stream_Element_Offset;
       Existing_Found : Boolean := False;
-      Output : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Config_File_Length));
+      Output_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Config_File_Length));
+      Output : Stream_Element_Array renames Output_Room.Data.all;
       Output_Last : Stream_Element_Offset := Output'First - 1;
       Cursor : Stream_Element_Offset;
       Status_Value : Status;
@@ -16911,8 +16945,9 @@ package body SSH_Lib.Git is
       Found           : out Boolean)
       return Status
    is
-      Existing : Stream_Element_Array
-        (1 .. Stream_Element_Offset (Maximum_Config_File_Length));
+      Existing_Room : SSH_Lib.Heap_Rooms.Room
+        (Stream_Element_Offset (Maximum_Config_File_Length));
+      Existing : Stream_Element_Array renames Existing_Room.Data.all;
       Existing_Last : Stream_Element_Offset;
       Existing_Found : Boolean := False;
       Cursor : Stream_Element_Offset;
