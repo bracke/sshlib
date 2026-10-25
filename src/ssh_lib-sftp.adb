@@ -1229,7 +1229,7 @@ package body SSH_Lib.SFTP is
          File_Item : Ada.Streams.Stream_IO.File_Type;
       begin
          Ada.Streams.Stream_IO.Open
-           (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path);
+           (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path, Form => "shared=no");
          Size_Value := Ada.Streams.Stream_IO.Size (File_Item);
          Ada.Streams.Stream_IO.Close (File_Item);
       exception
@@ -6126,7 +6126,7 @@ package body SSH_Lib.SFTP is
          end if;
 
          Ada.Streams.Stream_IO.Create
-           (File_Item, Ada.Streams.Stream_IO.Out_File, Temp_Path);
+           (File_Item, Ada.Streams.Stream_IO.Out_File, Temp_Path, Form => "shared=no");
          Local_Opened := True;
          declare
             Bytes : constant Stream_Element_Array :=
@@ -6158,7 +6158,7 @@ package body SSH_Lib.SFTP is
       Remote_Opened := True;
 
       Ada.Streams.Stream_IO.Create
-        (File_Item, Ada.Streams.Stream_IO.Out_File, Temp_Path);
+        (File_Item, Ada.Streams.Stream_IO.Out_File, Temp_Path, Form => "shared=no");
       Local_Opened := True;
 
       loop
@@ -6326,10 +6326,10 @@ package body SSH_Lib.SFTP is
 
       if Ada.Directories.Exists (Local_Path) then
          Ada.Streams.Stream_IO.Open
-           (File_Item, Ada.Streams.Stream_IO.Append_File, Local_Path);
+           (File_Item, Ada.Streams.Stream_IO.Append_File, Local_Path, Form => "shared=no");
       else
          Ada.Streams.Stream_IO.Create
-           (File_Item, Ada.Streams.Stream_IO.Out_File, Local_Path);
+           (File_Item, Ada.Streams.Stream_IO.Out_File, Local_Path, Form => "shared=no");
       end if;
       Local_Opened := True;
       declare
@@ -8789,7 +8789,7 @@ package body SSH_Lib.SFTP is
       Remote_Opened := True;
 
       Ada.Streams.Stream_IO.Open
-        (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path);
+        (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path, Form => "shared=no");
       Status_Value :=
         Pipelined_Write_File
           (Channel,
@@ -11919,7 +11919,7 @@ package body SSH_Lib.SFTP is
       Remote_Opened := True;
 
       Ada.Streams.Stream_IO.Open
-        (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path);
+        (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path, Form => "shared=no");
       Status_Value :=
         Pipelined_Write_File_From_Offset
           (Channel,
@@ -12247,7 +12247,7 @@ package body SSH_Lib.SFTP is
       Remote_Opened := True;
 
       Ada.Streams.Stream_IO.Open
-        (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path);
+        (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path, Form => "shared=no");
       Status_Value :=
         Pipelined_Write_File
           (Item.Channel,
@@ -12523,7 +12523,7 @@ package body SSH_Lib.SFTP is
       end if;
 
       Ada.Streams.Stream_IO.Create
-        (File_Item, Ada.Streams.Stream_IO.Out_File, Temp_Path);
+        (File_Item, Ada.Streams.Stream_IO.Out_File, Temp_Path, Form => "shared=no");
       Local_Opened := True;
       declare
          Bytes : constant Stream_Element_Array :=
@@ -12764,10 +12764,10 @@ package body SSH_Lib.SFTP is
 
       if Ada.Directories.Exists (Local_Path) then
          Ada.Streams.Stream_IO.Open
-           (File_Item, Ada.Streams.Stream_IO.Append_File, Local_Path);
+           (File_Item, Ada.Streams.Stream_IO.Append_File, Local_Path, Form => "shared=no");
       else
          Ada.Streams.Stream_IO.Create
-           (File_Item, Ada.Streams.Stream_IO.Out_File, Local_Path);
+           (File_Item, Ada.Streams.Stream_IO.Out_File, Local_Path, Form => "shared=no");
       end if;
       Local_Opened := True;
       declare
@@ -12875,7 +12875,7 @@ package body SSH_Lib.SFTP is
       end if;
       Remote_Opened := True;
       Ada.Streams.Stream_IO.Open
-        (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path);
+        (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path, Form => "shared=no");
       Status_Value :=
         Pipelined_Write_File_From_Offset
           (Item.Channel,

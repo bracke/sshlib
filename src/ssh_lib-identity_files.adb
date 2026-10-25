@@ -658,7 +658,7 @@ package body SSH_Lib.Identity_Files is
          return Authentication_Failed;
       end if;
 
-      Ada.Text_IO.Open (File_Item, Ada.Text_IO.In_File, Path);
+      Ada.Text_IO.Open (File_Item, Ada.Text_IO.In_File, Path, Form => "shared=no");
       if Ada.Text_IO.End_Of_File (File_Item) then
          Ada.Text_IO.Close (File_Item);
          return Authentication_Failed;
@@ -4393,7 +4393,7 @@ package body SSH_Lib.Identity_Files is
       end if;
 
       Ada.Streams.Stream_IO.Open
-        (File_Item, Ada.Streams.Stream_IO.In_File, Path);
+        (File_Item, Ada.Streams.Stream_IO.In_File, Path, Form => "shared=no");
       declare
          Size_Value : constant Ada.Streams.Stream_IO.Count :=
            Ada.Streams.Stream_IO.Size (File_Item);

@@ -40,7 +40,7 @@ package body SSH_Lib.SCP is
          File_Item : Ada.Streams.Stream_IO.File_Type;
       begin
          Ada.Streams.Stream_IO.Open
-           (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path);
+           (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path, Form => "shared=no");
          Size_Value := Ada.Streams.Stream_IO.Size (File_Item);
          Ada.Streams.Stream_IO.Close (File_Item);
       exception
@@ -323,7 +323,7 @@ package body SSH_Lib.SCP is
       end if;
 
       Ada.Streams.Stream_IO.Open
-        (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path);
+        (File_Item, Ada.Streams.Stream_IO.In_File, Local_Path, Form => "shared=no");
 
       Status_Value := Read_Ack (Channel);
       if Status_Value /= CryptoLib.Errors.Ok then

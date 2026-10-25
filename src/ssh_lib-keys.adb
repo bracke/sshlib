@@ -156,7 +156,7 @@ package body SSH_Lib.Keys is
          return Authentication_Failed;
       end if;
 
-      Ada.Text_IO.Open (File_Item, Ada.Text_IO.In_File, Path);
+      Ada.Text_IO.Open (File_Item, Ada.Text_IO.In_File, Path, Form => "shared=no");
       while not Ada.Text_IO.End_Of_File (File_Item) loop
          declare
             Segment : constant String := Ada.Text_IO.Get_Line (File_Item);

@@ -385,7 +385,7 @@ package body SSH_Lib.File_Transfer is
       Size : Ada.Streams.Stream_IO.Count;
    begin
       SSH_Lib.Protocol.Buffers.Clear (Data);
-      Ada.Streams.Stream_IO.Open (File, Ada.Streams.Stream_IO.In_File, Path);
+      Ada.Streams.Stream_IO.Open (File, Ada.Streams.Stream_IO.In_File, Path, Form => "shared=no");
       Size := Ada.Streams.Stream_IO.Size (File);
       declare
          Raw  : Ada.Streams.Stream_Element_Array

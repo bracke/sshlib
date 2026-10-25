@@ -12554,6 +12554,21 @@ package body SSH_Lib.Tests.Legacy is
          CryptoLib.Errors.Ok,
          "phase14 explicit valid config loads");
 
+      --  Held open elsewhere in the program -- another task reading it --
+      --  it loads all the same: the run time refuses a second open of a
+      --  file under its default form.
+      declare
+         Held : Ada.Text_IO.File_Type;
+      begin
+         Ada.Text_IO.Open (Held, Ada.Text_IO.In_File, Main_Path);
+         Result_Status := SSH_Lib.Config.Load (Main_Path, Config_Item);
+         Ada.Text_IO.Close (Held);
+         Check_Status
+           (Result_Status,
+            CryptoLib.Errors.Ok,
+            "phase14 config loads while another holds it open");
+      end;
+
       SSH_Lib.Platform.Environment.Set_Value_For_Test ("HOME", Home_Path);
       Result_Status := SSH_Lib.Config.Resolve (Config_Item, "gh", Options);
       Check_Status

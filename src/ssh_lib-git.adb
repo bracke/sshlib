@@ -679,7 +679,7 @@ package body SSH_Lib.Git is
             Data (Stream_Element_Offset (Index - Text'First + 1)) :=
               Stream_Element (Character'Pos (Text (Index)));
          end loop;
-         Stream_IO.Create (File, Stream_IO.Out_File, Path);
+         Stream_IO.Create (File, Stream_IO.Out_File, Path, Form => "shared=no");
          Stream_IO.Write (File, Data);
          Stream_IO.Close (File);
       exception
@@ -765,7 +765,7 @@ package body SSH_Lib.Git is
 
       Ada.Directories.Create_Path
         (Ada.Directories.Containing_Directory (Path));
-      Stream_IO.Create (File, Stream_IO.Out_File, Path);
+      Stream_IO.Create (File, Stream_IO.Out_File, Path, Form => "shared=no");
       Stream_IO.Write (File, Index_Data);
       Stream_IO.Close (File);
       return Ok;
@@ -800,7 +800,7 @@ package body SSH_Lib.Git is
          return Invalid_Command;
       end if;
 
-      Stream_IO.Open (File, Stream_IO.In_File, Path);
+      Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
       File_Size := Stream_IO.Size (File);
       if File_Size < Stream_IO.Count (12 + Object_ID_SHA1_Raw_Length)
         or else File_Size > Maximum_Index_File_Length
@@ -1048,7 +1048,7 @@ package body SSH_Lib.Git is
 
          Ada.Directories.Create_Path
            (Ada.Directories.Containing_Directory (Path));
-         Stream_IO.Create (File, Stream_IO.Out_File, Path);
+         Stream_IO.Create (File, Stream_IO.Out_File, Path, Form => "shared=no");
          Stream_IO.Write (File, Index_Data);
          Stream_IO.Close (File);
       end;
@@ -1244,7 +1244,7 @@ package body SSH_Lib.Git is
          return Invalid_Command;
       end if;
 
-      Stream_IO.Open (File, Stream_IO.In_File, Path_Value);
+      Stream_IO.Open (File, Stream_IO.In_File, Path_Value, Form => "shared=no");
       File_Length := Stream_IO.Size (File);
       if File_Length < Stream_IO.Count (12 + Object_ID_SHA1_Raw_Length)
         or else File_Length > Maximum_Index_File_Length
@@ -1633,7 +1633,7 @@ package body SSH_Lib.Git is
 
       Ada.Directories.Create_Path
         (Ada.Directories.Containing_Directory (Full_Path));
-      Stream_IO.Create (File, Stream_IO.Out_File, Full_Path);
+      Stream_IO.Create (File, Stream_IO.Out_File, Full_Path, Form => "shared=no");
       if Data'Length > 0 then
          Stream_IO.Write (File, Data);
       end if;
@@ -1670,7 +1670,7 @@ package body SSH_Lib.Git is
          return Invalid_Command;
       end if;
 
-      Stream_IO.Open (File, Stream_IO.In_File, Full_Path);
+      Stream_IO.Open (File, Stream_IO.In_File, Full_Path, Form => "shared=no");
       File_Size := Stream_IO.Size (File);
       if File_Size > Stream_IO.Count (Data'Length) then
          Stream_IO.Close (File);
@@ -2581,7 +2581,7 @@ package body SSH_Lib.Git is
             return Invalid_Command;
          end if;
 
-         Stream_IO.Open (File, Stream_IO.In_File, Full_Path);
+         Stream_IO.Open (File, Stream_IO.In_File, Full_Path, Form => "shared=no");
          Size := Stream_IO.Size (File);
          if Size > Stream_IO.Count (Data'Length) then
             Stream_IO.Close (File);
@@ -5371,7 +5371,7 @@ package body SSH_Lib.Git is
          end if;
 
          Ada.Directories.Create_Path (Dir_Path);
-         Stream_IO.Create (File, Stream_IO.Out_File, File_Path);
+         Stream_IO.Create (File, Stream_IO.Out_File, File_Path, Form => "shared=no");
          Stream_IO.Write (File, Compressed (Compressed'First .. Comp_Last));
          Stream_IO.Close (File);
       exception
@@ -5482,7 +5482,7 @@ package body SSH_Lib.Git is
       end if;
 
       Stream_IO.Open
-        (File, Stream_IO.In_File, Loose_Object_Path (Repository_Root, Object_ID_Hex));
+        (File, Stream_IO.In_File, Loose_Object_Path (Repository_Root, Object_ID_Hex), Form => "shared=no");
       File_Size := Stream_IO.Size (File);
       if File_Size = 0
         or else File_Size > Stream_IO.Count (Natural'Last)
@@ -5730,7 +5730,7 @@ package body SSH_Lib.Git is
       Stream_IO.Open
         (File,
          Stream_IO.In_File,
-         Pack_File_Path (Repository_Root, Pack_Checksum_Hex));
+         Pack_File_Path (Repository_Root, Pack_Checksum_Hex), Form => "shared=no");
       File_Size := Stream_IO.Size (File);
       if File_Size = 0
         or else File_Size > Stream_IO.Count (Pack_Data'Length)
@@ -5851,7 +5851,7 @@ package body SSH_Lib.Git is
       Stream_IO.Create
         (File,
          Stream_IO.Out_File,
-         Pack_Index_Path (Repository_Root, Pack_Checksum_Hex));
+         Pack_Index_Path (Repository_Root, Pack_Checksum_Hex), Form => "shared=no");
       Stream_IO.Write (File, Index_Data);
       Stream_IO.Close (File);
       return Ok;
@@ -5897,7 +5897,7 @@ package body SSH_Lib.Git is
       Stream_IO.Open
         (File,
          Stream_IO.In_File,
-         Pack_Index_Path (Repository_Root, Pack_Checksum_Hex));
+         Pack_Index_Path (Repository_Root, Pack_Checksum_Hex), Form => "shared=no");
       File_Size := Stream_IO.Size (File);
       if File_Size = 0
         or else File_Size > Stream_IO.Count (Index_Data'Length)
@@ -11592,7 +11592,7 @@ package body SSH_Lib.Git is
       if Ref_Name /= "HEAD" then
          Ada.Directories.Create_Path (Ada.Directories.Containing_Directory (Path));
       end if;
-      Stream_IO.Create (File, Stream_IO.Out_File, Path);
+      Stream_IO.Create (File, Stream_IO.Out_File, Path, Form => "shared=no");
       Stream_IO.Write (File, Data);
       Stream_IO.Close (File);
       return Ok;
@@ -11636,7 +11636,7 @@ package body SSH_Lib.Git is
          return Read_Failed;
       end if;
 
-      Stream_IO.Open (File, Stream_IO.In_File, Path);
+      Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
       Stream_IO.Read (File, Data, File_Last);
       Stream_IO.Close (File);
       if File_Last /= Data'Last
@@ -11746,7 +11746,7 @@ package body SSH_Lib.Git is
       if Ref_Name /= "HEAD" then
          Ada.Directories.Create_Path (Ada.Directories.Containing_Directory (Path));
       end if;
-      Stream_IO.Create (File, Stream_IO.Out_File, Path);
+      Stream_IO.Create (File, Stream_IO.Out_File, Path, Form => "shared=no");
       Stream_IO.Write (File, Data);
       Stream_IO.Close (File);
       return Ok;
@@ -11782,7 +11782,7 @@ package body SSH_Lib.Git is
          return Invalid_Command;
       end if;
 
-      Stream_IO.Open (File, Stream_IO.In_File, Path);
+      Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
       File_Size := Stream_IO.Size (File);
       if File_Size <= Stream_IO.Count (Prefix'Length + 1)
         or else File_Size >
@@ -11996,7 +11996,7 @@ package body SSH_Lib.Git is
       end if;
 
       if Ada.Directories.Exists (Path) then
-         Stream_IO.Open (File, Stream_IO.In_File, Path);
+         Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
          if Stream_IO.Size (File) > Maximum_Packed_Refs_File_Length then
             Stream_IO.Close (File);
             return Unsupported_Feature;
@@ -12086,7 +12086,7 @@ package body SSH_Lib.Git is
             Data (Stream_Element_Offset (Index - Text'First + 1)) :=
               Stream_Element (Character'Pos (Text (Index)));
          end loop;
-         Stream_IO.Create (File, Stream_IO.Out_File, Path);
+         Stream_IO.Create (File, Stream_IO.Out_File, Path, Form => "shared=no");
          Stream_IO.Write (File, Data);
          Stream_IO.Close (File);
       end;
@@ -12126,7 +12126,7 @@ package body SSH_Lib.Git is
          return Read_Failed;
       end if;
 
-      Stream_IO.Open (File, Stream_IO.In_File, Path);
+      Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
       if Stream_IO.Size (File) > Maximum_Packed_Refs_File_Length then
          Stream_IO.Close (File);
          return Unsupported_Feature;
@@ -12330,7 +12330,7 @@ package body SSH_Lib.Git is
          return Read_Failed;
       end if;
 
-      Stream_IO.Open (File, Stream_IO.In_File, Path);
+      Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
       if Stream_IO.Size (File) > Maximum_Packed_Refs_File_Length then
          Stream_IO.Close (File);
          return Unsupported_Feature;
@@ -12409,7 +12409,7 @@ package body SSH_Lib.Git is
       declare
          Text : constant String := To_String (Output);
       begin
-         Stream_IO.Create (File, Stream_IO.Out_File, Path);
+         Stream_IO.Create (File, Stream_IO.Out_File, Path, Form => "shared=no");
          if Text'Length > 0 then
             declare
                Data : Stream_Element_Array
@@ -12652,7 +12652,7 @@ package body SSH_Lib.Git is
             return;
          end if;
 
-         Stream_IO.Open (File, Stream_IO.In_File, Path);
+         Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
          if Stream_IO.Size (File) > Maximum_Packed_Refs_File_Length then
             Stream_IO.Close (File);
             Status_Value := Unsupported_Feature;
@@ -13237,7 +13237,7 @@ package body SSH_Lib.Git is
             return Read_Failed;
          end if;
 
-         Stream_IO.Open (File, Stream_IO.In_File, Path);
+         Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
          if Stream_IO.Size (File) >
              Stream_IO.Count (Object_ID_SHA1_Hex_Length + 1)
            or else Stream_IO.Size (File) <
@@ -14052,9 +14052,9 @@ package body SSH_Lib.Git is
 
             Ada.Directories.Create_Path (Ada.Directories.Containing_Directory (Path));
             if Ada.Directories.Exists (Path) then
-               Stream_IO.Open (File, Stream_IO.Append_File, Path);
+               Stream_IO.Open (File, Stream_IO.Append_File, Path, Form => "shared=no");
             else
-               Stream_IO.Create (File, Stream_IO.Out_File, Path);
+               Stream_IO.Create (File, Stream_IO.Out_File, Path, Form => "shared=no");
             end if;
             Stream_IO.Write (File, Line);
             Stream_IO.Close (File);
@@ -14092,7 +14092,7 @@ package body SSH_Lib.Git is
          return Invalid_Command;
       end if;
 
-      Stream_IO.Open (File, Stream_IO.In_File, Path);
+      Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
       File_Size := Stream_IO.Size (File);
       if File_Size = 0 or else File_Size > Maximum_Reflog_File_Length then
          Stream_IO.Close (File);
@@ -14235,7 +14235,7 @@ package body SSH_Lib.Git is
          return Invalid_Command;
       end if;
 
-      Stream_IO.Open (File, Stream_IO.In_File, Path);
+      Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
       File_Size := Stream_IO.Size (File);
       if File_Size = 0 or else File_Size > Maximum_Config_File_Length then
          Stream_IO.Close (File);
@@ -14448,7 +14448,7 @@ package body SSH_Lib.Git is
          return Invalid_Command;
       end if;
 
-      Stream_IO.Open (File, Stream_IO.In_File, Path);
+      Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
       File_Size := Stream_IO.Size (File);
       if File_Size = 0 or else File_Size > Maximum_Config_File_Length then
          Stream_IO.Close (File);
@@ -14698,7 +14698,7 @@ package body SSH_Lib.Git is
       end if;
 
       if Ada.Directories.Exists (Path) then
-         Stream_IO.Open (File, Stream_IO.In_File, Path);
+         Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
          File_Size := Stream_IO.Size (File);
          if File_Size > Maximum_Config_File_Length then
             Stream_IO.Close (File);
@@ -14871,7 +14871,7 @@ package body SSH_Lib.Git is
 
             Ada.Directories.Create_Path
               (Ada.Directories.Containing_Directory (Path));
-            Stream_IO.Create (File, Stream_IO.Out_File, Path);
+            Stream_IO.Create (File, Stream_IO.Out_File, Path, Form => "shared=no");
             if Cursor > Updated'First then
                Stream_IO.Write (File, Updated (Updated'First .. Cursor - 1));
             end if;
@@ -15008,7 +15008,7 @@ package body SSH_Lib.Git is
       end if;
 
       if Ada.Directories.Exists (Path) then
-         Stream_IO.Open (File, Stream_IO.In_File, Path);
+         Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
          File_Size := Stream_IO.Size (File);
          if File_Size > Maximum_Config_File_Length then
             Stream_IO.Close (File);
@@ -15153,7 +15153,7 @@ package body SSH_Lib.Git is
 
             Ada.Directories.Create_Path
               (Ada.Directories.Containing_Directory (Path));
-            Stream_IO.Create (File, Stream_IO.Out_File, Path);
+            Stream_IO.Create (File, Stream_IO.Out_File, Path, Form => "shared=no");
             if Cursor > Updated'First then
                Stream_IO.Write (File, Updated (Updated'First .. Cursor - 1));
             end if;
@@ -15258,7 +15258,7 @@ package body SSH_Lib.Git is
          return Invalid_Command;
       end if;
 
-      Stream_IO.Open (File, Stream_IO.In_File, Path);
+      Stream_IO.Open (File, Stream_IO.In_File, Path, Form => "shared=no");
       File_Size := Stream_IO.Size (File);
       if File_Size = 0 or else File_Size > Maximum_Config_File_Length then
          Stream_IO.Close (File);
@@ -15387,7 +15387,7 @@ package body SSH_Lib.Git is
             end loop;
 
             if Removed then
-               Stream_IO.Create (File, Stream_IO.Out_File, Path);
+               Stream_IO.Create (File, Stream_IO.Out_File, Path, Form => "shared=no");
                if Cursor > Updated'First then
                   Stream_IO.Write (File, Updated (Updated'First .. Cursor - 1));
                end if;
@@ -16733,7 +16733,7 @@ package body SSH_Lib.Git is
          return Read_Failed;
       end if;
 
-      Stream_IO.Open (File, Stream_IO.In_File, Path_Name);
+      Stream_IO.Open (File, Stream_IO.In_File, Path_Name, Form => "shared=no");
       Stream_IO.Read (File, Data, Last);
       Stream_IO.Close (File);
       Exists := True;
@@ -16863,7 +16863,7 @@ package body SSH_Lib.Git is
 
       Ada.Directories.Create_Path
         (Ada.Directories.Containing_Directory (Store_Path));
-      Stream_IO.Create (File, Stream_IO.Out_File, Store_Path);
+      Stream_IO.Create (File, Stream_IO.Out_File, Store_Path, Form => "shared=no");
       if Output_Last >= Output'First then
          Stream_IO.Write (File, Output (Output'First .. Output_Last));
       end if;
@@ -17883,7 +17883,7 @@ package body SSH_Lib.Git is
          return Write_Failed;
       end if;
 
-      Stream_IO.Create (File, Stream_IO.Out_File, Lock_Path);
+      Stream_IO.Create (File, Stream_IO.Out_File, Lock_Path, Form => "shared=no");
       Lock_Created := True;
 
       if Check_Expected then
@@ -17978,7 +17978,7 @@ package body SSH_Lib.Git is
          return Write_Failed;
       end if;
 
-      Stream_IO.Create (File, Stream_IO.Out_File, Lock_Path);
+      Stream_IO.Create (File, Stream_IO.Out_File, Lock_Path, Form => "shared=no");
       Stream_IO.Close (File);
       Lock_Created := True;
 

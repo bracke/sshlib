@@ -637,7 +637,7 @@ package body SSH_Lib.Sessions.Live_Transport is
       end if;
 
       Ada.Streams.Stream_IO.Open
-        (File_Item, Ada.Streams.Stream_IO.In_File, Path_Text);
+        (File_Item, Ada.Streams.Stream_IO.In_File, Path_Text, Form => "shared=no");
       Ada.Streams.Stream_IO.Read (File_Item, Header, Last);
       Ada.Streams.Stream_IO.Close (File_Item);
       return Last = Header'Last and then Header = Magic;

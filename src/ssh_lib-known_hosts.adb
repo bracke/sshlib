@@ -1394,7 +1394,7 @@ package body SSH_Lib.Known_Hosts is
          return CryptoLib.Errors.Host_Key_Unknown;
       end if;
 
-      Ada.Text_IO.Open (Probe_File, Ada.Text_IO.In_File, Resolved_Path);
+      Ada.Text_IO.Open (Probe_File, Ada.Text_IO.In_File, Resolved_Path, Form => "shared=no");
       Ada.Text_IO.Close (Probe_File);
       Item.Path_Text := To_Unbounded_String (Resolved_Path);
       Item.Loaded := True;
@@ -1463,7 +1463,7 @@ package body SSH_Lib.Known_Hosts is
          return Unknown;
       end if;
 
-      Ada.Text_IO.Open (Input_File, Ada.Text_IO.In_File, Resolved_Path);
+      Ada.Text_IO.Open (Input_File, Ada.Text_IO.In_File, Resolved_Path, Form => "shared=no");
       while not Ada.Text_IO.End_Of_File (Input_File) loop
          declare
             Line_Buffer   : String (1 .. Max_Known_Hosts_Line_Length);
@@ -1915,10 +1915,10 @@ package body SSH_Lib.Known_Hosts is
                   null;
             end case;
             Ada.Text_IO.Open
-              (Output_File, Ada.Text_IO.Append_File, Known_Hosts_File);
+              (Output_File, Ada.Text_IO.Append_File, Known_Hosts_File, Form => "shared=no");
          else
             Ada.Text_IO.Create
-              (Output_File, Ada.Text_IO.Out_File, Known_Hosts_File);
+              (Output_File, Ada.Text_IO.Out_File, Known_Hosts_File, Form => "shared=no");
          end if;
 
          Ada.Text_IO.Put_Line (Output_File, Line_Text);

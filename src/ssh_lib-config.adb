@@ -2009,7 +2009,7 @@ package body SSH_Lib.Config is
          end if;
       end if;
 
-      Ada.Text_IO.Open (Input_File, Ada.Text_IO.In_File, Path);
+      Ada.Text_IO.Open (Input_File, Ada.Text_IO.In_File, Path, Form => "shared=no");
       while not Ada.Text_IO.End_Of_File (Input_File) loop
          Ada.Text_IO.Get_Line (Input_File, Line_Buffer, Last);
          if Last = Line_Buffer'Last
